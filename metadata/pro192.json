@@ -1,0 +1,866 @@
+{
+  "generatedAt": "2026-11-24T13:33:30.086Z",
+  "course": {
+    "code": "PRO192",
+    "name": "Object-Oriented Programming with Java",
+    "totalSlots": 30,
+    "totalStages": 8,
+    "totalExercises": 150,
+    "totalPeChallenges": 4,
+    "totalImages": 187,
+    "totalSlides": 14,
+    "totalResources": 15,
+    "lang": "vi"
+  },
+  "stages": [
+    {
+      "id": 1,
+      "slots": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "title": "Giai đoạn 1: Khởi động, Môi trường & Nền tảng Cú pháp Java",
+      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "slides": [
+        "Get Start.pptx",
+        "Download & Install JDK & NetBeans 8.pptx",
+        "Learning the Java Language.pptx"
+      ],
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md",
+        "java/basis/java-keyword-summary.md",
+        "java/jvm/jvm-intro.md"
+      ]
+    },
+    {
+      "id": 2,
+      "slots": [
+        6,
+        7,
+        8,
+        9
+      ],
+      "title": "Giai đoạn 2: Quản lý Bộ nhớ, Wrapper/Math & Chuỗi String/Scanner",
+      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "slides": [
+        "Memory Management in Java.pptx",
+        "Numbers and Strings.pptx",
+        "Support Classes.pptx"
+      ],
+      "studyBridge": [
+        "java/jvm/memory-area.md",
+        "java/jvm/jvm-garbage-collection.md",
+        "java/basis/java-basic-questions-01.md",
+        "java/basis/why-there-only-value-passing-in-java.md"
+      ]
+    },
+    {
+      "id": 3,
+      "slots": [
+        10,
+        11,
+        12,
+        13
+      ],
+      "title": "Giai đoạn 3: 4 Trụ cột OOP, Thiết kế Class & Encapsulation",
+      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "slides": [
+        "Introduction.pptx",
+        "Encapsulation.pptx"
+      ],
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md",
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "id": 4,
+      "slots": [
+        14,
+        15,
+        16,
+        17
+      ],
+      "title": "Giai đoạn 4: Kế thừa (Inheritance), Array of Objects & Casting",
+      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "slides": [
+        "Inheritance.pptx",
+        "ArrayOfObjects.pptx"
+      ],
+      "studyBridge": [
+        "java/basis/java-basic-questions-02.md",
+        "java/basis/java-basic-questions-03.md"
+      ]
+    },
+    {
+      "id": 5,
+      "slots": [
+        18,
+        19,
+        20,
+        21
+      ],
+      "title": "Giai đoạn 5: Đa hình, Abstract Class, Interface & Anonymous Class",
+      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "slides": [
+        "Polymorphism.pptx"
+      ],
+      "studyBridge": [
+        "java/basis/java-basic-questions-02.md",
+        "java/basis/proxy.md",
+        "java/new-features/java8-common-new-features.md"
+      ]
+    },
+    {
+      "id": 6,
+      "slots": [
+        22,
+        23,
+        24
+      ],
+      "title": "Giai đoạn 6: Xử lý Ngoại lệ (Exception Handling) & Mã nguồn An toàn",
+      "file": "pro192/giai-doan-6-slot-22-24.md",
+      "slides": [
+        "Exception Handling.pptx"
+      ],
+      "studyBridge": [
+        "java/basis/java-basic-questions-03.md"
+      ]
+    },
+    {
+      "id": 7,
+      "slots": [
+        25,
+        26,
+        27
+      ],
+      "title": "Giai đoạn 7: Java Collections Framework, Collections/Arrays & So sánh",
+      "file": "pro192/giai-doan-7-slot-25-27.md",
+      "slides": [
+        "Collections.pptx",
+        "Support Classes.pptx"
+      ],
+      "studyBridge": [
+        "java/collection/java-collection-questions-01.md",
+        "java/collection/java-collection-questions-02.md",
+        "java/collection/hashmap-source-code.md",
+        "java/collection/arraylist-source-code.md",
+        "java/collection/java-collection-precautions-for-use.md"
+      ]
+    },
+    {
+      "id": 8,
+      "slots": [
+        28,
+        29,
+        30
+      ],
+      "title": "Giai đoạn 8: File I/O Streams, Character/Byte Streams & Serialization",
+      "file": "pro192/giai-doan-8-slot-28-30.md",
+      "slides": [
+        "File IO.pptx"
+      ],
+      "studyBridge": [
+        "java/io/io-basis.md",
+        "java/io/io-design-patterns.md",
+        "java/basis/serialization.md",
+        "java/basis/java-basic-questions-03.md"
+      ]
+    }
+  ],
+  "slots": [
+    {
+      "slot": 1,
+      "stage": 1,
+      "title": "Tổng quan Công nghệ Java & Kiến trúc Nền tảng (JDK/JRE/JVM)",
+      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "slidePdf": "/media/pro192/resources/Get%20Start.pdf",
+      "slidePptx": "/media/pro192/slides/Get%20Start.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md",
+        "java/jvm/jvm-intro.md"
+      ]
+    },
+    {
+      "slot": 2,
+      "stage": 1,
+      "title": "Cài đặt Môi trường, Công cụ NetBeans & Chương trình HelloWorld",
+      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "slidePdf": "/media/pro192/resources/Download%20%26%20Install%20JDK%20%26%20NetBeans%208.pdf",
+      "slidePptx": "/media/pro192/slides/Download%20%26%20Install%20JDK%20%26%20NetBeans%208.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md"
+      ]
+    },
+    {
+      "slot": 3,
+      "stage": 1,
+      "title": "Cấu trúc Chương trình Java & Quy trình Biên dịch CLI (javac/java/jar)",
+      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "slidePdf": "/media/pro192/resources/Learning%20the%20Java%20Language.pdf",
+      "slidePptx": "/media/pro192/slides/Learning%20the%20Java%20Language.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/jvm/class-file-structure.md"
+      ]
+    },
+    {
+      "slot": 4,
+      "stage": 1,
+      "title": "Kiểu dữ liệu Nguyên thủy, Tham chiếu, Toán tử & Phạm vi Biến",
+      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "slidePdf": "/media/pro192/resources/Learning%20the%20Java%20Language.pdf",
+      "slidePptx": "/media/pro192/slides/Learning%20the%20Java%20Language.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md",
+        "java/basis/java-keyword-summary.md"
+      ]
+    },
+    {
+      "slot": 5,
+      "stage": 1,
+      "title": "Cấu trúc Điều khiển Rẽ nhánh, Vòng lặp, For-each & Java Style",
+      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "slidePdf": "/media/pro192/resources/Learning%20the%20Java%20Language.pdf",
+      "slidePptx": "/media/pro192/slides/Learning%20the%20Java%20Language.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md"
+      ]
+    },
+    {
+      "slot": 6,
+      "stage": 2,
+      "title": "Kiến trúc Bộ nhớ JVM (Stack / Heap & Modern JVM Note)",
+      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "slidePdf": "/media/pro192/resources/Memory%20Management%20in%20Java.pdf",
+      "slidePptx": "/media/pro192/slides/Memory%20Management%20in%20Java.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/jvm/memory-area.md"
+      ]
+    },
+    {
+      "slot": 7,
+      "stage": 2,
+      "title": "Cơ chế Cấp phát Bộ nhớ & Bộ dọn rác Tự động (Garbage Collection)",
+      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "slidePdf": "/media/pro192/resources/Memory%20Management%20in%20Java.pdf",
+      "slidePptx": "/media/pro192/slides/Memory%20Management%20in%20Java.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/jvm/jvm-garbage-collection.md"
+      ]
+    },
+    {
+      "slot": 8,
+      "stage": 2,
+      "title": "Wrapper Classes, Number Hierarchy, Autoboxing/Unboxing & Math",
+      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "slidePdf": "/media/pro192/resources/Numbers%20and%20Strings.pdf",
+      "slidePptx": "/media/pro192/slides/Numbers%20and%20Strings.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md"
+      ]
+    },
+    {
+      "slot": 9,
+      "stage": 2,
+      "title": "Xử lý Chuỗi (String Pool, StringBuilder/StringBuffer) & Scanner",
+      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "slidePdf": "/media/pro192/resources/Numbers%20and%20Strings.pdf",
+      "slidePptx": "/media/pro192/slides/Numbers%20and%20Strings.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md",
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "slot": 10,
+      "stage": 3,
+      "title": "4 Trụ cột OOP & Tư duy Mô hình hóa Hướng đối tượng",
+      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "slidePdf": "/media/pro192/resources/Introduction.pdf",
+      "slidePptx": "/media/pro192/slides/Introduction.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "slot": 11,
+      "stage": 3,
+      "title": "Kỹ thuật Thiết kế Class, Nguyên lý Cohesion & Coupling",
+      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "slidePdf": "/media/pro192/resources/Introduction.pdf",
+      "slidePptx": "/media/pro192/slides/Introduction.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "system-design/design-pattern.md"
+      ]
+    },
+    {
+      "slot": 12,
+      "stage": 3,
+      "title": "Vòng đời Đối tượng, Constructor, Tham chiếu & Từ khóa this",
+      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "slidePdf": "/media/pro192/resources/Encapsulation.pdf",
+      "slidePptx": "/media/pro192/slides/Encapsulation.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/why-there-only-value-passing-in-java.md",
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "slot": 13,
+      "stage": 3,
+      "title": "Đóng gói (Encapsulation), Access Modifiers & Tổ chức Package",
+      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "slidePdf": "/media/pro192/resources/Encapsulation.pdf",
+      "slidePptx": "/media/pro192/slides/Encapsulation.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md"
+      ]
+    },
+    {
+      "slot": 14,
+      "stage": 4,
+      "title": "Bản chất Kế thừa (Inheritance), Từ khóa extends & Quan hệ is-a/has-a",
+      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "slidePdf": "/media/pro192/resources/Inheritance.pdf",
+      "slidePptx": "/media/pro192/slides/Inheritance.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "slot": 15,
+      "stage": 4,
+      "title": "Chuỗi Hàm khởi tạo (Constructor Chaining) & Từ khóa super",
+      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "slidePdf": "/media/pro192/resources/Inheritance.pdf",
+      "slidePptx": "/media/pro192/slides/Inheritance.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "slot": 16,
+      "stage": 4,
+      "title": "Ghi đè Phương thức (@Override) & Che giấu Phương thức Tĩnh",
+      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "slidePdf": "/media/pro192/resources/Inheritance.pdf",
+      "slidePptx": "/media/pro192/slides/Inheritance.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-01.md",
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "slot": 17,
+      "stage": 4,
+      "title": "Kiểu tĩnh vs Kiểu động, instanceof, Casting & Mảng Đối tượng (ItemList)",
+      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "slidePdf": "/media/pro192/resources/ArrayOfObjects.pdf",
+      "slidePptx": "/media/pro192/slides/ArrayOfObjects.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "slot": 18,
+      "stage": 5,
+      "title": "Bản chất Tính Đa hình, Dynamic Binding & Overloading vs Overriding",
+      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "slidePdf": "/media/pro192/resources/Polymorphism.pdf",
+      "slidePptx": "/media/pro192/slides/Polymorphism.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "slot": 19,
+      "stage": 5,
+      "title": "Lớp Trừu tượng (Abstract Class) & Phương thức Trừu tượng",
+      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "slidePdf": "/media/pro192/resources/Polymorphism.pdf",
+      "slidePptx": "/media/pro192/slides/Polymorphism.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-02.md"
+      ]
+    },
+    {
+      "slot": 20,
+      "stage": 5,
+      "title": "Giao diện (Interface) & Kỹ thuật Đa kế thừa Hành vi",
+      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "slidePdf": "/media/pro192/resources/Polymorphism.pdf",
+      "slidePptx": "/media/pro192/slides/Polymorphism.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-02.md",
+        "java/new-features/java8-common-new-features.md"
+      ]
+    },
+    {
+      "slot": 21,
+      "stage": 5,
+      "title": "Lớp Nội danh (Anonymous Class) & Tổng kết Đa hình",
+      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "slidePdf": "/media/pro192/resources/Polymorphism.pdf",
+      "slidePptx": "/media/pro192/slides/Polymorphism.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/syntactic-sugar.md",
+        "java/basis/proxy.md"
+      ]
+    },
+    {
+      "slot": 22,
+      "stage": 6,
+      "title": "Bản chất Ngoại lệ, Phân cấp Throwable & Checked vs Unchecked",
+      "file": "pro192/giai-doan-6-slot-22-24.md",
+      "slidePdf": "/media/pro192/resources/Exception%20Handling.pdf",
+      "slidePptx": "/media/pro192/slides/Exception%20Handling.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-03.md"
+      ]
+    },
+    {
+      "slot": 23,
+      "stage": 6,
+      "title": "Cấu trúc try-catch-finally & Dọn dẹp Tài nguyên An toàn",
+      "file": "pro192/giai-doan-6-slot-22-24.md",
+      "slidePdf": "/media/pro192/resources/Exception%20Handling.pdf",
+      "slidePptx": "/media/pro192/slides/Exception%20Handling.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-03.md"
+      ]
+    },
+    {
+      "slot": 24,
+      "stage": 6,
+      "title": "Ủy quyền throws, Ném Ngoại lệ throw & Tạo Custom Exception",
+      "file": "pro192/giai-doan-6-slot-22-24.md",
+      "slidePdf": "/media/pro192/resources/Exception%20Handling.pdf",
+      "slidePptx": "/media/pro192/slides/Exception%20Handling.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/java-basic-questions-03.md"
+      ]
+    },
+    {
+      "slot": 25,
+      "stage": 7,
+      "title": "Tổng quan Java Collections Framework, List & Iterator An toàn",
+      "file": "pro192/giai-doan-7-slot-25-27.md",
+      "slidePdf": "/media/pro192/resources/Collections.pdf",
+      "slidePptx": "/media/pro192/slides/Collections.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/collection/java-collection-questions-01.md",
+        "java/collection/arraylist-source-code.md"
+      ]
+    },
+    {
+      "slot": 26,
+      "stage": 7,
+      "title": "Cấu trúc Set (HashSet vs TreeSet) & Map (HashMap vs TreeMap)",
+      "file": "pro192/giai-doan-7-slot-25-27.md",
+      "slidePdf": "/media/pro192/resources/Collections.pdf",
+      "slidePptx": "/media/pro192/slides/Collections.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/collection/hashmap-source-code.md",
+        "java/collection/java-collection-questions-01.md"
+      ]
+    },
+    {
+      "slot": 27,
+      "stage": 7,
+      "title": "Thuật toán Collections / Arrays & Comparable vs Comparator",
+      "file": "pro192/giai-doan-7-slot-25-27.md",
+      "slidePdf": "/media/pro192/resources/Support%20Classes.pdf",
+      "slidePptx": "/media/pro192/slides/Support%20Classes.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/collection/java-collection-questions-02.md",
+        "java/collection/java-collection-precautions-for-use.md"
+      ]
+    },
+    {
+      "slot": 28,
+      "stage": 8,
+      "title": "Tổng quan I/O Streams, java.io.File & Thao tác Thư mục",
+      "file": "pro192/giai-doan-8-slot-28-30.md",
+      "slidePdf": "/media/pro192/resources/File%20IO.pdf",
+      "slidePptx": "/media/pro192/slides/File%20IO.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/io/io-basis.md"
+      ]
+    },
+    {
+      "slot": 29,
+      "stage": 8,
+      "title": "Luồng Ký tự (Character Streams), UTF-8, BufferedReader & try-with-resources",
+      "file": "pro192/giai-doan-8-slot-28-30.md",
+      "slidePdf": "/media/pro192/resources/File%20IO.pdf",
+      "slidePptx": "/media/pro192/slides/File%20IO.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/io/io-basis.md",
+        "java/io/io-design-patterns.md"
+      ]
+    },
+    {
+      "slot": 30,
+      "stage": 8,
+      "title": "Luồng Nhị phân, RandomAccessFile & Tuần tự hóa (Serialization)",
+      "file": "pro192/giai-doan-8-slot-28-30.md",
+      "slidePdf": "/media/pro192/resources/File%20IO.pdf",
+      "slidePptx": "/media/pro192/slides/File%20IO.pptx",
+      "exercisesCount": 5,
+      "studyBridge": [
+        "java/basis/serialization.md",
+        "java/io/io-basis.md"
+      ]
+    }
+  ],
+  "peChallenges": [
+    {
+      "id": 1,
+      "code": "PE 01",
+      "cat": "oop",
+      "title": "Quản lý Sinh viên OOP & Lọc GPA",
+      "meta": "Dạng Q1–Q2 • Cơ bản • 25 phút",
+      "relatedSlots": [
+        12,
+        13,
+        25,
+        27
+      ],
+      "desc": "Viết lớp Student đóng gói hợp lệ và hàm lọc danh sách sinh viên có GPA >= 8.0, xử lý an toàn trường hợp danh sách null/rỗng và sắp xếp giảm dần theo GPA.",
+      "checklist": [
+        "Đúng constructor & getter/setter kiểm tra biên [0.0, 10.0] (3đ)",
+        "Xử lý an toàn null / danh sách rỗng (3đ)",
+        "Sắp xếp & Output chuẩn định dạng Test Case (4đ)"
+      ],
+      "entityFileName": "Student.java",
+      "entityCode": "public class Student {\n    private String name;\n    private double gpa;\n\n    public Student(String name, double gpa) {\n        this.name = (name == null) ? \"\" : name.trim();\n        setGpa(gpa);\n    }\n\n    public String getName() { return name; }\n    public double getGpa() { return gpa; }\n\n    public void setGpa(double gpa) {\n        if (gpa >= 0.0 && gpa <= 10.0) {\n            this.gpa = gpa;\n        }\n    }\n\n    @Override\n    public String toString() {\n        return String.format(\"%s - %.2f\", name, gpa);\n    }\n}",
+      "starterCode": "import java.util.*;\n\npublic class Main {\n    public static List<Student> filterHonor(List<Student> list) {\n        List<Student> result = new ArrayList<>();\n        // Bẫy PE: Chưa kiểm tra list == null và phần tử s == null!\n        for (Student s : list) {\n            if (s.getGpa() >= 8.0) {\n                result.add(s);\n            }\n        }\n        return result;\n    }\n}",
+      "cleanCode": "import java.util.*;\n\npublic class Main {\n    public static List<Student> filterHonor(List<Student> list) {\n        if (list == null || list.isEmpty()) {\n            return Collections.emptyList();\n        }\n        List<Student> result = new ArrayList<>();\n        for (Student s : list) {\n            if (s != null && s.getGpa() >= 8.0) {\n                result.add(s);\n            }\n        }\n        result.sort(Comparator.comparingDouble(Student::getGpa).reversed()\n                .thenComparing(Student::getName));\n        return result;\n    }\n}"
+    },
+    {
+      "id": 2,
+      "code": "PE 02",
+      "cat": "oop",
+      "title": "Hệ thống Thư viện Sách (Inheritance & @Override)",
+      "meta": "Dạng Q2–Q3 • Trung bình • 35 phút",
+      "relatedSlots": [
+        14,
+        15,
+        16,
+        18
+      ],
+      "desc": "Tạo lớp cha Book và lớp con EBook kế thừa qua super(), ghi đè @Override tính giá bán sau giảm giá và định dạng toString().",
+      "checklist": [
+        "Dùng từ khóa extends và super(title, price) chuẩn (3đ)",
+        "Ghi đè @Override getFinalPrice() đúng chữ ký (4đ)",
+        "Định dạng toString() chuẩn Test Case (3đ)"
+      ],
+      "entityFileName": "Book.java",
+      "entityCode": "public class Book {\n    protected String title;\n    protected double price;\n\n    public Book(String title, double price) {\n        this.title = (title == null) ? \"\" : title.trim();\n        this.price = Math.max(0.0, price);\n    }\n\n    public double getFinalPrice() {\n        return price;\n    }\n}",
+      "starterCode": "public class EBook extends Book {\n    private double discountRate;\n\n    public EBook(String title, double price, double discountRate) {\n        super(title, price);\n        this.discountRate = discountRate;\n    }\n\n    // TODO: Ghi đè getFinalPrice() và toString() -> EBook[title, finalPrice]\n}",
+      "cleanCode": "public class EBook extends Book {\n    private double discountRate;\n\n    public EBook(String title, double price, double discountRate) {\n        super(title, price);\n        this.discountRate = (discountRate >= 0.0 && discountRate <= 1.0) ? discountRate : 0.0;\n    }\n\n    @Override\n    public double getFinalPrice() {\n        return price * (1.0 - discountRate);\n    }\n\n    @Override\n    public String toString() {\n        return String.format(\"EBook[%s, %.1f]\", title, getFinalPrice());\n    }\n}"
+    },
+    {
+      "id": 3,
+      "code": "PE 03",
+      "cat": "oop",
+      "title": "AntiqueShop & ItemList Đa hình (ArrayOfObjects)",
+      "meta": "Case Study Trường (Đã vá lỗi HTML) • 50 phút",
+      "relatedSlots": [
+        14,
+        17,
+        18
+      ],
+      "desc": "Quản lý mảng đối tượng Item[] đa hình trong ItemList: thêm, tìm theo creator, xóa phần tử không tràn mảng MAX và sắp xếp tăng dần theo value.",
+      "checklist": [
+        "Kiểm tra null & ngưỡng MAX khi thêm (2đ)",
+        "Xóa đúng chỉ số không dính ArrayIndexOutOfBounds khi mảng đầy (4đ)",
+        "Sắp xếp & tìm kiếm dùng equalsIgnoreCase chuẩn (4đ)"
+      ],
+      "entityFileName": "Item.java",
+      "entityCode": "public class Item {\n    protected int value;\n    protected String creator;\n\n    public Item(int value, String creator) {\n        this.value = Math.max(0, value);\n        this.creator = (creator == null) ? \"\" : creator.trim();\n    }\n\n    public int getValue() { return value; }\n    public String getCreator() { return creator; }\n}",
+      "starterCode": "public class ItemList {\n    private final Item[] list;\n    private int numOfItem;\n    public static final int MAX = 100;\n\n    public ItemList() {\n        this.list = new Item[MAX];\n    }\n\n    public boolean addItem(Item item) {\n        // Bẫy HTML cũ: không kiểm tra item == null và numOfItem >= MAX\n        list[numOfItem++] = item;\n        return true;\n    }\n}",
+      "cleanCode": "public class ItemList {\n    private final Item[] list;\n    private int numOfItem;\n    public static final int MAX = 100;\n\n    public ItemList() {\n        this.list = new Item[MAX];\n        this.numOfItem = 0;\n    }\n\n    public boolean addItem(Item item) {\n        if (item == null || numOfItem >= MAX) return false;\n        list[numOfItem++] = item;\n        return true;\n    }\n\n    public int findItemIndex(String creator) {\n        if (creator == null) return -1;\n        for (int i = 0; i < numOfItem; i++) {\n            if (list[i].getCreator().equalsIgnoreCase(creator.trim())) return i;\n        }\n        return -1;\n    }\n\n    public boolean removeItem(int index) {\n        if (index < 0 || index >= numOfItem) return false;\n        for (int i = index; i < numOfItem - 1; i++) {\n            list[i] = list[i + 1];\n        }\n        list[--numOfItem] = null;\n        return true;\n    }\n\n    public void sortByValueAsc() {\n        for (int i = 0; i < numOfItem - 1; i++) {\n            for (int j = i + 1; j < numOfItem; j++) {\n                if (list[i].getValue() > list[j].getValue()) {\n                    Item tmp = list[i]; list[i] = list[j]; list[j] = tmp;\n                }\n            }\n        }\n    }\n}"
+    },
+    {
+      "id": 4,
+      "code": "PE 04",
+      "cat": "collections",
+      "title": "Đếm từ HashMap, Sắp xếp Comparator & Đọc CSV an toàn",
+      "meta": "Full Q1–Q4 • Collections + File I/O • 85 phút",
+      "relatedSlots": [
+        9,
+        23,
+        26,
+        27,
+        29
+      ],
+      "desc": "Chuẩn hóa chuỗi & đếm tần suất bằng HashMap, đồng thời đọc tệp CSV với try-with-resources UTF-8, bắt NumberFormatException từng dòng và sắp xếp 2 tiêu chí.",
+      "checklist": [
+        "Chuẩn hóa khoảng trắng & chữ thường trong countWords (3đ)",
+        "Đọc CSV bằng try-with-resources UTF-8 an toàn (4đ)",
+        "Sắp xếp Comparator 2 tiêu chí không lỗi (3đ)"
+      ],
+      "entityFileName": "Product.java",
+      "entityCode": "public class Product {\n    private final String id;\n    private final String name;\n    private final double price;\n\n    public Product(String id, String name, double price) {\n        this.id = id;\n        this.name = name;\n        this.price = price;\n    }\n\n    public String getId() { return id; }\n    public String getName() { return name; }\n    public double getPrice() { return price; }\n}",
+      "starterCode": "import java.util.*;\n\npublic class Main {\n    public static Map<String, Integer> countWords(String text) {\n        Map<String, Integer> map = new HashMap<>();\n        for (String w : text.split(\" \")) {\n            map.put(w, map.getOrDefault(w, 0) + 1);\n        }\n        return map;\n    }\n}",
+      "cleanCode": "import java.io.*;\nimport java.nio.charset.StandardCharsets;\nimport java.util.*;\n\npublic class Main {\n    public static Map<String, Integer> countWords(String text) {\n        if (text == null || text.isBlank()) return Collections.emptyMap();\n        Map<String, Integer> freq = new HashMap<>();\n        for (String token : text.trim().toLowerCase().split(\"\\\\s+\")) {\n            freq.put(token, freq.getOrDefault(token, 0) + 1);\n        }\n        return freq;\n    }\n\n    public static List<Product> loadProducts(String filePath) {\n        List<Product> list = new ArrayList<>();\n        File f = new File(filePath);\n        if (!f.exists()) return list;\n\n        try (BufferedReader br = new BufferedReader(\n                new InputStreamReader(new FileInputStream(f), StandardCharsets.UTF_8))) {\n            String line;\n            while ((line = br.readLine()) != null) {\n                if (line.isBlank()) continue;\n                String[] parts = line.split(\",\");\n                if (parts.length < 3) continue;\n                try {\n                    list.add(new Product(parts[0].trim(), parts[1].trim(), Double.parseDouble(parts[2].trim())));\n                } catch (NumberFormatException ignored) {}\n            }\n        } catch (IOException e) {\n            System.err.println(\"Read error: \" + e.getMessage());\n        }\n        list.sort(Comparator.comparingDouble(Product::getPrice).reversed().thenComparing(Product::getId));\n        return list;\n    }\n}"
+    }
+  ],
+  "assets": {
+    "images": [
+      "/media/pro192/images/2Darray.png",
+      "/media/pro192/images/2DarrayCode.png",
+      "/media/pro192/images/7.0.1.1.gif",
+      "/media/pro192/images/7.0.2.2.gif",
+      "/media/pro192/images/7.0.6l.gif",
+      "/media/pro192/images/7.01.gif",
+      "/media/pro192/images/7.02.gif",
+      "/media/pro192/images/7.03a.gif",
+      "/media/pro192/images/7.03b.gif",
+      "/media/pro192/images/7.04.gif",
+      "/media/pro192/images/7.05.gif",
+      "/media/pro192/images/7.06a.gif",
+      "/media/pro192/images/7.06b.gif",
+      "/media/pro192/images/7.06c.gif",
+      "/media/pro192/images/7.06d.gif",
+      "/media/pro192/images/7.06e.gif",
+      "/media/pro192/images/7.06f.gif",
+      "/media/pro192/images/7.06g.gif",
+      "/media/pro192/images/7.06h.gif",
+      "/media/pro192/images/7.06i.gif",
+      "/media/pro192/images/7.06j.gif",
+      "/media/pro192/images/7.06k.gif",
+      "/media/pro192/images/7.07.gif",
+      "/media/pro192/images/7.08.gif",
+      "/media/pro192/images/7.09.gif",
+      "/media/pro192/images/7.10.gif",
+      "/media/pro192/images/7.11.gif",
+      "/media/pro192/images/7.12.gif",
+      "/media/pro192/images/7.13.gif",
+      "/media/pro192/images/7.14.gif",
+      "/media/pro192/images/7.15a.gif",
+      "/media/pro192/images/7.15b.gif",
+      "/media/pro192/images/7.15c.gif",
+      "/media/pro192/images/7.15d.gif",
+      "/media/pro192/images/7.15e.gif",
+      "/media/pro192/images/7.15f.gif",
+      "/media/pro192/images/7.16.gif",
+      "/media/pro192/images/7.17.gif",
+      "/media/pro192/images/7.18a.gif",
+      "/media/pro192/images/7.18b.gif",
+      "/media/pro192/images/7.18c.gif",
+      "/media/pro192/images/7.18d.gif",
+      "/media/pro192/images/7.18e.gif",
+      "/media/pro192/images/7.18f.gif",
+      "/media/pro192/images/7.18g.gif",
+      "/media/pro192/images/7.19a.gif",
+      "/media/pro192/images/7.19b.gif",
+      "/media/pro192/images/7.19c.gif",
+      "/media/pro192/images/7.19d.gif",
+      "/media/pro192/images/IO.01.gif",
+      "/media/pro192/images/IO.02.gif",
+      "/media/pro192/images/IO.03.gif",
+      "/media/pro192/images/IO.04.gif",
+      "/media/pro192/images/IO.05.gif",
+      "/media/pro192/images/IO.06.gif",
+      "/media/pro192/images/IO.07.gif",
+      "/media/pro192/images/IO.08.gif",
+      "/media/pro192/images/IO.09A.gif",
+      "/media/pro192/images/IO.09B.gif",
+      "/media/pro192/images/IO.09C.gif",
+      "/media/pro192/images/IO.09D.gif",
+      "/media/pro192/images/IO.09E.gif",
+      "/media/pro192/images/IO.10.gif",
+      "/media/pro192/images/IO.11.gif",
+      "/media/pro192/images/IO.12A.gif",
+      "/media/pro192/images/IO.12B.gif",
+      "/media/pro192/images/IO.12C.gif",
+      "/media/pro192/images/IO.12D.gif",
+      "/media/pro192/images/IO.12E.gif",
+      "/media/pro192/images/IO.12F.gif",
+      "/media/pro192/images/IO.12G.gif",
+      "/media/pro192/images/IO.12H.gif",
+      "/media/pro192/images/IO.12I.gif",
+      "/media/pro192/images/IO.12J.gif",
+      "/media/pro192/images/IO.12K.gif",
+      "/media/pro192/images/IO.12L.gif",
+      "/media/pro192/images/IO.12M.gif",
+      "/media/pro192/images/IO.12N.gif",
+      "/media/pro192/images/IO.12O.gif",
+      "/media/pro192/images/IO.12P.gif",
+      "/media/pro192/images/IO.12Q.gif",
+      "/media/pro192/images/IO.12R.gif",
+      "/media/pro192/images/IO.12S.gif",
+      "/media/pro192/images/IO.12T.gif",
+      "/media/pro192/images/IO.13.gif",
+      "/media/pro192/images/IO.14.gif",
+      "/media/pro192/images/IO.15A.gif",
+      "/media/pro192/images/IO.15B.gif",
+      "/media/pro192/images/IO.15C.gif",
+      "/media/pro192/images/IO.15D.gif",
+      "/media/pro192/images/IO.15E.gif",
+      "/media/pro192/images/IO.15F.gif",
+      "/media/pro192/images/IO.15G.gif",
+      "/media/pro192/images/IO.16.gif",
+      "/media/pro192/images/IO.17.gif",
+      "/media/pro192/images/IO.18A.gif",
+      "/media/pro192/images/IO.18B.gif",
+      "/media/pro192/images/IO.18C.gif",
+      "/media/pro192/images/IO.18D.gif",
+      "/media/pro192/images/IO.18E.gif",
+      "/media/pro192/images/IO.18F.gif",
+      "/media/pro192/images/IO.18G.gif",
+      "/media/pro192/images/IO.18H.gif",
+      "/media/pro192/images/IO.18I.gif",
+      "/media/pro192/images/JVM.png",
+      "/media/pro192/images/JavaPlatform.png",
+      "/media/pro192/images/Logo-FU-01.png",
+      "/media/pro192/images/PrimaryDataType.png",
+      "/media/pro192/images/abstraction.png",
+      "/media/pro192/images/algorithmic.png",
+      "/media/pro192/images/allocation.png",
+      "/media/pro192/images/array.png",
+      "/media/pro192/images/array2.png",
+      "/media/pro192/images/array3.png",
+      "/media/pro192/images/array4.png",
+      "/media/pro192/images/array5.png",
+      "/media/pro192/images/classUML.png",
+      "/media/pro192/images/class_relationships.png",
+      "/media/pro192/images/classes.png",
+      "/media/pro192/images/copyarray.png",
+      "/media/pro192/images/datatype.png",
+      "/media/pro192/images/demoCarClass.png",
+      "/media/pro192/images/differentBehavior.png",
+      "/media/pro192/images/encapsulation.png",
+      "/media/pro192/images/encapsulation1.png",
+      "/media/pro192/images/encapsulation10.png",
+      "/media/pro192/images/encapsulation11.png",
+      "/media/pro192/images/encapsulation12.png",
+      "/media/pro192/images/encapsulation13.png",
+      "/media/pro192/images/encapsulation14.png",
+      "/media/pro192/images/encapsulation15.png",
+      "/media/pro192/images/encapsulation16.png",
+      "/media/pro192/images/encapsulation17.png",
+      "/media/pro192/images/encapsulation18.png",
+      "/media/pro192/images/encapsulation19.png",
+      "/media/pro192/images/encapsulation2.png",
+      "/media/pro192/images/encapsulation20.png",
+      "/media/pro192/images/encapsulation21.png",
+      "/media/pro192/images/encapsulation3.png",
+      "/media/pro192/images/encapsulation4.png",
+      "/media/pro192/images/encapsulation5.png",
+      "/media/pro192/images/encapsulation6.png",
+      "/media/pro192/images/encapsulation7.png",
+      "/media/pro192/images/encapsulation8.png",
+      "/media/pro192/images/encapsulation9.png",
+      "/media/pro192/images/exception.png",
+      "/media/pro192/images/exception1.png",
+      "/media/pro192/images/exception2.png",
+      "/media/pro192/images/exception3.png",
+      "/media/pro192/images/exception4.png",
+      "/media/pro192/images/exception5.png",
+      "/media/pro192/images/exception6.png",
+      "/media/pro192/images/exception7.png",
+      "/media/pro192/images/exception8.png",
+      "/media/pro192/images/exception9.png",
+      "/media/pro192/images/firstProgram.png",
+      "/media/pro192/images/hidden-method.png",
+      "/media/pro192/images/identicalBehavior.png",
+      "/media/pro192/images/inheritance1.png",
+      "/media/pro192/images/inheritance2.png",
+      "/media/pro192/images/inheritance3.png",
+      "/media/pro192/images/inheritance4.png",
+      "/media/pro192/images/inheritance5.png",
+      "/media/pro192/images/inheritance6.png",
+      "/media/pro192/images/interface1.png",
+      "/media/pro192/images/ioexample.png",
+      "/media/pro192/images/keyword.png",
+      "/media/pro192/images/memory.png",
+      "/media/pro192/images/memory2.png",
+      "/media/pro192/images/memory3.png",
+      "/media/pro192/images/operator.png",
+      "/media/pro192/images/operator2.png",
+      "/media/pro192/images/operator3.png",
+      "/media/pro192/images/output.png",
+      "/media/pro192/images/outputCarClass.png",
+      "/media/pro192/images/package.png",
+      "/media/pro192/images/polymophism1.png",
+      "/media/pro192/images/polymorphism1.png",
+      "/media/pro192/images/polymorphism2.png",
+      "/media/pro192/images/polymorphism3.png",
+      "/media/pro192/images/referenceDataType.png",
+      "/media/pro192/images/relationship.png",
+      "/media/pro192/images/scope.png",
+      "/media/pro192/images/step2.png",
+      "/media/pro192/images/step22.png",
+      "/media/pro192/images/step3.png",
+      "/media/pro192/images/step4.png"
+    ],
+    "slides": [
+      "/media/pro192/slides/ArrayOfObjects.pptx",
+      "/media/pro192/slides/Collections.pptx",
+      "/media/pro192/slides/Download%20%26%20Install%20JDK%20%26%20NetBeans%208.pptx",
+      "/media/pro192/slides/Encapsulation.pptx",
+      "/media/pro192/slides/Exception%20Handling.pptx",
+      "/media/pro192/slides/File%20IO.pptx",
+      "/media/pro192/slides/Get%20Start.pptx",
+      "/media/pro192/slides/Inheritance.pptx",
+      "/media/pro192/slides/Introduction.pptx",
+      "/media/pro192/slides/Learning%20the%20Java%20Language.pptx",
+      "/media/pro192/slides/Memory%20Management%20in%20Java.pptx",
+      "/media/pro192/slides/Numbers%20and%20Strings.pptx",
+      "/media/pro192/slides/Polymorphism.pptx",
+      "/media/pro192/slides/Support%20Classes.pptx"
+    ],
+    "resources": [
+      "/media/pro192/resources/ArrayOfObjects.pdf",
+      "/media/pro192/resources/Collections.pdf",
+      "/media/pro192/resources/Download%20%26%20Install%20JDK%20%26%20NetBeans%208.pdf",
+      "/media/pro192/resources/Encapsulation.pdf",
+      "/media/pro192/resources/Exception%20Handling.pdf",
+      "/media/pro192/resources/File%20IO.pdf",
+      "/media/pro192/resources/Get%20Start.pdf",
+      "/media/pro192/resources/Inheritance.pdf",
+      "/media/pro192/resources/Introduction.pdf",
+      "/media/pro192/resources/Learning%20the%20Java%20Language.pdf",
+      "/media/pro192/resources/Memory%20Management%20in%20Java.pdf",
+      "/media/pro192/resources/Numbers%20and%20Strings.pdf",
+      "/media/pro192/resources/Polymorphism.pdf",
+      "/media/pro192/resources/Support%20Classes.pdf",
+      "/media/pro192/resources/banking.rar"
+    ]
+  }
+}

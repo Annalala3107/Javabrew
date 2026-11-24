@@ -1,0 +1,224 @@
+---
+title: Detailed Explanation of Class File Structure
+description: Introduces Java bytecode Class file structure and core components such as the Constant Pool to help understand compiled artifacts.
+category: Java
+tag:
+  - JVM
+lang: en
+sourceRef: zh-ref/java/jvm/class-file-structure.md
+head:
+  - - meta
+    - name: keywords
+      content: Class file,Constant Pool,Magic Number,version,fields,methods,attributes
+---
+
+## A Quick Review of Bytecode
+
+In Java, the code that the JVM can understand is called `bytecode` (files with the `.class` extension). It does not target any specific processor, only the virtual machine. Through bytecode, the Java language solves the low execution efficiency problem of traditional interpreted languages to a certain extent, while retaining the portability characteristic of interpreted languages. As a result, Java programs run relatively efficiently, and because bytecode does not target a specific machine, Java programs can run on computers with many different operating systems without recompilation.
+
+Languages such as Clojure (a dialect of Lisp), Groovy, Scala, JRuby, and Kotlin all run on top of the Java Virtual Machine. The figure below illustrates different languages being compiled by different compilers into `.class` files and ultimately running on the Java Virtual Machine. The binary format of `.class` files can be viewed using [WinHex](https://www.x-ways.net/winhex/).
+
+![Programming languages running on top of the Java Virtual Machine](/media/jg/ext/oss.javaguide.cn/javaguide/java/basis/java-virtual-machine-program-language-os-feab1dfc.png)
+
+It can be said that `.class` files serve as an important bridge between different languages and the Java Virtual Machine, and are also a major reason why Java supports cross-platform execution.
+
+## Summary of Class File Structure
+
+According to the Java Virtual Machine Specification, a Class file is defined by a `ClassFile` structure, somewhat similar to a C struct.
+
+The structure of `ClassFile` is as follows:
+
+```java
+ClassFile {
+    u4             magic; // Identifier of the Class file
+    u2             minor_version;// Minor version number of the Class
+    u2             major_version;// Major version number of the Class
+    u2             constant_pool_count;// Number of entries in the Constant Pool
+    cp_info        constant_pool[constant_pool_count-1];// Constant Pool
+    u2             access_flags;// Access flags of the Class
+    u2             this_class;// Current class
+    u2             super_class;// Superclass
+    u2             interfaces_count;// Number of interfaces
+    u2             interfaces[interfaces_count];// A class can implement multiple interfaces
+    u2             fields_count;// Number of fields
+    field_info     fields[fields_count];// A class can have multiple fields
+    u2             methods_count;// Number of methods
+    method_info    methods[methods_count];// A class can have multiple methods
+    u2             attributes_count;// Number of attributes in this class's attribute table
+    attribute_info attributes[attributes_count];// Collection of attribute tables
+}
+```
+
+By analyzing the contents of `ClassFile`, we can understand the composition of a class file.
+
+![ClassFile content analysis](/media/jg/ext/oss.javaguide.cn/java-guide-blog/16d5ec47609818fc-1ba5ad24.jpg)
+
+The image below is viewed via the IDEA plugin `jclasslib`, which allows you to see the Class file structure more intuitively.
+
+![](/media/jg/ext/oss.javaguide.cn/java-guide-blog/image-20210401170711475-26926aec.png)
+
+Using `jclasslib`, you can not only visually inspect the bytecode file corresponding to a class, but also check basic class information, the constant pool, interfaces, attributes, methods, and more.
+
+Below is a detailed introduction to the components involved in the Class file structure.
+
+### Magic Number
+
+```java
+    u4             magic; // Identifier of the Class file
+```
+
+The first 4 bytes of every Class file are called the Magic Number. Its sole purpose is to **determine whether this file is a Class file acceptable to the virtual machine**. The Java specification stipulates a fixed value for the magic number: `0xCAFEBABE`. If the read file does not begin with this magic number, the Java Virtual Machine will refuse to load it.
+
+### Class File Version Numbers (Minor & Major Version)
+
+```java
+    u2             minor_version;// Minor version number of the Class
+    u2             major_version;// Major version number of the Class
+```
+
+The four bytes immediately following the magic number store the version number of the Class file: bytes 5 and 6 are the **minor version number**, and bytes 7 and 8 are the **major version number**.
+
+Whenever Java releases a major version (such as Java 8 or Java 9), the major version number increments by 1. You can use the `javap -v` command to quickly view the version information of a Class file.
+
+A higher-version Java Virtual Machine can execute Class files generated by a lower-version compiler, but a lower-version Java Virtual Machine cannot execute Class files generated by a higher-version compiler. Therefore, in actual development, we must ensure that the JDK version used in development matches the JDK version in the production environment.
+
+### Constant Pool
+
+```java
+    u2             constant_pool_count;// Number of entries in the Constant Pool
+    cp_info        constant_pool[constant_pool_count-1];// Constant Pool
+```
+
+Immediately following the major and minor version numbers is the Constant Pool. The number of entries in the Constant Pool is `constant_pool_count-1` (**the Constant Pool counter starts counting from 1; leaving index 0 empty has a special reason—index value 0 represents "not referencing any Constant Pool entry"**).
+
+The Constant Pool mainly stores two broad categories of constants: literals and symbolic references. Literals are close to the Java language-level concept of constants, such as text strings and constant values declared as `final`. Symbolic references, on the other hand, belong to compiler theory and include the following three categories of constants:
+
+- Fully qualified names of classes and interfaces
+- Names and descriptors of fields
+- Names and descriptors of methods
+
+Each constant entry in the Constant Pool is a table. The current *Java Virtual Machine Specification* defines 17 types of Constant Pool tables, all sharing one common characteristic: **they begin with a `u1`-type `tag` used to identify the type of the current constant.**
+
+|               Type               | Tag |          Description          |
+| :------------------------------: | :-: | :---------------------------: |
+|        CONSTANT_utf8_info        |  1  |      UTF-8 encoded string     |
+|      CONSTANT_Integer_info       |  3  |        Integer literal        |
+|       CONSTANT_Float_info        |  4  |     Floating-point literal    |
+|        CONSTANT_Long_info        |  5  |      Long integer literal     |
+|       CONSTANT_Double_info       |  6  | Double-precision float literal |
+|       CONSTANT_Class_info        |  7  | Symbolic reference to a class or interface |
+|       CONSTANT_String_info       |  8  |     String-type literal       |
+|      CONSTANT_FieldRef_info      |  9  |   Symbolic reference to a field |
+|     CONSTANT_MethodRef_info      | 10  | Symbolic reference to a method in a class |
+| CONSTANT_InterfaceMethodRef_info | 11  | Symbolic reference to a method in an interface |
+|    CONSTANT_NameAndType_info     | 12  | Symbolic reference to a field or method |
+|     CONSTANT_MethodType_info     | 16  |     Identifies a method type  |
+|    CONSTANT_MethodHandle_info    | 15  |   Represents a method handle  |
+|      CONSTANT_Dynamic_info       | 17  | Represents a dynamically-computed constant |
+|   CONSTANT_InvokeDynamic_info    | 18  | Represents a dynamic method call site |
+|       CONSTANT_Module_info       | 19  |      Represents a module      |
+|      CONSTANT_Package_info       | 20  | Represents a package in a module |
+
+You can view the Constant Pool information of a `.class` file using the `javap -v ClassName` command (`javap -v ClassName -> temp.txt` outputs the result to the `temp.txt` file).
+
+### Access Flags
+
+```java
+    u2             access_flags;// Access flags of the Class
+```
+
+After the Constant Pool ends, the immediately following two bytes represent the access flags. These flags identify access information at the class or interface level, including whether this Class is a class or an interface, whether it is `public` or `abstract`, and if it is a class, whether it is declared `final`, etc.
+
+Class access and property modifiers:
+
+![Class access and property modifiers](/media/jg/ext/oss.javaguide.cn/github/javaguide/java/.png-0bdfb487.png)
+
+Suppose we define an `Employee` class:
+
+```java
+package top.snailclimb.bean;
+public class Employee {
+   ...
+}
+```
+
+Use the `javap -v ClassName` command to check the class's access flags.
+
+![Inspecting class access flags](/media/jg/ext/oss.javaguide.cn/github/javaguide/java/.png-3f162d9f.png)
+
+### This Class, Super Class, and Interfaces Index Collection
+
+```java
+    u2             this_class;// Current class
+    u2             super_class;// Superclass
+    u2             interfaces_count;// Number of interfaces
+    u2             interfaces[interfaces_count];// A class can implement multiple interfaces
+```
+
+The inheritance hierarchy of a Java class is determined by three items: the class index (`this_class`), the superclass index (`super_class`), and the interfaces index collection (`interfaces`). The class index, superclass index, and interfaces index collection are arranged sequentially right after the access flags.
+
+The class index is used to determine the fully qualified name of this class, and the superclass index is used to determine the fully qualified name of this class's superclass. Because Java supports only single inheritance, there is only one superclass index. Except for `java.lang.Object`, all Java classes have a superclass; therefore, except for `java.lang.Object`, the superclass index of every Java class is non-zero.
+
+The interfaces index collection describes which interfaces this class implements. These implemented interfaces are arranged in the interfaces index collection from left to right in the order they appear after `implements` (or after `extends` if this class itself is an interface).
+
+### Fields Table Collection
+
+```java
+    u2             fields_count;// Number of fields
+    field_info     fields[fields_count];// A class can have multiple fields
+```
+
+The fields table (`field_info`) describes variables declared in an interface or class. Fields include class-level variables as well as instance variables, but exclude local variables declared inside methods.
+
+**Structure of `field_info` (Fields Table):**
+
+![Structure of the fields table](/media/jg/ext/oss.javaguide.cn/github/javaguide/java/.png-cd38ccb1.png)
+
+- **access_flags:** The field's visibility scope (`public`, `private`, `protected` modifiers), whether it is an instance variable or class variable (`static` modifier), whether it can be serialized (`transient` modifier), mutability (`final`), and visibility (`volatile` modifier—whether reads/writes are forced from main memory).
+- **name_index:** A reference to the Constant Pool representing the field's name.
+- **descriptor_index:** A reference to the Constant Pool representing the field or method descriptor.
+- **attributes_count:** A field can also carry additional attributes; `attributes_count` stores the number of attributes.
+- **attributes[attributes_count]:** Stores the concrete contents of each attribute.
+
+Among the information above, the various modifiers are boolean values—either a modifier is present or it is not—making them well suited to be represented by flag bits. Meanwhile, what name a field has and what data type it is defined as cannot be fixed in advance, so they can only be described by referencing constants in the Constant Pool.
+
+**Values of a field's `access_flag`:**
+
+![Values of a field's access_flag](/media/jg/ext/oss.javaguide.cn/javaguide/java/jvm/class-file-fields-access_flag-f6327134.png)
+
+### Methods Table Collection
+
+```java
+    u2             methods_count;// Number of methods
+    method_info    methods[methods_count];// A class can have multiple methods
+```
+
+`methods_count` indicates the number of methods, while `method_info` represents the methods table.
+
+In the Class file storage format, methods are described in almost the exact same way as fields. Like the fields table, the structure of a methods table sequentially includes access flags, a name index, a descriptor index, and an attributes table collection.
+
+**Structure of `method_info` (Methods Table):**
+
+![Structure of the methods table](/media/jg/ext/oss.javaguide.cn/github/javaguide/java/.png-c66d230d.png)
+
+**Values of a method's `access_flag`:**
+
+![Values of a method's access_flag](/media/jg/ext/oss.javaguide.cn/javaguide/java/jvm/class-file-methods-access_flag-72428294.png)
+
+Note: Because the `volatile` and `transient` modifiers cannot modify methods, the methods table's access flags do not include the flags corresponding to these two modifiers. However, keywords such as `synchronized`, `native`, and `abstract` can modify methods, so the corresponding flags are added instead.
+
+### Attributes Table Collection
+
+```java
+   u2             attributes_count;// Number of attributes in this class's attribute table
+   attribute_info attributes[attributes_count];// Collection of attribute tables
+```
+
+The Class file, fields table, and methods table can each carry their own collection of attribute tables to describe information specific to certain scenarios. Unlike other data items in the Class file that impose strict requirements on order, length, and content, the constraints on the attributes table collection are somewhat looser: individual attribute tables are no longer required to follow a strict order, and as long as the attribute name does not conflict with existing attribute names, any compiler implementation can write custom attribute information into the attributes table—at runtime, the Java Virtual Machine ignores any attributes it does not recognize.
+
+## References
+
+- *Practical Java Virtual Machine*
+- Chapter 4. The class File Format - Java Virtual Machine Specification: <https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html>
+- Practical Analysis of JAVA CLASS File Structure: <https://coolshell.cn/articles/9229.html>
+- *Illustrated Principles of the Java Virtual Machine* 1.2.2, Detailed Explanation of the Constant Pool in Class Files (Part 1): <https://blog.csdn.net/luanlouis/article/details/39960815>
