@@ -1,88 +1,86 @@
-import { Link, NavLink } from 'react-router-dom';
-import { Menu, Moon, Search, Sun, X } from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { ArrowUpRight, Search, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Logo } from './Logo';
 
 const NAV_ITEMS = [
-  { to: '/', labelVi: 'Trang chủ', labelEn: 'Home', end: true },
-  { to: '/pro192', labelVi: 'PRO192', labelEn: 'PRO192', end: false },
-  { to: '/docs', labelVi: 'JavaGuide', labelEn: 'JavaGuide', end: false },
-  { to: '/pe', labelVi: 'Ôn thi PE', labelEn: 'PE Arena', end: false },
-  { to: '/resources', labelVi: 'Tài nguyên', labelEn: 'Resources', end: false },
+  { to: '/dashboard', label: 'Dashboard', match: (p: string) => p.startsWith('/dashboard') },
+  {
+    to: '/pro192',
+    label: 'Học bài',
+    match: (p: string) =>
+      p.startsWith('/pro192') || p.startsWith('/docs') || p.startsWith('/resources'),
+  },
+  { to: '/pe', label: 'Luyện PE', match: (p: string) => p.startsWith('/pe') },
+  { to: '/studio', label: 'Code Studio', match: (p: string) => p.startsWith('/studio') },
 ];
 
 export function TopBar() {
-  const {
-    lang,
-    setLang,
-    theme,
-    toggleTheme,
-    setIsSearchOpen,
-    isMobileSidebarOpen,
-    setIsMobileSidebarOpen,
-  } = useApp();
+  const location = useLocation();
+  const { lang, setLang, setIsSearchOpen, setIsSettingsOpen } = useApp();
 
   return (
-    <header className="sticky top-0 z-30 h-14 border-b border-[var(--border-default)] bg-[var(--bg-canvas)]/95 backdrop-blur-sm">
-      <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between gap-3 px-4 lg:px-6">
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-            aria-label={isMobileSidebarOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
-            aria-expanded={isMobileSidebarOpen}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] lg:hidden"
+    <header className="sticky top-0 z-30 border-b border-[var(--border-default)] bg-[var(--bg-surface)]/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-4">
+          <Link
+            to="/"
+            title="Về Trang Giới thiệu (M1)"
+            className="group rounded-lg focus-visible:outline-2"
           >
-            {isMobileSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </button>
-
-          <Link to="/" className="rounded-md focus-visible:outline-2">
             <Logo />
           </Link>
-        </div>
 
-        <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 md:flex">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                [
-                  'relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150',
-                  isActive
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent-text)]'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-muted)] hover:text-[var(--text-primary)]',
-                ].join(' ')
-              }
+          <nav aria-label="Điều hướng chính" className="flex flex-wrap items-center gap-1 text-xs">
+            {NAV_ITEMS.map((item) => {
+              const active = item.match(location.pathname);
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={[
+                    'rounded-lg px-3 py-1.5 font-medium transition-colors',
+                    active
+                      ? 'bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                  ].join(' ')}
+                >
+                  {item.label}
+                </NavLink>
+              );
+            })}
+
+            <a
+              href="https://anan-mocha.vercel.app/quizzes"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Mở tab mới sang AnanQuiz ôn trắc nghiệm FE"
+              className="inline-flex items-center gap-1 rounded-lg border border-dashed border-[var(--border-strong)] px-3 py-1.5 text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent-text)]"
             >
-              {lang === 'vi' ? item.labelVi : item.labelEn}
-            </NavLink>
-          ))}
-        </nav>
+              <span>Ôn FE</span>
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          </nav>
+        </div>
 
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setIsSearchOpen(true)}
-            aria-label={lang === 'vi' ? 'Mở tìm kiếm toàn cục (Ctrl+K)' : 'Open global search (Ctrl+K)'}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] sm:w-52 sm:justify-between"
+            aria-label="Tìm nhanh (Ctrl+K)"
+            className="flex items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
           >
-            <span className="inline-flex items-center gap-2 truncate">
-              <Search className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-              <span className="hidden sm:inline truncate">
-                {lang === 'vi' ? 'Tìm bài, slot, bài tập...' : 'Search docs, slots...'}
-              </span>
-            </span>
-            <kbd className="hidden rounded border border-[var(--border-default)] bg-[var(--bg-surface-muted)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)] sm:inline-block">
-              Ctrl K
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Tìm nhanh</span>
+            <kbd className="hidden rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-dim)] sm:inline-block">
+              Ctrl+K
             </kbd>
           </button>
 
           <div
             role="group"
-            aria-label="Ngôn ngữ tài liệu JavaGuide"
-            className="inline-flex h-9 items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-0.5"
+            aria-label="Ngôn ngữ JavaGuide"
+            className="inline-flex items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-0.5"
           >
             {(['vi', 'en'] as const).map((code) => {
               const active = lang === code;
@@ -93,10 +91,10 @@ export function TopBar() {
                   onClick={() => setLang(code)}
                   aria-pressed={active}
                   className={[
-                    'rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide transition-colors',
+                    'rounded-md px-2 py-1 text-[11px] font-bold uppercase transition-colors',
                     active
-                      ? 'bg-[var(--accent)] text-white'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                      ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
                   ].join(' ')}
                 >
                   {code}
@@ -107,11 +105,12 @@ export function TopBar() {
 
           <button
             type="button"
-            onClick={toggleTheme}
-            aria-label={theme === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+            onClick={() => setIsSettingsOpen(true)}
+            title="Cài đặt AI Key (BYOK) & Giao diện"
+            aria-label="Cài đặt AI Key và Giao diện"
+            className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-2 text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
           >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            <Settings className="h-4 w-4" />
           </button>
         </div>
       </div>

@@ -11,6 +11,7 @@ import {
 import type {
   Lang,
   LearningProgress,
+  MistakeItem,
   NavigationData,
   Pro192Data,
   SearchIndexData,
@@ -26,12 +27,40 @@ export interface PdfPreviewState {
 const STORAGE_LANG = 'javabrew:lang';
 const STORAGE_THEME = 'javabrew:theme';
 const STORAGE_PROGRESS = 'javabrew:progress';
+const STORAGE_BYOK = 'javabrew:byok_key';
+
+const DEFAULT_MISTAKES: MistakeItem[] = [
+  {
+    id: 'seed-pe1-npe',
+    type: 'runtime',
+    title: 'NullPointerException khi chưa kiểm tra list hoặc object null',
+    detail:
+      'Hay gặp ở bài PE 01 (filterHonor). Luôn kiểm tra `if (list == null || list.isEmpty())` ở đầu hàm xử lý và `s != null` trước khi gọi getter.',
+    peId: 1,
+    createdAt: '2026-11-24T00:00:00.000Z',
+    resolved: false,
+  },
+  {
+    id: 'seed-pe1-cleancode',
+    type: 'cleancode',
+    title: 'Gộp nhập, lọc và sắp xếp vào chung 1 hàm dài với nhiều vòng if lồng nhau',
+    detail:
+      'Nên tách điều kiện hợp lệ thành helper nhỏ hoặc dùng Early Return + Comparator chain để giảm độ sâu lồng khối, dễ debug khi chấm PE.',
+    peId: 1,
+    createdAt: '2026-11-24T00:00:00.000Z',
+    resolved: false,
+  },
+];
 
 const DEFAULT_PROGRESS: LearningProgress = {
   completedArticles: [],
   completedSlots: [],
   solvedExercises: [],
   completedPe: [],
+  bookmarks: [],
+  notes: {},
+  mistakes: DEFAULT_MISTAKES,
+  peStatus: {},
   lastVisited: null,
 };
 
@@ -47,28 +76,42 @@ function readInitialLang(): Lang {
 function readInitialTheme(): Theme {
   try {
     const val = localStorage.getItem(STORAGE_THEME);
-    if (val === 'dark' || val === 'light') return val;
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
+    if (val === 'light' || val === 'dark') return val;
   } catch {
     // ignore storage errors
   }
-  return 'light';
+  return 'dark';
+}
+
+function readInitialByokKey(): string {
+  try {
+    return localStorage.getItem(STORAGE_BYOK) || '';
+  } catch {
+    return '';
+  }
+}
+
+function sanitizeProgress(raw: unknown): LearningProgress {
+  if (!raw || typeof raw !== 'object') return DEFAULT_PROGRESS;
+  const parsed = raw as Partial<LearningProgress>;
+  return {
+    completedArticles: Array.isArray(parsed.completedArticles) ? parsed.completedArticles : [],
+    completedSlots: Array.isArray(parsed.completedSlots) ? parsed.completedSlots : [],
+    solvedExercises: Array.isArray(parsed.solvedExercises) ? parsed.solvedExercises : [],
+    completedPe: Array.isArray(parsed.completedPe) ? parsed.completedPe : [],
+    bookmarks: Array.isArray(parsed.bookmarks) ? parsed.bookmarks : [],
+    notes: parsed.notes && typeof parsed.notes === 'object' ? parsed.notes : {},
+    mistakes: Array.isArray(parsed.mistakes) ? parsed.mistakes : DEFAULT_MISTAKES,
+    peStatus: parsed.peStatus && typeof parsed.peStatus === 'object' ? parsed.peStatus : {},
+    lastVisited: parsed.lastVisited ?? null,
+  };
 }
 
 function readInitialProgress(): LearningProgress {
   try {
     const raw = localStorage.getItem(STORAGE_PROGRESS);
     if (!raw) return DEFAULT_PROGRESS;
-    const parsed = JSON.parse(raw) as Partial<LearningProgress>;
-    return {
-      completedArticles: Array.isArray(parsed.completedArticles) ? parsed.completedArticles : [],
-      completedSlots: Array.isArray(parsed.completedSlots) ? parsed.completedSlots : [],
-      solvedExercises: Array.isArray(parsed.solvedExercises) ? parsed.solvedExercises : [],
-      completedPe: Array.isArray(parsed.completedPe) ? parsed.completedPe : [],
-      lastVisited: parsed.lastVisited ?? null,
-    };
+    return sanitizeProgress(JSON.parse(raw));
   } catch {
     return DEFAULT_PROGRESS;
   }
@@ -93,16 +136,28 @@ interface AppContextValue {
   lang: Lang;
   setLang: (lang: Lang) => void;
   theme: Theme;
+  setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  byokKey: string;
+  setByokKey: (key: string) => void;
   progress: LearningProgress;
   toggleArticleCompleted: (rel: string) => void;
   toggleSlotCompleted: (slot: number) => void;
   toggleExerciseSolved: (exId: string) => void;
   togglePeCompleted: (peId: string) => void;
+  markPeStatus: (peId: number, status: 'pass' | 'in-progress') => void;
+  toggleBookmark: (key: string) => void;
+  saveNote: (key: string, value: string) => void;
+  addMistake: (item: Omit<MistakeItem, 'id' | 'createdAt'>) => void;
+  toggleMistakeResolved: (id: string) => void;
   recordVisit: (visit: NonNullable<LearningProgress['lastVisited']>) => void;
   resetProgress: () => void;
+  exportProgressJson: () => string;
+  importProgressJson: (raw: string) => boolean;
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
+  isSettingsOpen: boolean;
+  setIsSettingsOpen: (open: boolean) => void;
   isMobileSidebarOpen: boolean;
   setIsMobileSidebarOpen: (open: boolean) => void;
   pdfPreview: PdfPreviewState | null;
@@ -122,10 +177,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const searchPromiseRef = useRef<Promise<SearchIndexData | null> | null>(null);
 
   const [lang, setLangState] = useState<Lang>(readInitialLang);
-  const [theme, setTheme] = useState<Theme>(readInitialTheme);
+  const [theme, setThemeState] = useState<Theme>(readInitialTheme);
+  const [byokKey, setByokKeyState] = useState<string>(readInitialByokKey);
   const [progress, setProgress] = useState<LearningProgress>(readInitialProgress);
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
 
@@ -187,7 +244,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+    const root = document.documentElement;
+    root.classList.toggle('dark', theme === 'dark');
+    root.classList.toggle('light', theme === 'light');
     try {
       localStorage.setItem(STORAGE_THEME, theme);
     } catch {
@@ -195,8 +254,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
+  const setTheme = useCallback((next: Theme) => {
+    setThemeState(next);
+  }, []);
+
   const toggleTheme = useCallback(() => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  const setByokKey = useCallback((key: string) => {
+    const trimmed = key.trim();
+    setByokKeyState(trimmed);
+    try {
+      if (trimmed) localStorage.setItem(STORAGE_BYOK, trimmed);
+      else localStorage.removeItem(STORAGE_BYOK);
+    } catch {
+      // ignore
+    }
   }, []);
 
   useEffect(() => {
@@ -229,9 +303,83 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const togglePeCompleted = useCallback((peId: string) => {
+    setProgress((prev) => {
+      const nextCompleted = toggleStringItem(prev.completedPe, peId);
+      const numId = Number(peId);
+      const nextStatus = { ...prev.peStatus };
+      if (!Number.isNaN(numId)) {
+        if (nextCompleted.includes(peId)) nextStatus[numId] = 'pass';
+        else nextStatus[numId] = 'in-progress';
+      }
+      return {
+        ...prev,
+        completedPe: nextCompleted,
+        peStatus: nextStatus,
+      };
+    });
+  }, []);
+
+  const markPeStatus = useCallback((peId: number, status: 'pass' | 'in-progress') => {
+    const strId = String(peId).padStart(2, '0');
+    setProgress((prev) => {
+      const nextStatus = { ...prev.peStatus, [peId]: status };
+      const hasCompleted =
+        prev.completedPe.includes(strId) || prev.completedPe.includes(String(peId));
+      let nextCompleted = prev.completedPe;
+      if (status === 'pass' && !hasCompleted) {
+        nextCompleted = [...prev.completedPe, strId];
+      } else if (status !== 'pass' && hasCompleted) {
+        nextCompleted = prev.completedPe.filter(
+          (x) => x !== strId && x !== String(peId)
+        );
+      }
+      return {
+        ...prev,
+        peStatus: nextStatus,
+        completedPe: nextCompleted,
+      };
+    });
+  }, []);
+
+  const toggleBookmark = useCallback((key: string) => {
     setProgress((prev) => ({
       ...prev,
-      completedPe: toggleStringItem(prev.completedPe, peId),
+      bookmarks: toggleStringItem(prev.bookmarks, key),
+    }));
+  }, []);
+
+  const saveNote = useCallback((key: string, value: string) => {
+    setProgress((prev) => ({
+      ...prev,
+      notes: { ...prev.notes, [key]: value },
+    }));
+  }, []);
+
+  const addMistake = useCallback((item: Omit<MistakeItem, 'id' | 'createdAt'>) => {
+    setProgress((prev) => {
+      const exists = prev.mistakes.some(
+        (m) => m.peId === item.peId && m.title === item.title
+      );
+      if (exists) return prev;
+      const entry: MistakeItem = {
+        ...item,
+        id: `mistake-${item.peId}-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        resolved: false,
+      };
+      return {
+        ...prev,
+        mistakes: [entry, ...prev.mistakes],
+      };
+    });
+  }, []);
+
+  const toggleMistakeResolved = useCallback((id: string) => {
+    setProgress((prev) => ({
+      ...prev,
+      mistakes: prev.mistakes.map((m) =>
+        m.id === id ? { ...m, resolved: !m.resolved } : m
+      ),
     }));
   }, []);
 
@@ -246,6 +394,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const resetProgress = useCallback(() => {
     setProgress(DEFAULT_PROGRESS);
+  }, []);
+
+  const exportProgressJson = useCallback(() => {
+    return JSON.stringify(progress, null, 2);
+  }, [progress]);
+
+  const importProgressJson = useCallback((raw: string): boolean => {
+    try {
+      const parsed = JSON.parse(raw);
+      setProgress(sanitizeProgress(parsed));
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const openPdfPreview = useCallback((preview: PdfPreviewState) => {
@@ -263,7 +425,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsSearchOpen((open) => !open);
         return;
       }
-      if (e.key === '/' && !isSearchOpen && !pdfPreview) {
+      if (e.key === 'Escape') {
+        setIsSettingsOpen(false);
+        return;
+      }
+      if (e.key === '/' && !isSearchOpen && !isSettingsOpen && !pdfPreview) {
         const active = document.activeElement;
         const tag = active?.tagName.toLowerCase();
         const isEditable =
@@ -279,7 +445,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isSearchOpen, pdfPreview]);
+  }, [isSearchOpen, isSettingsOpen, pdfPreview]);
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -293,16 +459,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
       lang,
       setLang,
       theme,
+      setTheme,
       toggleTheme,
+      byokKey,
+      setByokKey,
       progress,
       toggleArticleCompleted,
       toggleSlotCompleted,
       toggleExerciseSolved,
       togglePeCompleted,
+      markPeStatus,
+      toggleBookmark,
+      saveNote,
+      addMistake,
+      toggleMistakeResolved,
       recordVisit,
       resetProgress,
+      exportProgressJson,
+      importProgressJson,
       isSearchOpen,
       setIsSearchOpen,
+      isSettingsOpen,
+      setIsSettingsOpen,
       isMobileSidebarOpen,
       setIsMobileSidebarOpen,
       pdfPreview,
@@ -320,15 +498,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       lang,
       setLang,
       theme,
+      setTheme,
       toggleTheme,
+      byokKey,
+      setByokKey,
       progress,
       toggleArticleCompleted,
       toggleSlotCompleted,
       toggleExerciseSolved,
       togglePeCompleted,
+      markPeStatus,
+      toggleBookmark,
+      saveNote,
+      addMistake,
+      toggleMistakeResolved,
       recordVisit,
       resetProgress,
+      exportProgressJson,
+      importProgressJson,
       isSearchOpen,
+      isSettingsOpen,
       isMobileSidebarOpen,
       pdfPreview,
       openPdfPreview,

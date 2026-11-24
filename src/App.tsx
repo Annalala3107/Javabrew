@@ -1,24 +1,43 @@
+import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { AppProvider } from './context/AppContext';
-import { DocsPage } from './pages/DocsPage';
-import { HomePage } from './pages/HomePage';
-import { PeArenaPage } from './pages/PeArenaPage';
-import { Pro192Page } from './pages/Pro192Page';
-import { ResourcesPage } from './pages/ResourcesPage';
+import { LandingPage } from './pages/LandingPage';
+
+const DashboardPage = lazy(() =>
+  import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage }))
+);
+const LearnPage = lazy(() =>
+  import('./pages/LearnPage').then((m) => ({ default: m.LearnPage }))
+);
+const PeHubPage = lazy(() =>
+  import('./pages/PeHubPage').then((m) => ({ default: m.PeHubPage }))
+);
+const CodeStudioPage = lazy(() =>
+  import('./pages/CodeStudioPage').then((m) => ({ default: m.CodeStudioPage }))
+);
+
+function RouteLoader() {
+  return (
+    <div className="mx-auto w-full max-w-7xl space-y-4 p-6">
+      <div className="h-24 animate-pulse rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)]" />
+      <div className="h-64 animate-pulse rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)]" />
+    </div>
+  );
+}
 
 function NotFoundPage() {
   return (
-    <div className="mx-auto max-w-lg rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
+    <div className="mx-auto my-12 max-w-lg rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
       <h1 className="text-xl font-bold text-[var(--text-primary)]">Không tìm thấy trang (404)</h1>
-      <p className="mt-2 text-sm text-[var(--text-secondary)]">
+      <p className="mt-2 text-xs text-[var(--text-muted)]">
         Đường dẫn bạn yêu cầu không tồn tại hoặc đã được di chuyển.
       </p>
       <Link
-        to="/"
-        className="mt-4 inline-flex items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
+        to="/dashboard"
+        className="mt-4 inline-flex items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
       >
-        Về trang chủ JavaBrew
+        Về Dashboard JavaBrew
       </Link>
     </div>
   );
@@ -26,19 +45,24 @@ function NotFoundPage() {
 
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route element={<AppLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/pro192" element={<Pro192Page />} />
-        <Route path="/pro192/pe-challenges" element={<Navigate to="/pe" replace />} />
-        <Route path="/pro192/:slug" element={<Pro192Page />} />
-        <Route path="/docs" element={<DocsPage />} />
-        <Route path="/docs/*" element={<DocsPage />} />
-        <Route path="/pe" element={<PeArenaPage />} />
-        <Route path="/resources" element={<ResourcesPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Route>
-    </Routes>
+    <Suspense fallback={<RouteLoader />}>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/pro192" element={<LearnPage mode="pro192" />} />
+          <Route path="/pro192/pe-challenges" element={<Navigate to="/pe" replace />} />
+          <Route path="/pro192/:slug" element={<LearnPage mode="pro192" />} />
+          <Route path="/docs" element={<LearnPage mode="docs" />} />
+          <Route path="/docs/*" element={<LearnPage mode="docs" />} />
+          <Route path="/resources" element={<LearnPage mode="resources" />} />
+          <Route path="/pe" element={<PeHubPage />} />
+          <Route path="/studio" element={<CodeStudioPage />} />
+          <Route path="/studio/:peId" element={<CodeStudioPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }
 

@@ -10,6 +10,17 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'markdown-vendor': ['react-markdown', 'remark-gfm', 'rehype-slug', 'js-yaml'],
+          'highlight-vendor': ['rehype-highlight', 'highlight.js'],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

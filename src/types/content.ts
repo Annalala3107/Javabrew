@@ -61,6 +61,21 @@ export interface Pro192Slot {
   studyBridge: string[];
 }
 
+export interface Pro192PeChallengeMeta {
+  id: number;
+  code: string;
+  cat: string;
+  title: string;
+  meta: string;
+  relatedSlots: number[];
+  desc: string;
+  checklist: string[];
+  entityFileName: string;
+  entityCode: string;
+  starterCode: string;
+  cleanCode: string;
+}
+
 export interface Pro192Data {
   generatedAt: string;
   course: {
@@ -77,6 +92,7 @@ export interface Pro192Data {
   };
   stages: Pro192Stage[];
   slots: Pro192Slot[];
+  peChallenges?: Pro192PeChallengeMeta[];
   assets: {
     images: string[];
     slides: string[];
@@ -170,15 +186,29 @@ export interface PeChallenge {
   solutionMd: string;
 }
 
+export interface MistakeItem {
+  id: string;
+  type: 'runtime' | 'cleancode';
+  title: string;
+  detail: string;
+  peId: number;
+  createdAt: string;
+  resolved?: boolean;
+}
+
 export interface LearningProgress {
   completedArticles: string[];
   completedSlots: number[];
   solvedExercises: string[];
   completedPe: string[];
+  bookmarks: string[];
+  notes: Record<string, string>;
+  mistakes: MistakeItem[];
+  peStatus: Record<number, 'pass' | 'in-progress'>;
   lastVisited: {
     path: string;
     title: string;
-    kind: 'pro192' | 'docs' | 'pe';
+    kind: 'pro192' | 'docs' | 'pe' | 'studio';
     updatedAt: string;
   } | null;
 }

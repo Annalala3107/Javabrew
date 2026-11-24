@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, GraduationCap, HelpCircle, Search, Timer, X } from 'lucide-react';
+import { BookOpen, GraduationCap, HelpCircle, Search, Terminal } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { normalizeSearchText, stageFileToSlug } from '../utils/text';
 
@@ -57,7 +57,7 @@ export function SearchModal() {
             kind: 'slots',
             title: `Slot ${s.slot}: ${s.title}`,
             subtitle: `PRO192 · Giai đoạn ${s.stage}`,
-            badge: `Slot ${s.slot}`,
+            badge: `PRO192`,
             to: `/pro192/${stageFileToSlug(s.file)}?slot=${s.slot}`,
             score,
           });
@@ -69,13 +69,14 @@ export function SearchModal() {
       for (const pe of searchIndex.peChallenges) {
         const hay = normalizeSearchText(`${pe.title} ${pe.meta}`);
         if (!q || hay.includes(q)) {
+          const numId = Number(pe.id) || 1;
           items.push({
             key: `pe-${pe.id}`,
             kind: 'pe',
             title: pe.title,
             subtitle: pe.meta,
-            badge: `PE ${pe.id}`,
-            to: `/pe?challenge=${pe.id}`,
+            badge: `PE ${String(numId).padStart(2, '0')}`,
+            to: `/studio/${numId}`,
             score: q ? 105 : 65,
           });
         }
@@ -136,7 +137,7 @@ export function SearchModal() {
             kind: 'docs',
             title: primaryTitle,
             subtitle: `${lang === 'vi' ? art.domainLabelVi : art.domainLabelEn} · ${secondaryTitle}`,
-            badge: lang === 'vi' ? art.groupLabelVi : art.groupLabelEn,
+            badge: 'JavaGuide',
             to: `/docs/${art.rel}`,
             score,
           });
@@ -191,36 +192,33 @@ export function SearchModal() {
       aria-modal="true"
       aria-label="Tìm kiếm toàn cục JavaBrew"
       onKeyDown={handleKeyDown}
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[8vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-4 pt-20 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) setIsSearchOpen(false);
       }}
     >
-      <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-[var(--shadow-overlay)]">
-        {/* Search input */}
-        <div className="flex items-center gap-2.5 border-b border-[var(--border-default)] px-4 py-3">
+      <div className="w-full max-w-xl overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-[var(--shadow-overlay)]">
+        <div className="flex items-center gap-2.5 border-b border-[var(--border-default)] p-3.5">
           <Search className="h-4 w-4 shrink-0 text-[var(--accent)]" />
           <input
             ref={inputRef}
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm theo từ khóa (hỗ trợ không dấu: da hinh, hashmap, jvm, try-catch)..."
+            placeholder="Tìm bài học PRO192, JavaGuide hoặc Đề PE (VD: HashMap, da hinh, Student)..."
             aria-label="Nhập từ khóa tìm kiếm"
-            className="w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
+            className="flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:outline-none"
           />
           <button
             type="button"
             onClick={() => setIsSearchOpen(false)}
-            aria-label="Đóng hộp tìm kiếm"
-            className="rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--bg-surface-muted)] hover:text-[var(--text-primary)]"
+            className="rounded border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2 py-0.5 font-mono text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
           >
-            <X className="h-4 w-4" />
+            ESC
           </button>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex flex-wrap gap-1 border-b border-[var(--border-default)] bg-[var(--bg-surface-muted)] px-3 py-2">
+        <div className="flex flex-wrap gap-1 border-b border-[var(--border-default)] bg-[var(--bg-canvas)]/70 px-3 py-2">
           {tabs.map((t) => {
             const active = tab === t.id;
             return (
@@ -231,8 +229,8 @@ export function SearchModal() {
                 className={[
                   'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
                   active
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]',
+                    ? 'bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]',
                 ].join(' ')}
               >
                 {t.label}
@@ -241,23 +239,19 @@ export function SearchModal() {
           })}
         </div>
 
-        {/* Results */}
-        <div className="max-h-[56vh] overflow-y-auto p-2">
+        <div className="max-h-80 overflow-y-auto p-3">
           {loading ? (
-            <div className="space-y-2 p-3">
-              <div className="h-10 animate-pulse rounded-lg bg-[var(--bg-surface-muted)]" />
-              <div className="h-10 animate-pulse rounded-lg bg-[var(--bg-surface-muted)]" />
-              <div className="h-10 animate-pulse rounded-lg bg-[var(--bg-surface-muted)]" />
+            <div className="space-y-2">
+              <div className="h-10 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
+              <div className="h-10 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
+              <div className="h-10 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
             </div>
           ) : results.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">
-              Không tìm thấy kết quả phù hợp cho “{query}”. Hãy thử từ khóa ngắn hơn (ví dụ:{' '}
-              <code className="rounded bg-[var(--bg-code)] px-1.5 py-0.5">HashMap</code>,{' '}
-              <code className="rounded bg-[var(--bg-code)] px-1.5 py-0.5">JVM</code>,{' '}
-              <code className="rounded bg-[var(--bg-code)] px-1.5 py-0.5">Slot 14</code>).
+            <div className="p-4 text-center text-xs text-[var(--text-dim)]">
+              Không tìm thấy kết quả cho “{query}”. Thử tìm “HashMap” hoặc “Student”.
             </div>
           ) : (
-            <ul role="listbox" className="space-y-1">
+            <ul role="listbox" className="space-y-2 text-xs">
               {results.map((item, idx) => {
                 const selected = idx === activeIndex;
                 const Icon =
@@ -266,7 +260,7 @@ export function SearchModal() {
                     : item.kind === 'slots'
                       ? GraduationCap
                       : item.kind === 'pe'
-                        ? Timer
+                        ? Terminal
                         : HelpCircle;
 
                 return (
@@ -276,30 +270,25 @@ export function SearchModal() {
                       onMouseEnter={() => setActiveIndex(idx)}
                       onClick={() => handleSelect(item)}
                       className={[
-                        'flex w-full items-start justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
+                        'flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors',
                         selected
-                          ? 'bg-[var(--accent-soft)]'
-                          : 'hover:bg-[var(--bg-surface-muted)]',
+                          ? 'border-[var(--accent)] bg-[var(--bg-canvas)]'
+                          : 'border-[var(--border-default)] bg-[var(--bg-canvas)] hover:border-[var(--accent)]',
                       ].join(' ')}
                     >
                       <div className="flex min-w-0 items-start gap-2.5">
-                        <Icon
-                          className={[
-                            'mt-0.5 h-4 w-4 shrink-0',
-                            selected ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]',
-                          ].join(' ')}
-                        />
+                        <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                          <div className="truncate font-semibold text-[var(--text-primary)]">
                             {item.title}
                           </div>
-                          <div className="truncate text-xs text-[var(--text-secondary)]">
+                          <div className="truncate text-[11px] text-[var(--text-muted)]">
                             {item.subtitle}
                           </div>
                         </div>
                       </div>
-                      <span className="shrink-0 rounded border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">
-                        {item.badge}
+                      <span className="shrink-0 rounded bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--accent-text)]">
+                        {item.badge} →
                       </span>
                     </button>
                   </li>
@@ -307,16 +296,6 @@ export function SearchModal() {
               })}
             </ul>
           )}
-        </div>
-
-        {/* Footer hints */}
-        <div className="flex items-center justify-between border-t border-[var(--border-default)] bg-[var(--bg-surface-muted)] px-4 py-2 text-[11px] text-[var(--text-muted)]">
-          <span>
-            Dùng <kbd className="rounded border border-[var(--border-default)] px-1">↑</kbd>{' '}
-            <kbd className="rounded border border-[var(--border-default)] px-1">↓</kbd> để chọn ·{' '}
-            <kbd className="rounded border border-[var(--border-default)] px-1">Enter</kbd> để mở
-          </span>
-          <span className="tabular-nums">Hiển thị {results.length} kết quả hàng đầu</span>
         </div>
       </div>
     </div>

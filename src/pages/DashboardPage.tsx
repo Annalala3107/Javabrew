@@ -1,0 +1,403 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
+  Code2,
+  FolderArchive,
+  Sparkles,
+} from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { stageFileToSlug } from '../utils/text';
+
+export function DashboardPage() {
+  const { navigation, pro192, lang, progress, toggleSlotCompleted } = useApp();
+  const [expandedStageId, setExpandedStageId] = useState<number>(1);
+
+  const totalSlots = pro192?.course.totalSlots ?? 30;
+  const doneSlots = progress.completedSlots.length;
+  const proPct = Math.round((doneSlots / totalSlots) * 100);
+
+  const totalArticles = navigation?.totalArticles ?? 354;
+  const doneArticles = progress.completedArticles.length;
+  const jgPct = Math.round((doneArticles / totalArticles) * 100);
+
+  const totalPe = pro192?.peChallenges?.length ?? pro192?.course.totalPeChallenges ?? 4;
+  const passedPeCount = pro192?.peChallenges
+    ? pro192.peChallenges.filter((p) => progress.peStatus[p.id] === 'pass').length
+    : progress.completedPe.length;
+
+  // Next uncompleted slot for Hero resume banner
+  const nextSlot =
+    pro192?.slots.find((s) => !progress.completedSlots.includes(s.slot)) || pro192?.slots[0];
+  const resumePath =
+    progress.lastVisited?.path ||
+    (nextSlot ? `/pro192/${stageFileToSlug(nextSlot.file)}?slot=${nextSlot.slot}` : '/pro192');
+  const resumeLabel = progress.lastVisited
+    ? `Tiếp tục: ${progress.lastVisited.title}`
+    : nextSlot
+      ? `Học tiếp Slot ${String(nextSlot.slot).padStart(2, '0')} →`
+      : 'Vào giáo trình PRO192 →';
+
+  const featuredClusters = [
+    {
+      domainId: 'java',
+      title: 'Java Basics & OOP (33)',
+      desc: 'String Pool, equals, Generics & Proxy',
+      to: '/docs/java/basis/java-basic-questions-01.md',
+    },
+    {
+      domainId: 'java',
+      title: 'Collections (13)',
+      desc: 'ArrayList, HashMap, HashSet & Comparator',
+      to: '/docs/java/collection/hashmap-source-code.md',
+    },
+    {
+      domainId: 'java',
+      title: 'JVM & GC (11)',
+      desc: 'Stack/Heap, Metaspace, G1 & ZGC',
+      to: '/docs/java/jvm/memory-area.md',
+    },
+    {
+      domainId: 'java',
+      title: 'Concurrency & IO (15)',
+      desc: 'Thread, AQS, File I/O & Serialization',
+      to: '/docs/java/io/io-basis.md',
+    },
+  ];
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
+      {/* Hero Action Banner (matches view-m2) */}
+      <section className="flex flex-col justify-between gap-6 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 lg:flex-row lg:items-center">
+        <div className="space-y-2.5">
+          <div className="inline-flex items-center gap-2 text-xs text-[var(--accent-text)]">
+            <span>☕ Góc Cà Phê Code Đêm</span>
+            <span className="text-[var(--border-strong)]">•</span>
+            <span className="text-[var(--text-muted)]">Chế độ Offline Docs Ready</span>
+          </div>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+            {nextSlot
+              ? `Chào buổi tối, học tiếp từ Slot ${String(nextSlot.slot).padStart(2, '0')} nhé!`
+              : 'Chào buổi tối, cùng pha cà phê và luyện Java OOP nhé!'}
+          </h1>
+          <p className="text-xs text-[var(--text-muted)]">
+            {nextSlot ? (
+              <>
+                Đang tới:{' '}
+                <strong className="text-[var(--text-primary)]">{nextSlot.title}</strong> — nền tảng quan trọng để làm trọn bộ đề thực hành PE.
+              </>
+            ) : (
+              'Trọn bộ 30 Slots PRO192, 354 bài JavaGuide EN/VI và Code Studio đã sẵn sàng.'
+            )}
+          </p>
+          <div className="flex flex-wrap gap-2.5 pt-1">
+            <Link
+              to={resumePath}
+              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-bold text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"
+            >
+              {resumeLabel}
+            </Link>
+            <Link
+              to="/pe"
+              className="rounded-lg border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-4 py-2 text-xs font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+            >
+              Vào Kho Đề PE
+            </Link>
+          </div>
+        </div>
+
+        {/* 3 Compact Stat Cards */}
+        <div className="grid shrink-0 grid-cols-3 gap-3">
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] px-4 py-3 text-center">
+            <div className="text-xl font-bold tabular-nums text-[var(--accent)]">{proPct}%</div>
+            <div className="mt-0.5 text-xs tabular-nums text-[var(--text-muted)]">
+              PRO192 ({doneSlots}/{totalSlots})
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] px-4 py-3 text-center">
+            <div className="text-xl font-bold tabular-nums text-[var(--info)]">{jgPct}%</div>
+            <div className="mt-0.5 text-xs tabular-nums text-[var(--text-muted)]">
+              JavaGuide ({doneArticles}/{totalArticles})
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] px-4 py-3 text-center">
+            <div className="text-xl font-bold tabular-nums text-[var(--success)]">
+              {passedPeCount} / {totalPe}
+            </div>
+            <div className="mt-0.5 text-xs text-[var(--text-muted)]">Đề PE Pass</div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2 Balanced Columns */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Left Card: PRO192 Checklist (8 Stages / 30 Slots, no strikethrough!) */}
+        <section className="space-y-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-[var(--text-primary)]">
+                Lộ trình PRO192 (30 Slots)
+              </h2>
+              <p className="text-xs text-[var(--text-dim)]">
+                Bấm ô vuông để cập nhật tiến độ (không gạch ngang để dễ ôn lại)
+              </p>
+            </div>
+            <span className="font-mono text-xs font-semibold tabular-nums text-[var(--accent)]">
+              {doneSlots}/{totalSlots} ({proPct}%)
+            </span>
+          </div>
+
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-default)]">
+            <div
+              className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
+              style={{ width: `${proPct}%` }}
+            />
+          </div>
+
+          <div className="max-h-[380px] space-y-2 overflow-y-auto pr-1 text-xs">
+            {pro192?.stages.map((stage) => {
+              const slug = stageFileToSlug(stage.file);
+              const stageSlots = pro192.slots.filter((s) => s.stage === stage.id);
+              const doneInStage = stageSlots.filter((s) =>
+                progress.completedSlots.includes(s.slot)
+              ).length;
+              const isOpen = expandedStageId === stage.id;
+              const stageAllDone = doneInStage === stageSlots.length;
+
+              return (
+                <div
+                  key={stage.id}
+                  className="overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)]"
+                >
+                  <div className="flex items-center justify-between gap-2 p-3">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedStageId(isOpen ? 0 : stage.id)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    >
+                      {isOpen ? (
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--text-dim)]" />
+                      )}
+                      <span className="truncate font-semibold text-[var(--text-primary)]">
+                        Slot {stage.slots[0]}–{stage.slots[stage.slots.length - 1]}:{' '}
+                        {stage.title.replace(/^Giai đoạn \d+:\s*/, '')}
+                      </span>
+                    </button>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span
+                        className={[
+                          'rounded-md border px-2 py-0.5 text-[11px] tabular-nums',
+                          stageAllDone
+                            ? 'border-[var(--success)]/30 bg-[var(--success-soft)] text-[var(--success-text)]'
+                            : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-muted)]',
+                        ].join(' ')}
+                      >
+                        {doneInStage}/{stageSlots.length}
+                      </span>
+                      <Link
+                        to={`/pro192/${slug}`}
+                        className="text-[var(--accent-text)] hover:underline"
+                      >
+                        Mở →
+                      </Link>
+                    </div>
+                  </div>
+
+                  {isOpen && (
+                    <div className="space-y-1.5 border-t border-[var(--border-default)] bg-[var(--bg-surface)]/40 p-2.5">
+                      {stageSlots.map((slot) => {
+                        const done = progress.completedSlots.includes(slot.slot);
+                        return (
+                          <div
+                            key={slot.slot}
+                            className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-2 transition-colors hover:border-[var(--border-strong)]"
+                          >
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <button
+                                type="button"
+                                onClick={() => toggleSlotCompleted(slot.slot)}
+                                aria-label={`Đánh dấu Slot ${slot.slot}`}
+                                aria-pressed={done}
+                                className={[
+                                  'flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[11px] font-bold transition-colors',
+                                  done
+                                    ? 'border-[var(--success)] bg-[var(--success)] text-[#1C1917]'
+                                    : 'border-[var(--border-strong)] text-transparent hover:border-[var(--accent)]',
+                                ].join(' ')}
+                              >
+                                ✓
+                              </button>
+                              <Link
+                                to={`/pro192/${slug}?slot=${slot.slot}`}
+                                className={[
+                                  'truncate hover:text-[var(--accent-text)]',
+                                  done
+                                    ? 'text-[var(--text-secondary)]'
+                                    : 'font-medium text-[var(--text-primary)]',
+                                ].join(' ')}
+                              >
+                                Slot {String(slot.slot).padStart(2, '0')}: {slot.title}
+                              </Link>
+                            </div>
+                            <span
+                              className={[
+                                'shrink-0 rounded-md px-2 py-0.5 text-[11px]',
+                                done
+                                  ? 'border border-[var(--success)]/30 bg-[var(--success-soft)] text-[var(--success-text)]'
+                                  : 'text-[var(--text-dim)]',
+                              ].join(' ')}
+                            >
+                              {done ? 'Done' : 'Mở →'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Right Card: JavaGuide Core Track */}
+        <section className="flex flex-col justify-between space-y-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-bold text-[var(--text-primary)]">
+                  JavaGuide Chuyên sâu ({lang.toUpperCase()})
+                </h2>
+                <p className="text-xs text-[var(--text-dim)]">
+                  Đào sâu bản chất JVM, Collections &amp; {totalArticles} bài phỏng vấn Java
+                </p>
+              </div>
+              <span className="font-mono text-xs font-semibold tabular-nums text-[var(--info)]">
+                {doneArticles}/{totalArticles} ({jgPct}%)
+              </span>
+            </div>
+
+            <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-default)]">
+              <div
+                className="h-full rounded-full bg-[var(--info)] transition-all duration-300"
+                style={{ width: `${jgPct}%` }}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 pt-1 text-xs sm:grid-cols-2">
+              {featuredClusters.map((c) => (
+                <Link
+                  key={c.title}
+                  to={c.to}
+                  className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3.5 text-left transition-colors hover:border-[var(--accent)]"
+                >
+                  <div className="font-semibold text-[var(--text-primary)]">{c.title}</div>
+                  <div className="mt-1 text-[var(--text-muted)]">{c.desc}</div>
+                </Link>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 text-[11px]">
+              {navigation?.domains.slice(1).map((dom) => (
+                <Link
+                  key={dom.id}
+                  to={`/docs?domain=${dom.id}`}
+                  className="rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2 py-1 text-[var(--text-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent-text)]"
+                >
+                  {lang === 'vi' ? dom.labelVi : dom.labelEn} ({dom.totalArticles})
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-default)] pt-3 text-xs">
+            <span className="text-[var(--text-muted)]">
+              🌉 Cầu nối gợi ý:{' '}
+              <strong className="text-[var(--text-primary)]">Cơ chế HashMap</strong>
+            </span>
+            <Link
+              to="/docs/java/collection/hashmap-source-code.md"
+              className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-1.5 text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+            >
+              Đọc bài ngay →
+            </Link>
+          </div>
+        </section>
+      </div>
+
+      {/* Bottom Quick Actions (matches view-m2 + Slide Resources link) */}
+      <div className="grid grid-cols-1 gap-4 text-xs md:grid-cols-3">
+        <Link
+          to="/pe"
+          className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-left transition-colors hover:border-[var(--accent)]"
+        >
+          <span className="rounded-lg bg-[var(--accent-soft)] p-2 text-[var(--accent)]">
+            <Code2 className="h-4 w-4" />
+          </span>
+          <div>
+            <div className="font-semibold text-[var(--text-primary)]">
+              Kho Đề PE &amp; Lỗi hay mắc
+            </div>
+            <div className="mt-0.5 text-[var(--text-muted)]">
+              Luyện bộ đề OOP, Collections và ôn lại {progress.mistakes.length} lỗi AI nhắc
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          to="/studio"
+          className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-left transition-colors hover:border-[var(--info)]"
+        >
+          <span className="rounded-lg bg-[var(--info-soft)] p-2 text-[var(--info)]">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          <div>
+            <div className="font-semibold text-[var(--text-primary)]">
+              Mở JavaBrew Code Studio
+            </div>
+            <div className="mt-0.5 text-[var(--text-muted)]">
+              Code trực tiếp, Diff Clean Code &amp; nhận góp ý từ AI Mentor
+            </div>
+          </div>
+        </Link>
+
+        <div className="flex flex-col justify-between gap-2">
+          <a
+            href="https://anan-mocha.vercel.app/quizzes"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-start gap-3 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] p-3.5 text-left transition-colors hover:border-[var(--accent)]"
+          >
+            <span className="rounded-lg bg-[var(--border-default)] p-2 text-[var(--accent-text)]">
+              <ArrowUpRight className="h-4 w-4" />
+            </span>
+            <div>
+              <div className="font-semibold text-[var(--text-primary)]">
+                Luyện trắc nghiệm FE tại AnanQuiz ↗
+              </div>
+              <div className="mt-0.5 text-[var(--text-muted)]">
+                Mở tab mới sang hệ thống thi thử FE đa môn
+              </div>
+            </div>
+          </a>
+
+          <Link
+            to="/resources"
+            className="flex items-center justify-between rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-2 text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+          >
+            <span className="inline-flex items-center gap-2 font-medium">
+              <FolderArchive className="h-3.5 w-3.5 text-[var(--accent)]" />
+              <span>Kho 14 Slide PDF/PPTX &amp; banking.rar</span>
+            </span>
+            <span className="text-[var(--accent-text)]">Mở →</span>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
