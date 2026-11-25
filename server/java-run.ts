@@ -1,11 +1,16 @@
 import type { Sandbox as SandboxType } from '@vercel/sandbox';
 import {
+  executeViaExternalRunner,
+  extractTestMarkerBlock,
+  resolveExternalRunnerConfig,
+} from './externalRunner';
+import {
   hasMainMethod,
   parseJavacDiagnostics,
   utf8ByteLength,
   validateCompilePayload,
   type JavaDiagnostic,
-  type JavaTestCaseResult,
+  type JavaSourceFile,
 } from './javaValidation';
 import { buildPeHarness, getPeInterfaceFiles } from './peHarnesses';
 
@@ -103,28 +108,6 @@ async function emitMetric(
   } catch {
     // Metrics are best-effort and no-op outside supported Vercel runtimes
   }
-}
-
-function extractTestMarkerBlock(rawStdout: string): {
-  cleanedStdout: string;
-  testResults?: JavaTestCaseResult[];
-} {
-  const match = rawStdout.match(/__JB_TESTS_START__\s*([\s\S]*?)\s*__JB_TESTS_END__/);
-  if (!match) {
-    return { cleanedStdout: rawStdout };
-  }
-  const cleanedStdout = rawStdout
-    .replace(/__JB_TESTS_START__[\s\S]*?__JB_TESTS_END__\r?\n?/g, '')
-    .trimEnd();
-  try {
-    const parsed = JSON.parse(match[1]) as JavaTestCaseResult[];
-    if (Array.isArray(parsed)) {
-      return { cleanedStdout, testResults: parsed };
-    }
-  } catch {
-    // Ignore malformed marker output and surface stdout directly
-  }
-  return { cleanedStdout };
 }
 
 async function ensureOpenJdkBaseSandbox(): Promise<void> {
@@ -227,10 +210,18 @@ async function acquireForkedSandbox(): Promise<{
 }
 
 export async function GET(request: Request): Promise<Response> {
+  const sandboxReady = hasSandboxCredentials(request);
+  const externalCfg = resolveExternalRunnerConfig(process.env);
+  const runtime = sandboxReady
+    ? 'OpenJDK 21 (Vercel Sandbox)'
+    : externalCfg
+      ? `OpenJDK (${externalCfg.provider === 'judge0' ? 'Judge0' : 'Piston'} Fallback)`
+      : 'OpenJDK 21 (Vercel Sandbox)';
+
   return Response.json(
     {
-      available: hasSandboxCredentials(request),
-      runtime: 'OpenJDK 21 (Vercel Sandbox)',
+      available: sandboxReady || Boolean(externalCfg),
+      runtime,
       region: SANDBOX_REGION,
       nodeVersion: process.version,
     },
@@ -243,13 +234,16 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   const startedAt = performance.now();
+  const sandboxReady = hasSandboxCredentials(request);
+  const externalCfg = resolveExternalRunnerConfig(process.env);
 
-  if (!hasSandboxCredentials(request)) {
+  if (!sandboxReady && !externalCfg) {
     await emitMetric('java_sandbox.run', 1, { mode: 'unknown', outcome: 'no_credentials' });
     return Response.json(
       {
         unavailable: true,
-        unavailableReason: 'Chưa phát hiện VERCEL_OIDC_TOKEN trên môi trường này.',
+        unavailableReason:
+          'Chưa phát hiện VERCEL_OIDC_TOKEN hoặc JAVA_RUNNER_URL trên môi trường này.',
       },
       { status: 503, headers: { 'Cache-Control': 'no-store' } }
     );
@@ -281,6 +275,150 @@ export async function POST(request: Request): Promise<Response> {
 
   const payload = validated.data;
   const primaryFileName = payload.files[0].name;
+
+  const workFiles: Array<{ path: string; content: string }> = payload.files.map((f) => ({
+    path: `${WORK_DIR}/${f.name}`,
+    content: f.content,
+  }));
+  const effectiveJavaFiles: JavaSourceFile[] = payload.files.map((f) => ({
+    name: f.name,
+    content: f.content,
+  }));
+  const compileTargets: string[] = payload.files.map((f) => f.name);
+  const seenTargets = new Set<string>(compileTargets.map((name) => name.toLowerCase()));
+
+  const appendExtraFiles = (extraFiles?: Array<{ path: string; content: string }>) => {
+    if (!extraFiles) return;
+    for (const extra of extraFiles) {
+      const baseName = extra.path.split('/').pop() || '';
+      if (baseName && extra.path.startsWith(`${WORK_DIR}/`) && extra.path.endsWith('.java')) {
+        if (seenTargets.has(baseName.toLowerCase())) {
+          continue;
+        }
+        seenTargets.add(baseName.toLowerCase());
+        compileTargets.push(baseName);
+        effectiveJavaFiles.push({ name: baseName, content: extra.content });
+      }
+      workFiles.push(extra);
+    }
+  };
+
+  let entryClass = primaryFileName.replace(/\.java$/, '');
+  let useUserStdin = false;
+
+  if (payload.mode === 'grade') {
+    const harness = buildPeHarness(payload.peId!, 'grade');
+    if (!harness) {
+      return Response.json(
+        { error: `Không tìm thấy bộ chấm cho PE ${payload.peId}.` },
+        { status: 400 }
+      );
+    }
+    workFiles.push({
+      path: `${WORK_DIR}/${harness.fileName}`,
+      content: harness.content,
+    });
+    effectiveJavaFiles.push({ name: harness.fileName, content: harness.content });
+    appendExtraFiles(harness.extraFiles);
+    compileTargets.push(harness.fileName);
+    entryClass = harness.entryClass;
+  } else {
+    const fileWithMain = payload.files.find((f) => hasMainMethod(f.content));
+    if (fileWithMain) {
+      entryClass = fileWithMain.name.replace(/\.java$/, '');
+      useUserStdin = payload.stdin.length > 0;
+      if (useUserStdin) {
+        workFiles.push({
+          path: `${WORK_DIR}/__stdin.txt`,
+          content: payload.stdin,
+        });
+      }
+      if (payload.peId) {
+        appendExtraFiles(getPeInterfaceFiles(payload.peId));
+      }
+    } else if (payload.peId) {
+      const smoke = buildPeHarness(payload.peId, 'run');
+      if (smoke) {
+        workFiles.push({
+          path: `${WORK_DIR}/${smoke.fileName}`,
+          content: smoke.content,
+        });
+        effectiveJavaFiles.push({ name: smoke.fileName, content: smoke.content });
+        appendExtraFiles(smoke.extraFiles);
+        compileTargets.push(smoke.fileName);
+        entryClass = smoke.entryClass;
+      }
+    } else {
+      return Response.json(
+        {
+          ok: false,
+          phase: 'compile',
+          jdkVersion: sandboxReady ? 'OpenJDK 21' : 'OpenJDK',
+          compileMs: 0,
+          runMs: 0,
+          exitCode: 1,
+          stdout: '',
+          stderr: 'Không tìm thấy hàm public static void main(String[] args) để chạy thử.',
+          diagnostics: [
+            {
+              file: primaryFileName,
+              line: 1,
+              column: 1,
+              severity: 'error',
+              message: 'Cần có hàm public static void main(String[] args) để chạy ở chế độ tự do.',
+            },
+          ] satisfies JavaDiagnostic[],
+        },
+        { status: 200, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+  }
+
+  const runViaExternal = async () => {
+    const ext = await executeViaExternalRunner({
+      config: externalCfg!,
+      files: effectiveJavaFiles,
+      entryClass,
+      primaryFileName,
+      stdin: useUserStdin ? payload.stdin : '',
+      mode: payload.mode,
+    });
+    const outcome =
+      ext.phase === 'compile'
+        ? 'compile_error'
+        : ext.timedOut
+          ? 'timeout'
+          : ext.ok
+            ? 'pass'
+            : 'fail';
+    const durationMs = Math.round(performance.now() - startedAt);
+    await emitMetric('java_sandbox.run', 1, { mode: payload.mode, outcome: `ext_${outcome}` });
+    await emitMetric('java_sandbox.duration_ms', durationMs, { mode: payload.mode });
+    return Response.json(
+      {
+        ...ext,
+        stdout: truncateOutput(ext.stdout),
+        stderr: truncateOutput(ext.stderr),
+      },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } }
+    );
+  };
+
+  if (!sandboxReady && externalCfg) {
+    try {
+      return await runViaExternal();
+    } catch (extErr) {
+      const msg = sanitizeErrorSummary(extErr instanceof Error ? extErr.message : String(extErr));
+      return Response.json(
+        {
+          unavailable: true,
+          unavailableReason: `${msg || 'External Java runner không phản hồi.'} — Hãy thử lại hoặc dùng Static Evaluator.`,
+        },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+  }
+
   let sandbox: SandboxType | null = null;
 
   try {
@@ -291,97 +429,6 @@ export async function POST(request: Request): Promise<Response> {
     const mkdirRes = await sandbox.runCommand('mkdir', ['-p', WORK_DIR, OUT_DIR]);
     if (mkdirRes.exitCode !== 0) {
       throw new Error(`mkdir failed: ${await mkdirRes.stderr()}`);
-    }
-
-    const workFiles: Array<{ path: string; content: string }> = payload.files.map((f) => ({
-      path: `${WORK_DIR}/${f.name}`,
-      content: f.content,
-    }));
-    const compileTargets: string[] = payload.files.map((f) => f.name);
-    const seenTargets = new Set<string>(compileTargets.map((name) => name.toLowerCase()));
-
-    const appendExtraFiles = (extraFiles?: Array<{ path: string; content: string }>) => {
-      if (!extraFiles) return;
-      for (const extra of extraFiles) {
-        const baseName = extra.path.split('/').pop() || '';
-        if (baseName && extra.path.startsWith(`${WORK_DIR}/`) && extra.path.endsWith('.java')) {
-          if (seenTargets.has(baseName.toLowerCase())) {
-            continue;
-          }
-          seenTargets.add(baseName.toLowerCase());
-          compileTargets.push(baseName);
-        }
-        workFiles.push(extra);
-      }
-    };
-
-    let entryClass = primaryFileName.replace(/\.java$/, '');
-    let useUserStdin = false;
-
-    if (payload.mode === 'grade') {
-      const harness = buildPeHarness(payload.peId!, 'grade');
-      if (!harness) {
-        return Response.json(
-          { error: `Không tìm thấy bộ chấm cho PE ${payload.peId}.` },
-          { status: 400 }
-        );
-      }
-      workFiles.push({
-        path: `${WORK_DIR}/${harness.fileName}`,
-        content: harness.content,
-      });
-      appendExtraFiles(harness.extraFiles);
-      compileTargets.push(harness.fileName);
-      entryClass = harness.entryClass;
-    } else {
-      const fileWithMain = payload.files.find((f) => hasMainMethod(f.content));
-      if (fileWithMain) {
-        entryClass = fileWithMain.name.replace(/\.java$/, '');
-        useUserStdin = payload.stdin.length > 0;
-        if (useUserStdin) {
-          workFiles.push({
-            path: `${WORK_DIR}/__stdin.txt`,
-            content: payload.stdin,
-          });
-        }
-        if (payload.peId) {
-          appendExtraFiles(getPeInterfaceFiles(payload.peId));
-        }
-      } else if (payload.peId) {
-        const smoke = buildPeHarness(payload.peId, 'run');
-        if (smoke) {
-          workFiles.push({
-            path: `${WORK_DIR}/${smoke.fileName}`,
-            content: smoke.content,
-          });
-          appendExtraFiles(smoke.extraFiles);
-          compileTargets.push(smoke.fileName);
-          entryClass = smoke.entryClass;
-        }
-      } else {
-        return Response.json(
-          {
-            ok: false,
-            phase: 'compile',
-            jdkVersion,
-            compileMs: 0,
-            runMs: 0,
-            exitCode: 1,
-            stdout: '',
-            stderr: 'Không tìm thấy hàm public static void main(String[] args) để chạy thử.',
-            diagnostics: [
-              {
-                file: primaryFileName,
-                line: 1,
-                column: 1,
-                severity: 'error',
-                message: 'Cần có hàm public static void main(String[] args) để chạy ở chế độ tự do.',
-              },
-            ] satisfies JavaDiagnostic[],
-          },
-          { status: 200, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
     }
 
     await sandbox.writeFiles(workFiles);
@@ -515,6 +562,14 @@ export async function POST(request: Request): Promise<Response> {
     );
   } catch (error) {
     console.error('[api/java-run]', error);
+    if (externalCfg) {
+      try {
+        return await runViaExternal();
+      } catch (fallbackErr) {
+        console.error('[api/java-run fallback]', fallbackErr);
+      }
+    }
+
     const durationMs = Math.round(performance.now() - startedAt);
     await emitMetric('java_sandbox.run', 1, { mode: payload.mode, outcome: 'error' });
     await emitMetric('java_sandbox.duration_ms', durationMs, { mode: payload.mode });

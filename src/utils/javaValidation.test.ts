@@ -11,6 +11,11 @@ import {
   validateCompilePayload,
 } from '../../server/javaValidation';
 import { buildPeHarness, getPeInterfaceFiles } from '../../server/peHarnesses';
+import {
+  buildPistonPayload,
+  mergeJavaFilesForJudge0,
+  resolveExternalRunnerConfig,
+} from '../../server/externalRunner';
 import type { Pro192Data } from '../types/content';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -219,5 +224,62 @@ describe('javaValidation & peHarnesses', () => {
     expect(getPeInterfaceFiles(15)[0]?.path).toBe('/tmp/jb-work/ILink.java');
     expect(getPeInterfaceFiles(18)[0]?.path).toBe('/tmp/jb-work/ILadder.java');
     expect(getPeInterfaceFiles(19)[0]?.path).toBe('/tmp/jb-work/IString.java');
+  });
+
+  it('resolves external Piston / Judge0 runner config and formats multi-file payloads safely', () => {
+    expect(resolveExternalRunnerConfig({})).toBeNull();
+    expect(resolveExternalRunnerConfig({ JAVA_RUNNER_URL: 'ftp://invalid.local' })).toBeNull();
+    expect(resolveExternalRunnerConfig({ JAVA_RUNNER_URL: 'not a url' })).toBeNull();
+
+    const piston = resolveExternalRunnerConfig({
+      JAVA_RUNNER_URL: 'https://emkc.org/api/v2/piston/execute/',
+    });
+    expect(piston).toEqual({
+      provider: 'piston',
+      url: 'https://emkc.org/api/v2/piston/execute',
+      apiKey: undefined,
+      judge0LanguageId: 91,
+    });
+
+    const judge0 = resolveExternalRunnerConfig({
+      JAVA_RUNNER_URL: 'https://ce.judge0.com/submissions',
+      JAVA_RUNNER_API_KEY: 'secret-key',
+      JUDGE0_JAVA_LANGUAGE_ID: '62',
+    });
+    expect(judge0).toEqual({
+      provider: 'judge0',
+      url: 'https://ce.judge0.com/submissions',
+      apiKey: 'secret-key',
+      judge0LanguageId: 62,
+    });
+
+    const files = [
+      {
+        name: 'Student.java',
+        content: 'package demo;\nimport java.util.*;\npublic class Student { String id = "SE1"; }',
+      },
+      {
+        name: 'Main.java',
+        content: 'import java.util.*;\npublic class Main { public static void main(String[] a) {} }',
+      },
+    ];
+
+    const pistonPayload = buildPistonPayload(files, 'Main', 'input');
+    expect(pistonPayload.files.map((f) => f.name)).toEqual(['Main.java', 'Student.java']);
+    expect(pistonPayload.stdin).toBe('input');
+
+    const merged = mergeJavaFilesForJudge0(files, 'Main');
+    expect(merged).not.toContain('package demo;');
+    expect(merged).toContain('class Student');
+    expect(merged).not.toContain('public class Student');
+    expect(merged).toContain('public class Main');
+
+    const mergedNonMain = mergeJavaFilesForJudge0(
+      [{ name: 'App.java', content: 'public class App { public static void main(String[] a) {} }' }],
+      'App'
+    );
+    expect(mergedNonMain).toContain('class App');
+    expect(mergedNonMain).toContain('public class Main');
+    expect(mergedNonMain).toContain('App.main(args);');
   });
 });
