@@ -45,7 +45,8 @@ export interface Pro192Stage {
   id: number;
   slots: number[];
   title: string;
-  file: string;
+  file?: string;
+  slotFiles?: string[];
   slides: string[];
   studyBridge: string[];
 }
@@ -59,6 +60,12 @@ export interface Pro192Slot {
   slidePptx: string;
   exercisesCount: number;
   studyBridge: string[];
+  examFocus?: string[];
+  estimatedMinutes?: number;
+  objectives?: string[];
+  examTraps?: string[];
+  peRefs?: string[];
+  slideImages?: string[];
 }
 
 export interface Pro192PeChallengeMeta {
@@ -89,6 +96,8 @@ export interface Pro192Data {
     totalSlides: number;
     totalResources: number;
     lang: string;
+    structure?: string;
+    totalSlotFiles?: number;
   };
   stages: Pro192Stage[];
   slots: Pro192Slot[];

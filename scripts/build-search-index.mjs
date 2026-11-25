@@ -103,10 +103,24 @@ async function main() {
     }
   }
 
-  // Index PRO192 exercises from stage markdown files
+  // Index PRO192 exercises from deduplicated slot/stage markdown files
   const exercises = [];
-  for (const stage of pro.stages) {
-    const abs = path.join(ROOT, 'content', 'vi', stage.file);
+  const indexedSources = new Map();
+  for (const sl of pro.slots || []) {
+    if (sl.file && !indexedSources.has(sl.file)) {
+      indexedSources.set(sl.file, sl.stage);
+    }
+  }
+  if (indexedSources.size === 0) {
+    for (const stage of pro.stages || []) {
+      const files = stage.slotFiles?.length ? stage.slotFiles : stage.file ? [stage.file] : [];
+      for (const f of files) {
+        if (!indexedSources.has(f)) indexedSources.set(f, stage.id);
+      }
+    }
+  }
+  for (const [rel, stageId] of indexedSources.entries()) {
+    const abs = path.join(ROOT, 'content', 'vi', rel);
     if (!fssync.existsSync(abs)) continue;
     const raw = await fs.readFile(abs, 'utf8');
     const matches = raw.matchAll(/^#{3,4}\s+Bài(?:\s+tập)?\s+(\d+)\.(\d+)\s*[:：]?\s*(.*)$/gm);
@@ -115,7 +129,7 @@ async function main() {
       const indexInSlot = Number(m[2]);
       exercises.push({
         id: `${slot}.${indexInSlot}`,
-        stageId: stage.id,
+        stageId,
         slot,
         indexInSlot,
         title: m[3].replace(/[`*_]/g, '').trim(),

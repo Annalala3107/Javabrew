@@ -318,12 +318,17 @@ export function splitPro192StageContent(markdownBody: string): StageSegment[] {
         }
 
         const rawExBody = exLines.join('\n').trim();
+        const detailsMarker = /<details>\s*<summary>[\s\S]*?<\/summary>([\s\S]*?)<\/details>/i;
+        const detailsMatch = rawExBody.match(detailsMarker);
         const solMarker = /^([*-]\s+\*\*(?:Đáp án\s*&\s*)?Lời giải chi tiết:\*\*|\*Lời giải chi tiết:\*)/im;
         const solMatch = rawExBody.match(solMarker);
 
         let promptMd = rawExBody;
         let solutionMd = '';
-        if (solMatch && solMatch.index !== undefined) {
+        if (detailsMatch && detailsMatch.index !== undefined) {
+          promptMd = rawExBody.slice(0, detailsMatch.index).trim();
+          solutionMd = detailsMatch[1].trim();
+        } else if (solMatch && solMatch.index !== undefined) {
           promptMd = rawExBody.slice(0, solMatch.index).trim();
           solutionMd = rawExBody.slice(solMatch.index + solMatch[0].length).trim();
           // Strip leading bullet indentation if solution lines are indented under `* **Lời giải chi tiết:**`

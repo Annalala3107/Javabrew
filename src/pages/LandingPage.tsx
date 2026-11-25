@@ -244,7 +244,7 @@ export function LandingPage() {
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Link
-              to="/pro192/giai-doan-1-slot-01-05"
+              to="/pro192/slots/slot-01"
               data-reveal
               className="group flex flex-col justify-between space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--success)]"
             >
@@ -270,7 +270,7 @@ export function LandingPage() {
             </Link>
 
             <Link
-              to="/pro192/giai-doan-3-slot-11-15"
+              to="/pro192/slots/slot-10"
               data-reveal
               className="group flex flex-col justify-between space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--info)]"
             >

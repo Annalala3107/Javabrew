@@ -59,7 +59,7 @@ export function SearchModal() {
             title: `Slot ${s.slot}: ${s.title}`,
             subtitle: `PRO192 · Giai đoạn ${s.stage}`,
             badge: `PRO192`,
-            to: `/pro192/${stageFileToSlug(s.file)}?slot=${s.slot}`,
+            to: `/pro192/${stageFileToSlug(s.file)}`,
             score,
           });
         }
@@ -92,14 +92,15 @@ export function SearchModal() {
         const hay = normalizeSearchText(`bai tap ${ex.id} slot ${ex.slot} ${ex.title}`);
         if (!q || hay.includes(q)) {
           const score = !q ? 45 : normalizeSearchText(ex.title).includes(q) ? 95 : 65;
-          const stageSlug = slotFileMap.get(ex.slot) ?? `giai-doan-${ex.stageId}`;
+          const slotSlug =
+            slotFileMap.get(ex.slot) ?? `slots/slot-${String(ex.slot).padStart(2, '0')}`;
           items.push({
             key: `ex-${ex.id}`,
             kind: 'exercises',
             title: `Bài ${ex.id}: ${ex.title}`,
             subtitle: `Bài tập PRO192 · Slot ${ex.slot} (Giai đoạn ${ex.stageId})`,
             badge: `Bài ${ex.id}`,
-            to: `/pro192/${stageSlug}?exercise=${ex.id}`,
+            to: `/pro192/${slotSlug}?exercise=${ex.id}`,
             score,
           });
         }

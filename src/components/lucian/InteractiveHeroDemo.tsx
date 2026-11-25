@@ -51,8 +51,8 @@ const SCENARIOS: Record<DemoTab, DemoScenario> = {
     mentorLabel: '☕ Gợi ý cho người mới (Slot 01):',
     mentorBody:
       'Từ khóa this.name giúp phân biệt thuộc tính của đối tượng với tham số truyền vào Constructor. Nắm chắc phần này trước khi qua Kế thừa.',
-    tryPath: '/pro192/giai-doan-1-slot-01-05',
-    tryLabel: 'Học Slot 01–05 ngay →',
+    tryPath: '/pro192/slots/slot-01',
+    tryLabel: 'Học Slot 01 ngay →',
   },
 };
 

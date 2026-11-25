@@ -10,8 +10,12 @@ export function normalizeSearchText(value: string): string {
     .trim();
 }
 
-export function stageFileToSlug(file: string): string {
-  return file.replace(/^pro192\//, '').replace(/\.md$/, '');
+export function stageFileToSlug(file?: string): string {
+  return (file || '').replace(/^pro192\//, '').replace(/\.md$/, '');
+}
+
+export function stageEntrySlug(stage: { file?: string; slotFiles?: string[] }): string {
+  return stageFileToSlug(stage.slotFiles?.[0] || stage.file || 'pro192/slots/slot-01.md');
 }
 
 export function estimateReadingMinutes(chars: number): number {

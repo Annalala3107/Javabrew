@@ -48,7 +48,7 @@ export function AppRoutes() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/pro192" element={<LearnPage mode="pro192" />} />
           <Route path="/pro192/pe-challenges" element={<Navigate to="/pe" replace />} />
-          <Route path="/pro192/:slug" element={<LearnPage mode="pro192" />} />
+          <Route path="/pro192/*" element={<LearnPage mode="pro192" />} />
           <Route path="/docs" element={<LearnPage mode="docs" />} />
           <Route path="/docs/*" element={<LearnPage mode="docs" />} />
           <Route path="/resources" element={<LearnPage mode="resources" />} />

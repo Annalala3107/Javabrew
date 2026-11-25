@@ -37,6 +37,7 @@ import {
   estimateReadingMinutes,
   findArticleTitle,
   normalizeSearchText,
+  stageEntrySlug,
   stageFileToSlug,
 } from '../utils/text';
 
@@ -86,7 +87,8 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   const [resourceQuery, setResourceQuery] = useState('');
 
   // Markdown reader state
-  const slug = mode === 'pro192' ? params.slug || '' : '';
+  const slug =
+    mode === 'pro192' ? (params['*'] || params.slug || '').replace(/^\/+|\/+$/g, '') : '';
   const docRel = mode === 'docs' ? params['*'] || '' : '';
   const isReaderView = Boolean(slug || docRel);
 
@@ -100,10 +102,28 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   const [domHeadings, setDomHeadings] = useState<TocHeading[]>([]);
   const articleRef = useRef<HTMLDivElement>(null);
 
+  const activeSlot = useMemo(() => {
+    if (!pro192 || !slug) return null;
+    return pro192.slots.find((s) => stageFileToSlug(s.file) === slug) ?? null;
+  }, [pro192, slug]);
+
   const activeStage = useMemo(() => {
     if (!pro192 || !slug) return null;
+    if (activeSlot) {
+      return pro192.stages.find((s) => s.id === activeSlot.stage) ?? null;
+    }
     return pro192.stages.find((s) => stageFileToSlug(s.file) === slug) ?? null;
-  }, [pro192, slug]);
+  }, [pro192, slug, activeSlot]);
+
+  const prevSlot = useMemo(() => {
+    if (!pro192 || !activeSlot) return null;
+    return pro192.slots.find((s) => s.slot === activeSlot.slot - 1) ?? null;
+  }, [pro192, activeSlot]);
+
+  const nextSlot = useMemo(() => {
+    if (!pro192 || !activeSlot) return null;
+    return pro192.slots.find((s) => s.slot === activeSlot.slot + 1) ?? null;
+  }, [pro192, activeSlot]);
 
   // Auto-expand sidebar tree for active stage/doc
   useEffect(() => {
@@ -279,6 +299,9 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
       : null;
 
   const displayTitle = useMemo(() => {
+    if (mode === 'pro192' && activeSlot) {
+      return `Slot ${String(activeSlot.slot).padStart(2, '0')}: ${activeSlot.title}`;
+    }
     if (mode === 'pro192' && activeStage) return activeStage.title;
     if (parsed?.meta.title) return parsed.meta.title;
     if (currentDocInfo) {
@@ -289,7 +312,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
     if (mode === 'resources') return 'Kho Slide PDF & PPTX (Offline)';
     if (mode === 'docs') return 'Kho tri thức JavaGuide (354 bài)';
     return 'PRO192 — Lộ trình 30 Slots & 150 Bài tập';
-  }, [mode, activeStage, parsed, currentDocInfo, loadedLang]);
+  }, [mode, activeSlot, activeStage, parsed, currentDocInfo, loadedLang]);
 
   // Bookmark & Note keys
   const itemKey =
@@ -303,7 +326,14 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
 
   // Record last visited
   useEffect(() => {
-    if (mode === 'pro192' && activeStage && slug) {
+    if (mode === 'pro192' && activeSlot && slug) {
+      recordVisit({
+        path: `/pro192/${slug}`,
+        title: `Slot ${String(activeSlot.slot).padStart(2, '0')}: ${activeSlot.title}`,
+        kind: 'pro192',
+        updatedAt: new Date().toISOString(),
+      });
+    } else if (mode === 'pro192' && activeStage && slug) {
       recordVisit({
         path: `/pro192/${slug}`,
         title: activeStage.title,
@@ -318,7 +348,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
         updatedAt: new Date().toISOString(),
       });
     }
-  }, [mode, activeStage, slug, docRel, loading, error, parsed, displayTitle, recordVisit]);
+  }, [mode, activeSlot, activeStage, slug, docRel, loading, error, parsed, displayTitle, recordVisit]);
 
   // Extract rendered DOM headings + scroll to ?slot=, ?exercise=, or #hash
   useEffect(() => {
@@ -375,12 +405,19 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
 
   // Determine related PE challenge for "▶ Thử code bài này" button
   const relatedPeId = useMemo(() => {
-    if (!activeStage || !pro192?.peChallenges) return 1;
+    if (!pro192?.peChallenges) return 1;
+    if (activeSlot) {
+      const slotMatch = pro192.peChallenges.find((pe) =>
+        pe.relatedSlots.includes(activeSlot.slot)
+      );
+      if (slotMatch) return slotMatch.id;
+    }
+    if (!activeStage) return 1;
     const match = pro192.peChallenges.find((pe) =>
       pe.relatedSlots.some((s) => activeStage.slots.includes(s))
     );
     return match?.id ?? 1;
-  }, [activeStage, pro192]);
+  }, [activeSlot, activeStage, pro192]);
 
   // Resources data
   const slideDecks = useMemo(() => {
@@ -393,7 +430,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
         const pdfUrl = `/media/pro192/resources/${encodeURIComponent(`${baseName}.pdf`)}`;
         const matchingStages = pro192.stages
           .filter((st) => st.slides.includes(fileName))
-          .map((st) => ({ id: st.id, slug: stageFileToSlug(st.file) }));
+          .map((st) => ({ id: st.id, slug: stageEntrySlug(st) }));
         const matchingSlots = pro192.slots
           .filter((sl) => decodeURIComponent(sl.slidePptx).endsWith(`/${fileName}`))
           .map((sl) => sl.slot);
@@ -408,6 +445,9 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
 
   const breadcrumbText = useMemo(() => {
     if (mode === 'pro192') {
+      if (activeSlot && activeStage) {
+        return `PRO192 > Giai đoạn ${activeStage.id} > Slot ${String(activeSlot.slot).padStart(2, '0')}`;
+      }
       return activeStage
         ? `PRO192 > Giai đoạn ${activeStage.id} > Slot ${activeStage.slots[0]}–${activeStage.slots[activeStage.slots.length - 1]}`
         : 'PRO192 > Tổng quan 30 Slots';
@@ -418,7 +458,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
         : 'JavaGuide > Tất cả 354 bài';
     }
     return 'PRO192 > Kho Slide PDF & PPTX';
-  }, [mode, activeStage, currentDocInfo]);
+  }, [mode, activeSlot, activeStage, currentDocInfo]);
 
   const stageSlots =
     pro192 && activeStage ? pro192.slots.filter((s) => s.stage === activeStage.id) : [];
@@ -668,13 +708,19 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
               ) : (
                 <div className="max-h-[640px] space-y-1.5 overflow-y-auto pr-1">
                   {pro192?.stages.map((stage) => {
-                    const stSlug = stageFileToSlug(stage.file);
-                    const saved = progress.bookmarks.includes(`pro192:${stSlug}`);
+                    const stSlug = stageEntrySlug(stage);
+                    const slots = pro192.slots.filter((s) => s.stage === stage.id);
+                    const visibleSlots = savedFilterOnly
+                      ? slots.filter((sl) =>
+                          progress.bookmarks.includes(`pro192:${stageFileToSlug(sl.file)}`)
+                        )
+                      : slots;
+                    const stageSaved = progress.bookmarks.includes(`pro192:${stSlug}`);
+                    const saved = stageSaved || visibleSlots.length > 0;
                     if (savedFilterOnly && !saved) return null;
 
-                    const active = slug === stSlug;
+                    const active = activeStage?.id === stage.id;
                     const isExpanded = Boolean(expandedStages[stage.id]);
-                    const slots = pro192.slots.filter((s) => s.stage === stage.id);
 
                     return (
                       <div key={stage.id} className="space-y-1">
@@ -701,38 +747,59 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                             to={`/pro192/${stSlug}`}
                             className={[
                               'flex flex-1 items-center justify-between gap-2 rounded-lg border p-2.5 transition-colors',
-                              active
+                              active && !activeSlot
                                 ? 'border-[var(--accent)] bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
-                                : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
+                                : active
+                                  ? 'border-[var(--accent)]/60 bg-[var(--accent-soft)] font-semibold text-[var(--text-primary)]'
+                                  : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
                             ].join(' ')}
                           >
                             <span className="truncate">
                               GĐ {stage.id} (Slot {stage.slots[0]}–
                               {stage.slots[stage.slots.length - 1]})
                             </span>
-                            {saved && <span>★</span>}
+                            {stageSaved && <span>★</span>}
                           </Link>
                         </div>
 
                         {isExpanded && (
                           <ul className="ml-5 space-y-1 border-l border-[var(--border-default)] pl-2">
-                            {slots.map((sl) => {
+                            {(savedFilterOnly && !stageSaved ? visibleSlots : slots).map((sl) => {
                               const done = progress.completedSlots.includes(sl.slot);
+                              const slotSlug = stageFileToSlug(sl.file);
+                              const isSlotActive = activeSlot?.slot === sl.slot;
+                              const isSlotSaved = progress.bookmarks.includes(`pro192:${slotSlug}`);
                               return (
                                 <li key={sl.slot}>
                                   <Link
-                                    to={`/pro192/${stSlug}?slot=${sl.slot}`}
-                                    className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-xs text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+                                    to={`/pro192/${slotSlug}`}
+                                    className={[
+                                      'flex items-center justify-between gap-2 rounded-md px-2 py-1 text-xs transition-colors',
+                                      isSlotActive
+                                        ? 'bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
+                                        : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]',
+                                    ].join(' ')}
                                   >
                                     <span className="truncate">
-                                      <strong className="text-[var(--text-primary)]">
+                                      <strong
+                                        className={
+                                          isSlotActive
+                                            ? 'text-[var(--accent-contrast)]'
+                                            : 'text-[var(--text-primary)]'
+                                        }
+                                      >
                                         S{sl.slot}:
                                       </strong>{' '}
                                       {sl.title}
                                     </span>
-                                    {done && (
-                                      <CheckCircle2 className="h-3 w-3 shrink-0 text-[var(--success)]" />
-                                    )}
+                                    <span className="flex shrink-0 items-center gap-1">
+                                      {isSlotSaved && <span>★</span>}
+                                      {done && (
+                                        <CheckCircle2
+                                          className={`h-3 w-3 shrink-0 ${isSlotActive ? 'text-[var(--accent-contrast)]' : 'text-[var(--success)]'}`}
+                                        />
+                                      )}
+                                    </span>
                                   </Link>
                                 </li>
                               );
@@ -912,16 +979,16 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                     </p>
                   </div>
                   <Link
-                    to="/pro192/giai-doan-1-slot-01-05"
+                    to="/pro192/slots/slot-01"
                     className="rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
                   >
-                    Bắt đầu GĐ 1 →
+                    Bắt đầu Slot 01 →
                   </Link>
                 </header>
 
                 <div className="space-y-5">
                   {pro192?.stages.map((stage) => {
-                    const stSlug = stageFileToSlug(stage.file);
+                    const stSlug = stageEntrySlug(stage);
                     const slots = pro192.slots.filter((s) => s.stage === stage.id);
                     return (
                       <section
@@ -970,7 +1037,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                                   </button>
                                   <div className="min-w-0 space-y-1.5">
                                     <Link
-                                      to={`/pro192/${stSlug}?slot=${sl.slot}`}
+                                      to={`/pro192/${stageFileToSlug(sl.file)}`}
                                       className="block text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--accent-text)]"
                                     >
                                       <span className="font-mono text-[var(--accent-text)]">
@@ -978,6 +1045,23 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                                       </span>{' '}
                                       {sl.title}
                                     </Link>
+                                    {(sl.examFocus?.length || sl.estimatedMinutes) && (
+                                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                                        {sl.examFocus?.map((tag) => (
+                                          <span
+                                            key={tag}
+                                            className="rounded border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-1.5 py-0.5 font-medium text-[var(--accent-text)]"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                        {sl.estimatedMinutes && (
+                                          <span className="inline-flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />~{sl.estimatedMinutes} phút
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
                                     <div className="flex flex-wrap gap-1.5">
                                       {sl.studyBridge.map((rel) => (
                                         <Link
@@ -1217,11 +1301,28 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                   {/* Top Badge + Title + Controls */}
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="inline-block rounded-md border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-medium text-[var(--accent-text)]">
-                        {mode === 'pro192' && activeStage
-                          ? `Slot ${activeStage.slots[0]}–${activeStage.slots[activeStage.slots.length - 1]} · PRO192`
-                          : `${currentDocInfo?.domainLabel || 'JavaGuide'} · ${bilingualMode ? 'VI ↔ EN' : loadedLang.toUpperCase()}`}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-block rounded-md border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-medium text-[var(--accent-text)]">
+                          {mode === 'pro192' && activeSlot
+                            ? `Slot ${String(activeSlot.slot).padStart(2, '0')} · GĐ ${activeSlot.stage} · PRO192`
+                            : mode === 'pro192' && activeStage
+                              ? `Slot ${activeStage.slots[0]}–${activeStage.slots[activeStage.slots.length - 1]} · PRO192`
+                              : `${currentDocInfo?.domainLabel || 'JavaGuide'} · ${bilingualMode ? 'VI ↔ EN' : loadedLang.toUpperCase()}`}
+                        </span>
+                        {mode === 'pro192' && activeSlot?.examFocus?.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-block rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2 py-0.5 text-xs text-[var(--text-secondary)]"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {mode === 'pro192' && activeSlot?.estimatedMinutes && (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                            <Clock className="h-3 w-3" />~{activeSlot.estimatedMinutes} phút
+                          </span>
+                        )}
+                      </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         {mode === 'docs' && docRel && (
@@ -1343,10 +1444,16 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                       <div className="flex flex-wrap gap-2">
                         {stageSlots.map((sl) => {
                           const done = progress.completedSlots.includes(sl.slot);
+                          const isCurSlot = activeSlot?.slot === sl.slot;
                           return (
                             <div
                               key={sl.slot}
-                              className="inline-flex items-center overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)]"
+                              className={[
+                                'inline-flex items-center overflow-hidden rounded-lg border',
+                                isCurSlot
+                                  ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                                  : 'border-[var(--border-default)] bg-[var(--bg-surface)]',
+                              ].join(' ')}
                             >
                               <button
                                 type="button"
@@ -1362,8 +1469,13 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                                 )}
                               </button>
                               <Link
-                                to={`/pro192/${slug}?slot=${sl.slot}`}
-                                className="px-2.5 py-1 font-mono font-semibold text-[var(--text-primary)] hover:text-[var(--accent-text)]"
+                                to={`/pro192/${stageFileToSlug(sl.file)}`}
+                                className={[
+                                  'px-2.5 py-1 font-mono font-semibold',
+                                  isCurSlot
+                                    ? 'text-[var(--accent-text)]'
+                                    : 'text-[var(--text-primary)] hover:text-[var(--accent-text)]',
+                                ].join(' ')}
                               >
                                 Slot {sl.slot}
                               </Link>
@@ -1393,7 +1505,10 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                       {bridgeExpanded && (
                         <div className="space-y-2.5 border-t border-[var(--info)]/25 pt-2.5 text-xs">
                           <div className="flex flex-wrap gap-1.5">
-                            {activeStage.studyBridge.map((rel) => (
+                            {(activeSlot?.studyBridge?.length
+                              ? activeSlot.studyBridge
+                              : activeStage.studyBridge
+                            ).map((rel) => (
                               <Link
                                 key={rel}
                                 to={`/docs/${rel}`}
@@ -1577,9 +1692,19 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                   <footer className="grid gap-3 border-t border-[var(--border-default)] pt-4 sm:grid-cols-2">
                     {mode === 'pro192' ? (
                       <>
-                        {prevStage ? (
+                        {prevSlot ? (
                           <Link
-                            to={`/pro192/${stageFileToSlug(prevStage.file)}`}
+                            to={`/pro192/${stageFileToSlug(prevSlot.file)}`}
+                            className="flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3.5 text-xs hover:border-[var(--accent)]"
+                          >
+                            <ArrowLeft className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                            <span className="truncate font-semibold">
+                              Slot {String(prevSlot.slot).padStart(2, '0')}: {prevSlot.title}
+                            </span>
+                          </Link>
+                        ) : prevStage ? (
+                          <Link
+                            to={`/pro192/${stageEntrySlug(prevStage)}`}
                             className="flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3.5 text-xs hover:border-[var(--accent)]"
                           >
                             <ArrowLeft className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
@@ -1588,9 +1713,19 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                         ) : (
                           <div />
                         )}
-                        {nextStage ? (
+                        {nextSlot ? (
                           <Link
-                            to={`/pro192/${stageFileToSlug(nextStage.file)}`}
+                            to={`/pro192/${stageFileToSlug(nextSlot.file)}`}
+                            className="flex items-center justify-end gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3.5 text-right text-xs hover:border-[var(--accent)]"
+                          >
+                            <span className="truncate font-semibold">
+                              Slot {String(nextSlot.slot).padStart(2, '0')}: {nextSlot.title}
+                            </span>
+                            <ArrowRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                          </Link>
+                        ) : !activeSlot && nextStage ? (
+                          <Link
+                            to={`/pro192/${stageEntrySlug(nextStage)}`}
                             className="flex items-center justify-end gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3.5 text-right text-xs hover:border-[var(--accent)]"
                           >
                             <span className="truncate font-semibold">{nextStage.title}</span>

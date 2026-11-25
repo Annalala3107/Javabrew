@@ -228,7 +228,7 @@ export function PeHubPage() {
 
                   {relatedSlotObj ? (
                     <Link
-                      to={`/pro192/${stageFileToSlug(relatedSlotObj.file)}?slot=${relatedSlotObj.slot}`}
+                      to={`/pro192/${stageFileToSlug(relatedSlotObj.file)}`}
                       className="block w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2.5 text-center text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)]"
                     >
                       Xem lại lý thuyết Slot {relatedSlotObj.slot} trước

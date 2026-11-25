@@ -2,11 +2,12 @@ import {
   Children,
   isValidElement,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
 import rehypeHighlight from 'rehype-highlight';
@@ -155,6 +156,87 @@ const CALLOUT_STYLES: Record<
   },
 };
 
+type MarkdownChunk =
+  | { type: 'md'; content: string }
+  | { type: 'details'; summary: string; body: string };
+
+/**
+ * Splits standalone `<details><summary>...</summary>...</details>` blocks outside
+ * fenced code blocks so collapsible panels render interactively without `rehype-raw`.
+ */
+function splitDetailsBlocks(md: string): MarkdownChunk[] {
+  const lines = md.split(/\r?\n/);
+  const chunks: MarkdownChunk[] = [];
+  let buf: string[] = [];
+  let inFence = false;
+  let fenceChar = '';
+
+  const flushMd = () => {
+    const text = buf.join('\n').trim();
+    if (text) chunks.push({ type: 'md', content: text });
+    buf = [];
+  };
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const fm = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fm) {
+      if (!inFence) {
+        inFence = true;
+        fenceChar = fm[1][0];
+      } else if (fm[1][0] === fenceChar) {
+        inFence = false;
+      }
+      buf.push(line);
+      i++;
+      continue;
+    }
+
+    if (!inFence && /^\s*<details>\s*$/i.test(line)) {
+      let closeIdx = -1;
+      let innerFence = false;
+      let innerFenceChar = '';
+      for (let j = i + 1; j < lines.length; j++) {
+        const inner = lines[j];
+        const innerFm = inner.match(/^\s*(`{3,}|~{3,})/);
+        if (innerFm) {
+          if (!innerFence) {
+            innerFence = true;
+            innerFenceChar = innerFm[1][0];
+          } else if (innerFm[1][0] === innerFenceChar) {
+            innerFence = false;
+          }
+          continue;
+        }
+        if (!innerFence && /^\s*<\/details>\s*$/i.test(inner)) {
+          closeIdx = j;
+          break;
+        }
+      }
+
+      if (closeIdx !== -1) {
+        const block = lines.slice(i, closeIdx + 1).join('\n');
+        const m = block.match(/<details>\s*<summary>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>/i);
+        if (m) {
+          flushMd();
+          const summary = m[1].replace(/&amp;/g, '&').trim();
+          const body = m[2].trim();
+          chunks.push({ type: 'details', summary, body });
+          i = closeIdx + 1;
+          continue;
+        }
+      }
+    }
+
+    buf.push(line);
+    i++;
+  }
+
+  flushMd();
+  return chunks;
+}
+
 export function MarkdownRenderer({ content, currentRel }: MarkdownRendererProps) {
   const { openPdfPreview } = useApp();
   const [zoomedImg, setZoomedImg] = useState<{ src: string; alt: string } | null>(null);
@@ -168,13 +250,9 @@ export function MarkdownRenderer({ content, currentRel }: MarkdownRendererProps)
     return () => window.removeEventListener('keydown', onKey);
   }, [zoomedImg]);
 
-  return (
-    <>
-      <div className="jb-prose">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeSlug, [rehypeHighlight, { detect: false, ignoreMissing: true }]]}
-          components={{
+  const chunks = useMemo(() => splitDetailsBlocks(content), [content]);
+
+  const markdownComponents: Components = {
             pre({ children }) {
               return <CodeBlock currentRel={currentRel}>{children}</CodeBlock>;
             },
@@ -336,10 +414,44 @@ export function MarkdownRenderer({ content, currentRel }: MarkdownRendererProps)
               }
               return <blockquote>{children}</blockquote>;
             },
-          }}
-        >
-          {content}
-        </ReactMarkdown>
+  };
+
+  return (
+    <>
+      <div className="jb-prose">
+        {chunks.map((chunk, idx) =>
+          chunk.type === 'md' ? (
+            <ReactMarkdown
+              key={`md-${idx}`}
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSlug, [rehypeHighlight, { detect: false, ignoreMissing: true }]]}
+              components={markdownComponents}
+            >
+              {chunk.content}
+            </ReactMarkdown>
+          ) : (
+            <details
+              key={`det-${idx}`}
+              className="my-4 overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)]"
+            >
+              <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-muted)]">
+                {chunk.summary}
+              </summary>
+              <div className="border-t border-[var(--border-default)] px-4 py-3">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[
+                    rehypeSlug,
+                    [rehypeHighlight, { detect: false, ignoreMissing: true }],
+                  ]}
+                  components={markdownComponents}
+                >
+                  {chunk.body}
+                </ReactMarkdown>
+              </div>
+            </details>
+          )
+        )}
       </div>
 
       {/* Image Lightbox */}

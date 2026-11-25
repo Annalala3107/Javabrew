@@ -57,13 +57,13 @@ should stay literal
 
 describe('resolveMarkdownHref', () => {
   it('resolves relative JavaGuide and PRO192 markdown links into SPA routes', () => {
-    expect(resolveMarkdownHref('pro192/README.md', './giai-doan-1-slot-01-05.md')).toEqual({
+    expect(resolveMarkdownHref('pro192/README.md', './slots/slot-01.md')).toEqual({
       kind: 'internal',
-      target: '/pro192/giai-doan-1-slot-01-05',
+      target: '/pro192/slots/slot-01',
     });
 
     expect(
-      resolveMarkdownHref('pro192/README.md', '../java/basis/java-basic-questions-01.md#oop')
+      resolveMarkdownHref('pro192/slots/slot-01.md', '../../java/basis/java-basic-questions-01.md#oop')
     ).toEqual({
       kind: 'internal',
       target: '/docs/java/basis/java-basic-questions-01.md#oop',
@@ -80,7 +80,7 @@ describe('resolveMarkdownHref', () => {
     });
 
     expect(
-      resolveMarkdownHref('pro192/giai-doan-1-slot-01-05.md', '/media/pro192/resources/Get%20Start.pdf')
+      resolveMarkdownHref('pro192/slots/slot-01.md', '/media/pro192/resources/Get%20Start.pdf')
     ).toEqual({
       kind: 'media',
       target: '/media/pro192/resources/Get%20Start.pdf',
@@ -94,23 +94,24 @@ describe('resolveMarkdownHref', () => {
 });
 
 describe('Real PRO192 data integrity', () => {
-  it('parses all 150 exercises across all 8 real stage files with non-empty prompts & solutions', () => {
-    const proDir = path.join(ROOT, 'content', 'vi', 'pro192');
-    const stageFiles = fs
-      .readdirSync(proDir)
-      .filter((f) => f.startsWith('giai-doan-') && f.endsWith('.md'))
+  it('parses all 150 exercises across all 30 real slot files with non-empty prompts & <details> solutions', () => {
+    const slotsDir = path.join(ROOT, 'content', 'vi', 'pro192', 'slots');
+    const slotFiles = fs
+      .readdirSync(slotsDir)
+      .filter((f) => /^slot-\d{2}\.md$/.test(f))
       .sort();
 
-    expect(stageFiles).toHaveLength(8);
+    expect(slotFiles).toHaveLength(30);
 
     const allExercises = [];
-    for (const file of stageFiles) {
-      const raw = fs.readFileSync(path.join(proDir, file), 'utf8');
+    for (const file of slotFiles) {
+      const raw = fs.readFileSync(path.join(slotsDir, file), 'utf8');
       const parsed = parseMarkdownDocument(raw);
       const segments = splitPro192StageContent(parsed.body);
       const exercises = segments
         .filter((s) => s.type === 'exercise')
         .map((s) => s.exercise);
+      expect(exercises).toHaveLength(5);
       allExercises.push(...exercises);
     }
 
@@ -120,6 +121,7 @@ describe('Real PRO192 data integrity', () => {
       expect(ex.title.length).toBeGreaterThan(2);
       expect(ex.promptMd.length).toBeGreaterThan(10);
       expect(ex.solutionMd.length).toBeGreaterThan(10);
+      expect(ex.solutionMd).not.toContain('</details>');
     }
   });
 

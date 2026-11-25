@@ -10,7 +10,7 @@ import { LucianAccordion } from '../components/lucian/LucianAccordion';
 import { LucianChecklistItem } from '../components/lucian/LucianChecklistItem';
 import { useApp } from '../context/AppContext';
 import { useRevealSection } from '../hooks/useMotion';
-import { stageFileToSlug } from '../utils/text';
+import { stageEntrySlug, stageFileToSlug } from '../utils/text';
 
 export function DashboardPage() {
   const { navigation, pro192, lang, progress, toggleSlotCompleted, pushToast } = useApp();
@@ -42,7 +42,7 @@ export function DashboardPage() {
     pro192?.slots.find((s) => !progress.completedSlots.includes(s.slot)) || pro192?.slots[0];
   const resumePath =
     progress.lastVisited?.path ||
-    (nextSlot ? `/pro192/${stageFileToSlug(nextSlot.file)}?slot=${nextSlot.slot}` : '/pro192');
+    (nextSlot ? `/pro192/${stageFileToSlug(nextSlot.file)}` : '/pro192');
   const resumeLabel = progress.lastVisited
     ? `Tiếp tục: ${progress.lastVisited.title}`
     : nextSlot
@@ -167,7 +167,7 @@ export function DashboardPage() {
 
           <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1 text-xs">
             {pro192?.stages.map((stage) => {
-              const slug = stageFileToSlug(stage.file);
+              const slug = stageEntrySlug(stage);
               const stageSlots = pro192.slots.filter((s) => s.stage === stage.id);
               const doneInStage = stageSlots.filter((s) =>
                 progress.completedSlots.includes(s.slot)
@@ -228,7 +228,7 @@ export function DashboardPage() {
                           }}
                           label={
                             <Link
-                              to={`/pro192/${slug}?slot=${slot.slot}`}
+                              to={`/pro192/${stageFileToSlug(slot.file)}`}
                               className={[
                                 'block truncate hover:text-[var(--accent-text)]',
                                 done

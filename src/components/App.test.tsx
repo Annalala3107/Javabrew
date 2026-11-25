@@ -61,7 +61,7 @@ const MOCK_PRO192: Pro192Data = {
       id: 1,
       slots: [1, 2],
       title: 'Giai đoạn 1: Khởi động Java',
-      file: 'pro192/giai-doan-1-slot-01-05.md',
+      slotFiles: ['pro192/slots/slot-01.md', 'pro192/slots/slot-02.md'],
       slides: ['Get Start.pptx'],
       studyBridge: ['java/basis/bigdecimal.md'],
     },
@@ -71,7 +71,7 @@ const MOCK_PRO192: Pro192Data = {
       slot: 1,
       stage: 1,
       title: 'Tổng quan Java',
-      file: 'pro192/giai-doan-1-slot-01-05.md',
+      file: 'pro192/slots/slot-01.md',
       slidePdf: '/media/pro192/resources/Get%20Start.pdf',
       slidePptx: '/media/pro192/slides/Get%20Start.pptx',
       exercisesCount: 1,
@@ -81,7 +81,7 @@ const MOCK_PRO192: Pro192Data = {
       slot: 2,
       stage: 1,
       title: 'Cài đặt JDK & NetBeans',
-      file: 'pro192/giai-doan-1-slot-01-05.md',
+      file: 'pro192/slots/slot-02.md',
       slidePdf: '/media/pro192/resources/Get%20Start.pdf',
       slidePptx: '/media/pro192/slides/Get%20Start.pptx',
       exercisesCount: 1,
@@ -158,7 +158,7 @@ const MOCK_SEARCH: SearchIndexData = {
       slot: 1,
       stage: 1,
       title: 'Tổng quan Java',
-      file: 'pro192/giai-doan-1-slot-01-05.md',
+      file: 'pro192/slots/slot-01.md',
     },
   ],
   pro192Exercises: [
@@ -216,9 +216,9 @@ function installFetchMock(
       if (url.endsWith('/data/search-index.json')) {
         return new Response(JSON.stringify(MOCK_SEARCH), { status: 200 });
       }
-      if (url.endsWith('/content/vi/pro192/giai-doan-1-slot-01-05.md')) {
+      if (url.endsWith('/content/vi/pro192/slots/slot-01.md')) {
         return new Response(
-          '# Giai đoạn 1\n## Slot 1: Tổng quan Java\nLý thuyết Slot 1.\n\n```java\nSystem.out.println("Hello Slot 1");\n```\n\n#### Bài tập 1.1: Vai trò Bytecode\n* **Đề bài:** `javac` tạo ra gì?\n* **Lời giải chi tiết:** Tạo file `.class`.',
+          '# Slot 01: Tổng quan Java\n\n## 2. Lý thuyết cốt lõi\n\nLý thuyết Slot 1.\n\n<details>\n<summary>📚 Đọc thêm: Lịch sử Java</summary>\n\nNgôn ngữ ban đầu là Oak.\n\n</details>\n\n```java\nSystem.out.println("Hello Slot 1");\n```\n\n## 4. Luyện tập Chủ động\n\n### Bài 1.1: Vai trò Bytecode\n\n**Đề bài:** `javac` tạo ra gì?\n\n<details>\n<summary>👁️ Hiện đáp án &amp; lời giải chi tiết</summary>\n\nTạo file `.class`.\n\n</details>',
           { status: 200 }
         );
       }
@@ -282,7 +282,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
 
   it('supports M3/M4 Focus Mode, Bookmark, Personal Notes, and Exercise reveal', async () => {
     render(
-      <MemoryRouter initialEntries={['/pro192/giai-doan-1-slot-01-05']}>
+      <MemoryRouter initialEntries={['/pro192/slots/slot-01']}>
         <AppProvider>
           <AppRoutes />
         </AppProvider>
@@ -291,6 +291,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Vai trò Bytecode')).toBeInTheDocument();
+      expect(screen.getByText('📚 Đọc thêm: Lịch sử Java')).toBeInTheDocument();
     });
 
     // Bookmark
@@ -527,7 +528,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     expect(await screen.findByText(/Mới học từ số 0/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Mới học từ số 0/i })).toHaveAttribute(
       'href',
-      '/pro192/giai-doan-1-slot-01-05'
+      '/pro192/slots/slot-01'
     );
     expect(screen.getByRole('link', { name: /Ôn nước rút thi PE/i })).toHaveAttribute('href', '/pe');
 
@@ -675,7 +676,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     });
 
     render(
-      <MemoryRouter initialEntries={['/pro192/giai-doan-1-slot-01-05']}>
+      <MemoryRouter initialEntries={['/pro192/slots/slot-01']}>
         <AppProvider>
           <AppRoutes />
         </AppProvider>
