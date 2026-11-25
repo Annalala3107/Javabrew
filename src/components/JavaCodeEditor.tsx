@@ -25,6 +25,8 @@ import {
 import { tags } from '@lezer/highlight';
 import type { JavaDiagnostic } from '../services/javaCompilerService';
 
+export const MAX_CODE_CHARS = 10_000;
+
 export interface JumpTarget {
   line: number;
   column?: number;
@@ -36,6 +38,8 @@ interface JavaCodeEditorProps {
   onChange: (value: string) => void;
   onBlur?: () => void;
   onRunShortcut?: () => void;
+  onLimitReached?: (maxLength: number) => void;
+  maxLength?: number;
   theme: 'dark' | 'light';
   diagnostics?: JavaDiagnostic[];
   jumpTarget?: JumpTarget | null;
@@ -133,6 +137,8 @@ export function JavaCodeEditor({
   onChange,
   onBlur,
   onRunShortcut,
+  onLimitReached,
+  maxLength = MAX_CODE_CHARS,
   theme,
   diagnostics = [],
   jumpTarget = null,
@@ -146,10 +152,14 @@ export function JavaCodeEditor({
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
   const onRunShortcutRef = useRef(onRunShortcut);
+  const onLimitReachedRef = useRef(onLimitReached);
+  const maxLengthRef = useRef(maxLength);
 
   onChangeRef.current = onChange;
   onBlurRef.current = onBlur;
   onRunShortcutRef.current = onRunShortcut;
+  onLimitReachedRef.current = onLimitReached;
+  maxLengthRef.current = maxLength;
 
   // Create EditorView once
   useEffect(() => {
@@ -157,9 +167,10 @@ export function JavaCodeEditor({
     if (!parent) return;
 
     const themeCompartment = themeCompartmentRef.current;
+    const initialDoc = value.length > maxLength ? value.slice(0, maxLength) : value;
 
     const state = EditorState.create({
-      doc: value,
+      doc: initialDoc,
       extensions: [
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -174,6 +185,36 @@ export function JavaCodeEditor({
         java(),
         indentUnit.of('    '),
         lintGutter(),
+        EditorState.transactionFilter.of((tr) => {
+          if (!tr.docChanged) return tr;
+          const cap = maxLengthRef.current;
+          const nextLen = tr.newDoc.length;
+          if (nextLen <= cap || nextLen <= tr.startState.doc.length) {
+            return tr;
+          }
+
+          let removedCount = 0;
+          const ops: Array<{ fromA: number; toA: number; text: string }> = [];
+          tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+            removedCount += toA - fromA;
+            ops.push({ fromA, toA, text: inserted.toString() });
+          });
+
+          let remaining = Math.max(0, cap - (tr.startState.doc.length - removedCount));
+          const clampedChanges = ops.map((op) => {
+            if (!op.text) return { from: op.fromA, to: op.toA, insert: '' };
+            const allowed = op.text.slice(0, remaining);
+            remaining -= allowed.length;
+            return { from: op.fromA, to: op.toA, insert: allowed };
+          });
+
+          queueMicrotask(() => onLimitReachedRef.current?.(cap));
+
+          if (clampedChanges.every((c) => c.from === c.to && c.insert.length === 0)) {
+            return [];
+          }
+          return tr.startState.update({ changes: clampedChanges, sequential: false });
+        }),
         keymap.of([
           {
             key: 'Mod-Enter',
@@ -235,13 +276,14 @@ export function JavaCodeEditor({
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
+    const safeValue = value.length > maxLength ? value.slice(0, maxLength) : value;
     const current = view.state.doc.toString();
-    if (current !== value) {
+    if (current !== safeValue) {
       view.dispatch({
-        changes: { from: 0, to: current.length, insert: value },
+        changes: { from: 0, to: current.length, insert: safeValue },
       });
     }
-  }, [value]);
+  }, [value, maxLength]);
 
   // Sync javac compiler diagnostics directly onto CodeMirror lines/columns
   useEffect(() => {

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   hasMainMethod,
   inferJavaFileName,
+  MAX_FILE_CHARS,
   MAX_PE_ID,
   MAX_TOTAL_SOURCE_BYTES,
   parseJavacDiagnostics,
@@ -281,5 +282,24 @@ describe('javaValidation & peHarnesses', () => {
     expect(mergedNonMain).toContain('class App');
     expect(mergedNonMain).toContain('public class Main');
     expect(mergedNonMain).toContain('App.main(args);');
+  });
+
+  it('enforces the 10,000-character limit per Java source file in validateCompilePayload', () => {
+    expect(MAX_FILE_CHARS).toBe(10_000);
+
+    const atLimit = validateCompilePayload({
+      mode: 'run',
+      files: [{ name: 'Main.java', content: 'a'.repeat(MAX_FILE_CHARS) }],
+    });
+    expect(atLimit.ok).toBe(true);
+
+    const overLimit = validateCompilePayload({
+      mode: 'run',
+      files: [{ name: 'Main.java', content: 'a'.repeat(MAX_FILE_CHARS + 1) }],
+    });
+    expect(overLimit.ok).toBe(false);
+    if (!overLimit.ok) {
+      expect(overLimit.error).toMatch(/10[.,]000/);
+    }
   });
 });

@@ -30,6 +30,7 @@ export interface CompileRequestPayload {
 
 export const MAX_SOURCE_FILES = 5;
 export const MAX_PE_ID = 19;
+export const MAX_FILE_CHARS = 10_000;
 export const MAX_TOTAL_SOURCE_BYTES = 65_536; // 64 KB
 export const MAX_STDIN_BYTES = 8_192; // 8 KB
 
@@ -134,6 +135,12 @@ export function validateCompilePayload(
 
     if (typeof f.content !== 'string') {
       return { ok: false, error: `Nội dung tệp ${f.name} phải là chuỗi văn bản.` };
+    }
+    if (f.content.length > MAX_FILE_CHARS) {
+      return {
+        ok: false,
+        error: `Tệp ${f.name} vượt quá giới hạn tối đa ${MAX_FILE_CHARS.toLocaleString('vi-VN')} ký tự. Hãy rút gọn mã nguồn rồi thử lại.`,
+      };
     }
 
     totalBytes += utf8ByteLength(f.content);
