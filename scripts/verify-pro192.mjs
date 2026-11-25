@@ -3,84 +3,193 @@ import path from 'node:path';
 
 const ROOT = String.raw`e:\JavAncode`;
 const PRO_DIR = path.join(ROOT, 'content', 'vi', 'pro192');
+const SLOTS_DIR = path.join(PRO_DIR, 'slots');
 const META_PATH = path.join(ROOT, 'metadata', 'pro192.json');
-
-const expectedMdFiles = [
-  'README.md',
-  'giai-doan-1-slot-01-05.md',
-  'giai-doan-2-slot-06-09.md',
-  'giai-doan-3-slot-10-13.md',
-  'giai-doan-4-slot-14-17.md',
-  'giai-doan-5-slot-18-21.md',
-  'giai-doan-6-slot-22-24.md',
-  'giai-doan-7-slot-25-27.md',
-  'giai-doan-8-slot-28-30.md',
-  'pe-challenges.md',
-];
+const IMG_DISK_DIR = path.join(ROOT, 'public', 'media', 'pro192', 'images');
 
 const issues = [];
 let totalExercises = 0;
+let markdownFilesChecked = 0;
 
-for (const f of expectedMdFiles) {
-  const abs = path.join(PRO_DIR, f);
+// 1. Assert zero legacy giai-doan-*.md files remain
+const leftoverLegacy = fs.readdirSync(PRO_DIR).filter((f) => /^giai-doan-.*\.md$/i.test(f));
+if (leftoverLegacy.length > 0) {
+  issues.push({ file: 'content/vi/pro192/', issue: `Legacy monolithic stage files still exist: ${leftoverLegacy.join(', ')}` });
+}
+
+// 2. Assert README.md & pe-challenges.md exist + no references to giai-doan-
+for (const coreFile of ['README.md', 'pe-challenges.md']) {
+  const abs = path.join(PRO_DIR, coreFile);
   if (!fs.existsSync(abs)) {
-    issues.push({ file: f, issue: 'Missing Markdown file' });
-    continue;
-  }
-  const txt = fs.readFileSync(abs, 'utf8');
-  const lines = txt.split(/\r?\n/);
-
-  // Count balanced code fences
-  let inFence = false;
-  let fenceChar = '';
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^\s*(`{3,}|~{3,})/);
-    if (m) {
-      if (!inFence) {
-        inFence = true;
-        fenceChar = m[1][0];
-      } else if (m[1][0] === fenceChar) {
-        inFence = false;
-      }
+    issues.push({ file: coreFile, issue: 'Missing core PRO192 Markdown file' });
+  } else {
+    markdownFilesChecked++;
+    const txt = fs.readFileSync(abs, 'utf8');
+    if (/giai-doan-\d+/.test(txt)) {
+      issues.push({ file: coreFile, issue: 'Contains stale reference to legacy giai-doan-*.md' });
     }
-  }
-  if (inFence) issues.push({ file: f, issue: 'Unclosed code fence' });
-
-  // Verify no leftover NotebookLM bugs or raw LaTeX delimiters
-  if (/new\s+int\s*;/.test(txt)) issues.push({ file: f, issue: 'Broken array syntax (new int;)' });
-  if (/\\\\\(|\\\\\[|\\rightarrow|\\longrightarrow|\\mathbf/.test(txt)) {
-    issues.push({ file: f, issue: 'Unconverted LaTeX macro remains' });
-  }
-  if (/\$[^$\n]+\$/.test(txt)) {
-    // Allow Java classfile example or $ variables only inside backticks/code; check outside code
-    const noCode = txt.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '');
-    if (/\$[^$\n]+\$/.test(noCode)) {
-      issues.push({ file: f, issue: 'Unconverted inline $...$ LaTeX outside code blocks' });
-    }
-  }
-
-  // Count exercises in giai-doan-*
-  if (f.startsWith('giai-doan-')) {
-    const exMatches = txt.match(/^#{3,4}\s+Bài(?:\s+tập)?\s+\d+\.\d+/gm) || [];
-    totalExercises += exMatches.length;
+    checkCommonMarkdown(coreFile, txt, { allowHeapSlideTerms: coreFile === 'README.md' });
   }
 }
 
-// Validate metadata/pro192.json
+function checkCommonMarkdown(label, txt, { allowHeapSlideTerms = false } = {}) {
+  const lines = txt.split(/\r?\n/);
+  let inFence = false;
+  let fenceChar = '';
+  let h1Count = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    const fm = l.match(/^\s*(`{3,}|~{3,})/);
+    if (fm) {
+      if (!inFence) { inFence = true; fenceChar = fm[1][0]; }
+      else if (fm[1][0] === fenceChar) inFence = false;
+      continue;
+    }
+    if (!inFence && /^#\s+/.test(l)) {
+      h1Count++;
+    }
+  }
+
+  if (inFence) issues.push({ file: label, issue: 'Unclosed code fence' });
+  if (/new\s+int\s*;/.test(txt)) issues.push({ file: label, issue: 'Broken array syntax (new int;)' });
+  if (/\\\\\(|\\\\\[|\\rightarrow|\\longrightarrow|\\mathbf/.test(txt)) {
+    issues.push({ file: label, issue: 'Unconverted LaTeX macro remains' });
+  }
+
+  const noCode = txt.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '');
+  if (/\$[^$\n]+\$/.test(noCode)) {
+    issues.push({ file: label, issue: 'Unconverted inline $...$ LaTeX outside code blocks' });
+  }
+
+  if (!allowHeapSlideTerms && /(?:Static|Dynamic)\s+Heap/i.test(txt)) {
+    issues.push({ file: label, issue: 'Stale slide term Static/Dynamic Heap found outside Slots 06-07' });
+  }
+
+  return h1Count;
+}
+
+// 3. Validate all 30 standalone slot files
+let slotsChecked = 0;
+for (let n = 1; n <= 30; n++) {
+  const n2 = String(n).padStart(2, '0');
+  const relLabel = `slots/slot-${n2}.md`;
+  const abs = path.join(SLOTS_DIR, `slot-${n2}.md`);
+  if (!fs.existsSync(abs)) {
+    issues.push({ file: relLabel, issue: 'Missing standalone slot file' });
+    continue;
+  }
+
+  slotsChecked++;
+  markdownFilesChecked++;
+  const txt = fs.readFileSync(abs, 'utf8');
+
+  // YAML frontmatter check
+  const fmMatch = txt.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+  if (!fmMatch) {
+    issues.push({ file: relLabel, issue: 'Missing YAML frontmatter' });
+  } else {
+    const fm = fmMatch[1];
+    for (const key of ['slot:', 'stage:', 'title:', 'examFocus:', 'estimatedMinutes:', 'slidePdf:', 'slidePptx:']) {
+      if (!fm.includes(key)) {
+        issues.push({ file: relLabel, issue: `Frontmatter missing field "${key}"` });
+      }
+    }
+  }
+
+  const h1Count = checkCommonMarkdown(relLabel, txt, { allowHeapSlideTerms: n === 6 || n === 7 });
+  if (h1Count !== 1) {
+    issues.push({ file: relLabel, issue: `Expected strictly 1 H1 outside code fences, found ${h1Count}` });
+  }
+
+  // Verify 5 standard H2 blocks outside code fences
+  const bodyNoCode = txt.replace(/```[\s\S]*?```/g, '');
+  for (const h2 of [
+    /^## 1\. Mục tiêu đầu ra & Định vị bài học/m,
+    /^## 2\. Lý thuyết cốt lõi/m,
+    /^## 3\. Góc Giảng viên:/m,
+    /^## 4\. Luyện tập Chủ động/m,
+    /^## 5\. Study Bridge/m,
+  ]) {
+    if (!h2.test(bodyNoCode)) {
+      issues.push({ file: relLabel, issue: `Missing standard section heading: ${h2}` });
+    }
+  }
+
+  // Verify 5 exercises and balanced <details>
+  const exMatches = bodyNoCode.match(/^### Bài \d+\.\d+:/gm) || [];
+  if (exMatches.length !== 5) {
+    issues.push({ file: relLabel, issue: `Expected 5 exercises, found ${exMatches.length}` });
+  }
+  totalExercises += exMatches.length;
+
+  const openDetails = (bodyNoCode.match(/<details>/g) || []).length;
+  const closeDetails = (bodyNoCode.match(/<\/details>/g) || []).length;
+  if (openDetails !== closeDetails) {
+    issues.push({ file: relLabel, issue: `Unbalanced <details> (${openDetails} open vs ${closeDetails} close)` });
+  }
+  if (openDetails < 5) {
+    issues.push({ file: relLabel, issue: `Expected at least 5 <details> blocks for Active Recall, found ${openDetails}` });
+  }
+}
+
+// 4. Validate metadata/pro192.json
+const mappedImages = new Set();
 if (!fs.existsSync(META_PATH)) {
   issues.push({ file: 'metadata/pro192.json', issue: 'Missing metadata/pro192.json' });
 } else {
   const meta = JSON.parse(fs.readFileSync(META_PATH, 'utf8'));
-  if (meta.slots.length !== 30) issues.push({ file: 'metadata/pro192.json', issue: `Expected 30 slots, got ${meta.slots.length}` });
-  if (meta.stages.length !== 8) issues.push({ file: 'metadata/pro192.json', issue: `Expected 8 stages, got ${meta.stages.length}` });
+  if (meta.stages.length !== 8) {
+    issues.push({ file: 'metadata/pro192.json', issue: `Expected 8 stages, got ${meta.stages.length}` });
+  }
+  if (meta.slots.length !== 30) {
+    issues.push({ file: 'metadata/pro192.json', issue: `Expected 30 slots, got ${meta.slots.length}` });
+  }
+
+  const coveredSlots = new Set();
+  for (const st of meta.stages) {
+    if (!Array.isArray(st.slotFiles) || st.slotFiles.length !== st.slots.length) {
+      issues.push({ file: 'metadata/pro192.json', issue: `Stage ${st.id} missing matching slotFiles[]` });
+    } else {
+      for (const sf of st.slotFiles) {
+        if (!fs.existsSync(path.join(ROOT, 'content', 'vi', sf))) {
+          issues.push({ file: 'metadata/pro192.json', issue: `Missing stage slotFile on disk: ${sf}` });
+        }
+      }
+    }
+    st.slots.forEach((s) => coveredSlots.add(s));
+  }
+  if (coveredSlots.size !== 30) {
+    issues.push({ file: 'metadata/pro192.json', issue: `Stages do not cover all 30 slots cleanly (covered ${coveredSlots.size})` });
+  }
 
   for (const s of meta.slots) {
+    if (!/^pro192\/slots\/slot-\d{2}\.md$/.test(s.file)) {
+      issues.push({ file: 'metadata/pro192.json', issue: `Slot ${s.slot} file path not pointing to slots/slot-XX.md: ${s.file}` });
+    }
     if (!fs.existsSync(path.join(ROOT, 'content', 'vi', s.file))) {
       issues.push({ file: 'metadata/pro192.json', issue: `Missing slot file: ${s.file}` });
     }
-    for (const asset of [s.slidePdf, s.slidePptx]) {
+    if (!Array.isArray(s.examFocus) || s.examFocus.length === 0) {
+      issues.push({ file: 'metadata/pro192.json', issue: `Slot ${s.slot} missing examFocus` });
+    }
+    if (!Array.isArray(s.objectives) || s.objectives.length !== 3) {
+      issues.push({ file: 'metadata/pro192.json', issue: `Slot ${s.slot} must have 3 objectives` });
+    }
+    if (!Array.isArray(s.examTraps) || s.examTraps.length < 2) {
+      issues.push({ file: 'metadata/pro192.json', issue: `Slot ${s.slot} must have >= 2 examTraps` });
+    }
+    if (!(s.estimatedMinutes > 0)) {
+      issues.push({ file: 'metadata/pro192.json', issue: `Slot ${s.slot} missing estimatedMinutes > 0` });
+    }
+    for (const asset of [s.slidePdf, s.slidePptx, ...(s.slideImages || [])]) {
       const disk = path.join(ROOT, 'public', decodeURIComponent(asset).slice(1));
-      if (!fs.existsSync(disk)) issues.push({ file: 'metadata/pro192.json', issue: `Missing slot slide/pdf: ${asset}` });
+      if (!fs.existsSync(disk)) {
+        issues.push({ file: 'metadata/pro192.json', issue: `Missing asset on disk for Slot ${s.slot}: ${asset}` });
+      }
+      if ((s.slideImages || []).includes(asset)) {
+        mappedImages.add(path.basename(decodeURIComponent(asset)));
+      }
     }
     for (const bridgeRel of s.studyBridge) {
       if (!fs.existsSync(path.join(ROOT, 'content', 'vi', bridgeRel))) {
@@ -94,13 +203,22 @@ if (!fs.existsSync(META_PATH)) {
 
   for (const img of meta.assets.images) {
     const disk = path.join(ROOT, 'public', decodeURIComponent(img).slice(1));
-    if (!fs.existsSync(disk)) issues.push({ file: 'metadata/pro192.json', issue: `Missing image asset: ${img}` });
+    if (!fs.existsSync(disk)) issues.push({ file: 'metadata/pro192.json', issue: `Missing asset.images file: ${img}` });
   }
 }
 
+const diskImages = fs.readdirSync(IMG_DISK_DIR);
+const unmappedImages = diskImages.filter((f) => !mappedImages.has(f));
+if (unmappedImages.length !== 1 || unmappedImages[0] !== 'Logo-FU-01.png') {
+  issues.push({ file: 'public/media/pro192/images/', issue: `Expected only Logo-FU-01.png unmapped, got: ${unmappedImages.join(', ')}` });
+}
+
 console.log(JSON.stringify({
-  markdownFilesChecked: expectedMdFiles.length,
+  markdownFilesChecked,
+  slotsChecked,
   totalExercisesDetected: totalExercises,
+  mappedTeachingImages: mappedImages.size,
+  diskImagesTotal: diskImages.length,
   issueCount: issues.length,
   issues,
 }, null, 2));

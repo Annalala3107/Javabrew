@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T13:33:30.086Z",
+  "generatedAt": "2026-11-25T10:22:06.790Z",
   "course": {
     "code": "PRO192",
     "name": "Object-Oriented Programming with Java",
@@ -10,7 +10,9 @@
     "totalImages": 187,
     "totalSlides": 14,
     "totalResources": 15,
-    "lang": "vi"
+    "lang": "vi",
+    "structure": "slots",
+    "totalSlotFiles": 30
   },
   "stages": [
     {
@@ -23,7 +25,13 @@
         5
       ],
       "title": "Giai đoạn 1: Khởi động, Môi trường & Nền tảng Cú pháp Java",
-      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "slotFiles": [
+        "pro192/slots/slot-01.md",
+        "pro192/slots/slot-02.md",
+        "pro192/slots/slot-03.md",
+        "pro192/slots/slot-04.md",
+        "pro192/slots/slot-05.md"
+      ],
       "slides": [
         "Get Start.pptx",
         "Download & Install JDK & NetBeans 8.pptx",
@@ -44,7 +52,12 @@
         9
       ],
       "title": "Giai đoạn 2: Quản lý Bộ nhớ, Wrapper/Math & Chuỗi String/Scanner",
-      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "slotFiles": [
+        "pro192/slots/slot-06.md",
+        "pro192/slots/slot-07.md",
+        "pro192/slots/slot-08.md",
+        "pro192/slots/slot-09.md"
+      ],
       "slides": [
         "Memory Management in Java.pptx",
         "Numbers and Strings.pptx",
@@ -66,7 +79,12 @@
         13
       ],
       "title": "Giai đoạn 3: 4 Trụ cột OOP, Thiết kế Class & Encapsulation",
-      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "slotFiles": [
+        "pro192/slots/slot-10.md",
+        "pro192/slots/slot-11.md",
+        "pro192/slots/slot-12.md",
+        "pro192/slots/slot-13.md"
+      ],
       "slides": [
         "Introduction.pptx",
         "Encapsulation.pptx"
@@ -85,7 +103,12 @@
         17
       ],
       "title": "Giai đoạn 4: Kế thừa (Inheritance), Array of Objects & Casting",
-      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "slotFiles": [
+        "pro192/slots/slot-14.md",
+        "pro192/slots/slot-15.md",
+        "pro192/slots/slot-16.md",
+        "pro192/slots/slot-17.md"
+      ],
       "slides": [
         "Inheritance.pptx",
         "ArrayOfObjects.pptx"
@@ -104,7 +127,12 @@
         21
       ],
       "title": "Giai đoạn 5: Đa hình, Abstract Class, Interface & Anonymous Class",
-      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "slotFiles": [
+        "pro192/slots/slot-18.md",
+        "pro192/slots/slot-19.md",
+        "pro192/slots/slot-20.md",
+        "pro192/slots/slot-21.md"
+      ],
       "slides": [
         "Polymorphism.pptx"
       ],
@@ -122,7 +150,11 @@
         24
       ],
       "title": "Giai đoạn 6: Xử lý Ngoại lệ (Exception Handling) & Mã nguồn An toàn",
-      "file": "pro192/giai-doan-6-slot-22-24.md",
+      "slotFiles": [
+        "pro192/slots/slot-22.md",
+        "pro192/slots/slot-23.md",
+        "pro192/slots/slot-24.md"
+      ],
       "slides": [
         "Exception Handling.pptx"
       ],
@@ -138,7 +170,11 @@
         27
       ],
       "title": "Giai đoạn 7: Java Collections Framework, Collections/Arrays & So sánh",
-      "file": "pro192/giai-doan-7-slot-25-27.md",
+      "slotFiles": [
+        "pro192/slots/slot-25.md",
+        "pro192/slots/slot-26.md",
+        "pro192/slots/slot-27.md"
+      ],
       "slides": [
         "Collections.pptx",
         "Support Classes.pptx"
@@ -159,7 +195,11 @@
         30
       ],
       "title": "Giai đoạn 8: File I/O Streams, Character/Byte Streams & Serialization",
-      "file": "pro192/giai-doan-8-slot-28-30.md",
+      "slotFiles": [
+        "pro192/slots/slot-28.md",
+        "pro192/slots/slot-29.md",
+        "pro192/slots/slot-30.md"
+      ],
       "slides": [
         "File IO.pptx"
       ],
@@ -176,372 +216,1147 @@
       "slot": 1,
       "stage": 1,
       "title": "Tổng quan Công nghệ Java & Kiến trúc Nền tảng (JDK/JRE/JVM)",
-      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "file": "pro192/slots/slot-01.md",
       "slidePdf": "/media/pro192/resources/Get%20Start.pdf",
       "slidePptx": "/media/pro192/slides/Get%20Start.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-01.md",
         "java/jvm/jvm-intro.md"
+      ],
+      "examFocus": [
+        "Nền tảng",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 20,
+      "objectives": [
+        "Phân biệt chính xác vai trò và mối quan hệ giữa JDK, JRE và JVM.",
+        "Giải thích cơ chế \"Write Once, Run Anywhere\" (WORA) qua `.java` -> `javac` -> Bytecode `.class` -> JVM.",
+        "Nắm 10 đặc tính cốt lõi của Java và hai trụ cột của Java Platform (JVM + Java API)."
+      ],
+      "examTraps": [
+        "Bẫy trắc nghiệm FE: Bytecode `.class` độc lập nền tảng, nhưng **JVM lại phụ thuộc hệ điều hành** (Windows/Linux/macOS có bộ cài JVM riêng).",
+        "Java hỗ trợ **JIT (Just-In-Time Compiler)** kết hợp thông dịch + biên dịch mã nóng để tối ưu tốc độ chứ không chỉ thông dịch thuần."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/JavaPlatform.png",
+        "/media/pro192/images/JVM.png"
       ]
     },
     {
       "slot": 2,
       "stage": 1,
       "title": "Cài đặt Môi trường, Công cụ NetBeans & Chương trình HelloWorld",
-      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "file": "pro192/slots/slot-02.md",
       "slidePdf": "/media/pro192/resources/Download%20%26%20Install%20JDK%20%26%20NetBeans%208.pdf",
       "slidePptx": "/media/pro192/slides/Download%20%26%20Install%20JDK%20%26%20NetBeans%208.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-01.md"
+      ],
+      "examFocus": [
+        "Nền tảng",
+        "Quy chế PE"
+      ],
+      "estimatedMinutes": 20,
+      "objectives": [
+        "Hiểu tác dụng của biến môi trường `Path` (`bin/`) và `CLASSPATH` (`.`) khi biên dịch và chạy Java.",
+        "Thực hiện đúng quy trình tạo Project chuẩn chấm thi PEA (JDK 8, bỏ chọn tự sinh Main khi đề yêu cầu).",
+        "Nắm tổ chức thư mục `src/`, `build/classes/` và `dist/` (file `.jar`) sau Clean and Build."
+      ],
+      "examTraps": [
+        "Quy chế **0 điểm PEA** ở trường: Đề PE hiện chấm trên **JDK 1.8 (NetBeans 17)**, yêu cầu đổi `dist` thành `RUN` (chứa file `Q1.jar`), **không dùng package**, không comment tiếng Việt có dấu.",
+        "Quên dấu `.` (thư mục hiện hành) trong `CLASSPATH` khiến JVM không tìm thấy file `.class` tại thư mục đang đứng."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/step2.png",
+        "/media/pro192/images/step22.png",
+        "/media/pro192/images/step3.png",
+        "/media/pro192/images/step4.png",
+        "/media/pro192/images/output.png"
       ]
     },
     {
       "slot": 3,
       "stage": 1,
       "title": "Cấu trúc Chương trình Java & Quy trình Biên dịch CLI (javac/java/jar)",
-      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "file": "pro192/slots/slot-03.md",
       "slidePdf": "/media/pro192/resources/Learning%20the%20Java%20Language.pdf",
       "slidePptx": "/media/pro192/slides/Learning%20the%20Java%20Language.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/jvm/class-file-structure.md"
+      ],
+      "examFocus": [
+        "Nền tảng",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Đọc hiểu cấu trúc chuẩn một tệp `.java` và chữ ký bắt buộc `public static void main(String[] args)`.",
+        "Sử dụng thành thạo bộ lệnh CLI `javac`, `java`, `jar` và hiểu quy tắc đặt tên tệp khớp lớp `public`.",
+        "Nắm sự khác biệt giữa 3 kiểu comment (`//`, `/* */`, `/** ... */`) và truyền đối số dòng lệnh `args`."
+      ],
+      "examTraps": [
+        "Bẫy CLI cực hay hỏi ở FE: chạy `java HelloWorld` (KHÔNG ghi đuôi `.class`), trong khi biên dịch phải ghi đủ `javac HelloWorld.java`.",
+        "File `.java` chứa lớp `public class A` bắt buộc phải đặt tên file đúng `A.java` (phân biệt hoa/thường), và trong 1 file chỉ có tối đa 1 class `public`."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/firstProgram.png"
       ]
     },
     {
       "slot": 4,
       "stage": 1,
       "title": "Kiểu dữ liệu Nguyên thủy, Tham chiếu, Toán tử & Phạm vi Biến",
-      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "file": "pro192/slots/slot-04.md",
       "slidePdf": "/media/pro192/resources/Learning%20the%20Java%20Language.pdf",
       "slidePptx": "/media/pro192/slides/Learning%20the%20Java%20Language.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-01.md",
         "java/basis/java-keyword-summary.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q1–Q4)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 30,
+      "objectives": [
+        "Làm chủ 8 kiểu dữ liệu nguyên thủy (kích thước, miền giá trị) và kiểu tham chiếu/mảng 1D–2D.",
+        "Phân biệt ép kiểu ngầm định (widening) vs ép kiểu tường minh (narrowing) và rủi ro tràn/cắt bit.",
+        "Nắm độ ưu tiên toán tử, phép chia nguyên (`int / int`), dịch bit (`>>` vs `>>>`) và phạm vi biến (scope)."
+      ],
+      "examTraps": [
+        "Bẫy chia số nguyên trong PE: `int a = 5, b = 2; double x = a / b;` ra `2.0` thay vì `2.5` — phải ép `(double) a / b`.",
+        "Phép gán rút gọn như `byte b = 1; b += 1;` tự ép kiểu ẩn nên compile được, còn `b = b + 1;` **lỗi biên dịch** vì `b + 1` thăng hạng thành `int`.",
+        "Cẩn thận phạm vi biến cục bộ (local variable) không có giá trị mặc định: chưa gán giá trị mà đem dùng sẽ lỗi compile."
+      ],
+      "peRefs": [
+        "PE1-Q1",
+        "PE3-Q1",
+        "PE3-Q4"
+      ],
+      "slideImages": [
+        "/media/pro192/images/keyword.png",
+        "/media/pro192/images/datatype.png",
+        "/media/pro192/images/PrimaryDataType.png",
+        "/media/pro192/images/referenceDataType.png",
+        "/media/pro192/images/scope.png",
+        "/media/pro192/images/array.png",
+        "/media/pro192/images/array2.png",
+        "/media/pro192/images/copyarray.png",
+        "/media/pro192/images/2DarrayCode.png",
+        "/media/pro192/images/2Darray.png",
+        "/media/pro192/images/operator.png",
+        "/media/pro192/images/operator2.png",
+        "/media/pro192/images/operator3.png"
       ]
     },
     {
       "slot": 5,
       "stage": 1,
       "title": "Cấu trúc Điều khiển Rẽ nhánh, Vòng lặp, For-each & Java Style",
-      "file": "pro192/giai-doan-1-slot-01-05.md",
+      "file": "pro192/slots/slot-05.md",
       "slidePdf": "/media/pro192/resources/Learning%20the%20Java%20Language.pdf",
       "slidePptx": "/media/pro192/slides/Learning%20the%20Java%20Language.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-01.md"
-      ]
+      ],
+      "examFocus": [
+        "Thi PE (Q1–Q4)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Chọn đúng cấu trúc điều khiển (`if-else`, `switch-case`, toán tử 3 ngôi `?:`, `for`, `while`, `do-while`).",
+        "Phân biệt vòng lặp `for` chỉ mục và `for-each` (tính chất bản sao trên biến lặp của mảng nguyên thủy).",
+        "Áp dụng chuẩn định dạng Elements of Java Style để code sạch và dễ debug trong phòng thi."
+      ],
+      "examTraps": [
+        "Bẫy `for-each`: gán `x += 10` trong `for (int x : arr)` **không thay đổi** phần tử mảng gốc `arr`, chỉ thay đổi bản sao cục bộ `x`.",
+        "Bẫy `switch-case` rơi tự do (*fall-through*) nếu thiếu `break;`; ngoài ra nhớ `do-while` luôn chạy ít nhất **1 lần** kể cả khi điều kiện sai ngay đầu."
+      ],
+      "peRefs": [
+        "PE3-Q4",
+        "PE5-Q4"
+      ],
+      "slideImages": []
     },
     {
       "slot": 6,
       "stage": 2,
       "title": "Kiến trúc Bộ nhớ JVM (Stack / Heap & Modern JVM Note)",
-      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "file": "pro192/slots/slot-06.md",
       "slidePdf": "/media/pro192/resources/Memory%20Management%20in%20Java.pdf",
       "slidePptx": "/media/pro192/slides/Memory%20Management%20in%20Java.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/jvm/memory-area.md"
+      ],
+      "examFocus": [
+        "Thi FE",
+        "Nền tảng JVM"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Phân biệt dữ liệu nằm trên JVM Stack (biến cục bộ nguyên thủy, con trỏ tham chiếu) và Heap (đối tượng `new`).",
+        "Nắm rõ vòng đời Stack Frame khi gọi/thoát phương thức và hiện tượng `StackOverflowError`.",
+        "Đối chiếu thuật ngữ cũ trên slide (\"Static/Dynamic Heap\") sang kiến trúc HotSpot hiện đại (**Metaspace / Heap / Stack**)."
+      ],
+      "examTraps": [
+        "Phân biệt thi FE vs phỏng vấn: Slide gọi vùng chứa class/static là *\"Static Heap\"*, nhưng câu hỏi JVM chuẩn Java 8+ dùng **Metaspace** + **JVM Heap** + **JVM Stack**.",
+        "Khi hàm kết thúc, biến tham chiếu trên Stack biến mất ngay, nhưng đối tượng trên Heap **không biến mất tức thì** mà chờ Garbage Collector thu hồi."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/memory.png",
+        "/media/pro192/images/memory2.png",
+        "/media/pro192/images/allocation.png"
       ]
     },
     {
       "slot": 7,
       "stage": 2,
       "title": "Cơ chế Cấp phát Bộ nhớ & Bộ dọn rác Tự động (Garbage Collection)",
-      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "file": "pro192/slots/slot-07.md",
       "slidePdf": "/media/pro192/resources/Memory%20Management%20in%20Java.pdf",
       "slidePptx": "/media/pro192/slides/Memory%20Management%20in%20Java.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/jvm/jvm-garbage-collection.md"
+      ],
+      "examFocus": [
+        "Thi FE",
+        "Nền tảng JVM"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Hiểu mô hình quản lý khối nhớ (Free Block List, First-Fit, Compacting Memory) trong bài giảng.",
+        "Nhận diện chính xác thời điểm một đối tượng trên Heap trở thành \"rác\" (mất toàn bộ tham chiếu trỏ tới).",
+        "Hiểu vai trò daemon thread của Garbage Collector, `System.gc()`, và cơ chế GC thực tế trên HotSpot."
+      ],
+      "examTraps": [
+        "Bẫy trắc nghiệm FE: `System.gc()` **KHÔNG ép buộc** GC chạy ngay lập tức — chỉ là lời gợi ý gửi tới JVM.",
+        "Đừng hiểu nhầm `obj = null` làm mất đối tượng nếu vẫn còn biến tham chiếu thứ hai đang trỏ tới cùng đối tượng đó trên Heap."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/memory3.png"
       ]
     },
     {
       "slot": 8,
       "stage": 2,
       "title": "Wrapper Classes, Number Hierarchy, Autoboxing/Unboxing & Math",
-      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "file": "pro192/slots/slot-08.md",
       "slidePdf": "/media/pro192/resources/Numbers%20and%20Strings.pdf",
       "slidePptx": "/media/pro192/slides/Numbers%20and%20Strings.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-01.md"
-      ]
+      ],
+      "examFocus": [
+        "Thi PE (Q1/Q2/Q4)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Sử dụng chuẩn xác `Wrapper Classes` (`Integer`, `Double`, `Character`), Autoboxing/Unboxing và `Number`.",
+        "Làm chủ `Character.isDigit()`, `isLetter()`, `isLowerCase()`, `isUpperCase()` — bộ công cụ giải **80% câu Q1/Q2/Q4 đề PE**.",
+        "Áp dụng đúng `Math` (`random`, `pow`, `abs`, `round`) và tránh lỗi `NullPointerException` khi Unboxing."
+      ],
+      "examTraps": [
+        "Bẫy Integer Cache (`-128..127`): so sánh `Integer a = 127, b = 127; a == b` là `true`, nhưng `200 == 200` là `false` → **luôn dùng `.equals()`** với Wrapper!",
+        "Bẫy PE Q1/Q4: khi xử lý ký tự trong từ, đừng kiểm tra thủ công ASCII lỗi dấu; dùng `Character.isDigit(c)` / `Character.isLetter(c)` an toàn tuyệt đối trên JDK 8."
+      ],
+      "peRefs": [
+        "PE1-Q1",
+        "PE1-Q4",
+        "PE5-Q2",
+        "PE5-Q4"
+      ],
+      "slideImages": []
     },
     {
       "slot": 9,
       "stage": 2,
       "title": "Xử lý Chuỗi (String Pool, StringBuilder/StringBuffer) & Scanner",
-      "file": "pro192/giai-doan-2-slot-06-09.md",
+      "file": "pro192/slots/slot-09.md",
       "slidePdf": "/media/pro192/resources/Numbers%20and%20Strings.pdf",
       "slidePptx": "/media/pro192/slides/Numbers%20and%20Strings.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-01.md",
         "java/basis/java-basic-questions-02.md"
-      ]
+      ],
+      "examFocus": [
+        "Thi PE (Q1/Q2/Q4)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 30,
+      "objectives": [
+        "Hiểu tính bất biến (immutability) của `String`, String Pool, và phân biệt rạch ròi `==` với `equals()`.",
+        "Sử dụng `StringBuilder` cho biến đổi chuỗi (`reverse()`, `replace()`, `insert()`) trong Q2/Q4 đề PE.",
+        "Làm chủ `split(\"\\s+\")`, `trim()`, `String.format(\"%.2f\")` và xử lý sạch bộ đệm `Scanner` (`nextLine()` sau `nextInt()`)."
+      ],
+      "examTraps": [
+        "Bẫy **JDK 8 trong PE**: Đề trường chạy Java 8 nên **KHÔNG có `String.isBlank()` hay `.repeat()` (Java 11+)** — phải dùng `str == null || str.trim().isEmpty()`.",
+        "Bẫy `substring(begin, end)` lấy `[begin, end - 1]` và bẫy `s.replace(...)` trả về chuỗi mới chứ **không sửa `s` tại chỗ**.",
+        "Bẫy `Scanner`: sau `nextInt()` / `nextDouble()` luôn có ký tự `\\n` kẹt trong buffer; phải gọi `sc.nextLine()` xả trôi trước khi đọc chuỗi tiếp."
+      ],
+      "peRefs": [
+        "PE1-Q1",
+        "PE1-Q4",
+        "PE2-Q1",
+        "PE3-Q1",
+        "PE3-Q4",
+        "PE4-Q1",
+        "PE4-Q4",
+        "PE5-Q1",
+        "PE5-Q4"
+      ],
+      "slideImages": []
     },
     {
       "slot": 10,
       "stage": 3,
       "title": "4 Trụ cột OOP & Tư duy Mô hình hóa Hướng đối tượng",
-      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "file": "pro192/slots/slot-10.md",
       "slidePdf": "/media/pro192/resources/Introduction.pdf",
       "slidePptx": "/media/pro192/slides/Introduction.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-02.md"
+      ],
+      "examFocus": [
+        "Nền tảng OOP",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 20,
+      "objectives": [
+        "Phân biệt tư duy Lập trình Thủ tục (Procedural) vs Lập trình Hướng đối tượng (OOP).",
+        "Giải thích chính xác 4 trụ cột OOP: Abstraction, Encapsulation, Inheritance, Polymorphism.",
+        "Nhận diện mối quan hệ giữa Class (bản thiết kế trừu tượng) và Object (thực thể cụ thể trong bộ nhớ)."
+      ],
+      "examTraps": [
+        "Đừng nhầm **Abstraction** (tập trung bản chất, ẩn chi tiết cài đặt) với **Encapsulation** (che giấu dữ liệu + kiểm soát truy cập qua getter/setter).",
+        "Trong đề FE, thuộc tính của Object thể hiện trạng thái (*state*), phương thức thể hiện hành vi (*behavior*)."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/algorithmic.png",
+        "/media/pro192/images/abstraction.png",
+        "/media/pro192/images/classes.png",
+        "/media/pro192/images/encapsulation.png",
+        "/media/pro192/images/differentBehavior.png",
+        "/media/pro192/images/identicalBehavior.png"
       ]
     },
     {
       "slot": 11,
       "stage": 3,
       "title": "Kỹ thuật Thiết kế Class, Nguyên lý Cohesion & Coupling",
-      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "file": "pro192/slots/slot-11.md",
       "slidePdf": "/media/pro192/resources/Introduction.pdf",
       "slidePptx": "/media/pro192/slides/Introduction.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "system-design/design-pattern.md"
+      ],
+      "examFocus": [
+        "Nền tảng OOP",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 20,
+      "objectives": [
+        "Trích xuất đúng danh sách Class, Fields và Methods từ đề bài mô tả bằng tiếng Anh (Q1–Q3 PE).",
+        "Thiết kế Class đạt High Cohesion (gắn kết cao) và Low Coupling (phụ thuộc lỏng lẻo).",
+        "Đọc hiểu chuẩn ký hiệu UML của đề PE (`-`: private, `+`: public, `#`: protected) và chữ ký phương thức."
+      ],
+      "examTraps": [
+        "Đọc sai bảng UML đề PE là mất trắng điểm: kiểu trả về nằm **sau dấu hai chấm** (`+getDesert():String` nghĩa là `public String getDesert()`).",
+        "Chữ ký phương thức (Method Signature) chỉ gồm **tên hàm + danh sách kiểu tham số** — KHÔNG bao gồm kiểu trả về!"
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/classUML.png",
+        "/media/pro192/images/class_relationships.png",
+        "/media/pro192/images/relationship.png"
       ]
     },
     {
       "slot": 12,
       "stage": 3,
       "title": "Vòng đời Đối tượng, Constructor, Tham chiếu & Từ khóa this",
-      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "file": "pro192/slots/slot-12.md",
       "slidePdf": "/media/pro192/resources/Encapsulation.pdf",
       "slidePptx": "/media/pro192/slides/Encapsulation.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/why-there-only-value-passing-in-java.md",
         "java/basis/java-basic-questions-02.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q1/Q2)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Nắm 3 bước vòng đời tạo đối tượng (`Declaration` → `Instantiation` (`new`) → `Initialization`).",
+        "Biết chính xác khi nào compiler tự sinh Default Constructor và khi nào **mất** Default Constructor.",
+        "Dùng từ khóa `this` phân biệt biến instance với tham số và gọi chéo constructor `this(...)`."
+      ],
+      "examTraps": [
+        "Bẫy **mất Default Constructor**: Một khi bạn đã tự viết constructor có tham số (ví dụ `Crocus(String, int)`), Java **KHÔNG sinh** constructor rỗng `Crocus()` nữa — mà đề Q1/Q2 lại luôn chấm cả `Crocus()`!",
+        "Lời gọi `this(...)` bắt buộc phải nằm ở **dòng đầu tiên** trong constructor."
+      ],
+      "peRefs": [
+        "PE1-Q1",
+        "PE2-Q1",
+        "PE3-Q1",
+        "PE4-Q1",
+        "PE5-Q1"
+      ],
+      "slideImages": [
+        "/media/pro192/images/demoCarClass.png",
+        "/media/pro192/images/outputCarClass.png",
+        "/media/pro192/images/encapsulation1.png",
+        "/media/pro192/images/encapsulation2.png",
+        "/media/pro192/images/encapsulation3.png",
+        "/media/pro192/images/encapsulation4.png",
+        "/media/pro192/images/encapsulation5.png",
+        "/media/pro192/images/encapsulation6.png",
+        "/media/pro192/images/encapsulation7.png",
+        "/media/pro192/images/encapsulation8.png",
+        "/media/pro192/images/encapsulation9.png"
       ]
     },
     {
       "slot": 13,
       "stage": 3,
       "title": "Đóng gói (Encapsulation), Access Modifiers & Tổ chức Package",
-      "file": "pro192/giai-doan-3-slot-10-13.md",
+      "file": "pro192/slots/slot-13.md",
       "slidePdf": "/media/pro192/resources/Encapsulation.pdf",
       "slidePptx": "/media/pro192/slides/Encapsulation.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-01.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q1/Q2)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Cài đặt đúng Encapsulation (`private` fields + `public` Getter/Setter kiểm tra điều kiện biên).",
+        "Phân biệt chính xác 4 Access Modifiers (`public > protected > default > private`) across packages.",
+        "Hiểu tổ chức `package`, `import` và phân biệt với yêu cầu **default package** trong kỳ thi PE."
+      ],
+      "examTraps": [
+        "Bẫy Access Modifier ở FE: Biến `protected` trong lớp cha thuộc Package A **không thể** truy cập qua biến tham chiếu kiểu lớp cha từ một lớp con/lớp khác đứng ở Package B!",
+        "Bẫy PE 0 điểm: Bài tập dự án dùng `package`, nhưng **đề thi PE thật CẤM tuyệt đối dòng `package ...;`**. "
+      ],
+      "peRefs": [
+        "PE1-Q1",
+        "PE2-Q1",
+        "PE3-Q1",
+        "PE4-Q1",
+        "PE5-Q1"
+      ],
+      "slideImages": [
+        "/media/pro192/images/encapsulation10.png",
+        "/media/pro192/images/encapsulation11.png",
+        "/media/pro192/images/encapsulation12.png",
+        "/media/pro192/images/encapsulation13.png",
+        "/media/pro192/images/encapsulation14.png",
+        "/media/pro192/images/encapsulation15.png",
+        "/media/pro192/images/encapsulation16.png",
+        "/media/pro192/images/encapsulation17.png",
+        "/media/pro192/images/encapsulation18.png",
+        "/media/pro192/images/encapsulation19.png",
+        "/media/pro192/images/encapsulation20.png",
+        "/media/pro192/images/encapsulation21.png",
+        "/media/pro192/images/package.png"
       ]
     },
     {
       "slot": 14,
       "stage": 4,
       "title": "Bản chất Kế thừa (Inheritance), Từ khóa extends & Quan hệ is-a/has-a",
-      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "file": "pro192/slots/slot-14.md",
       "slidePdf": "/media/pro192/resources/Inheritance.pdf",
       "slidePptx": "/media/pro192/slides/Inheritance.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-02.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q2)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Phân biệt quan hệ `is-a` (`extends` — kế thừa) và `has-a` (aggregation/composition).",
+        "Hiểu nguyên lý Kế thừa đơn (Single Inheritance) của Java Class và lớp tổ phụ mặc định `java.lang.Object`.",
+        "Xác định đúng những thành phần lớp con được thừa hưởng vs thành phần `private` không truy cập trực tiếp được."
+      ],
+      "examTraps": [
+        "Lớp con **có thừa hưởng** không gian dữ liệu của thuộc tính `private` từ lớp cha, nhưng **không được truy cập trực tiếp** (`this.name` sẽ lỗi compile — phải gọi qua `getName()` hoặc `super.getName()`).",
+        "Java cấm đa kế thừa giữa các class (`class C extends A, B` là lỗi biên dịch)."
+      ],
+      "peRefs": [
+        "PE1-Q2",
+        "PE2-Q2",
+        "PE3-Q2",
+        "PE4-Q2",
+        "PE5-Q2"
+      ],
+      "slideImages": [
+        "/media/pro192/images/inheritance1.png",
+        "/media/pro192/images/inheritance2.png"
       ]
     },
     {
       "slot": 15,
       "stage": 4,
       "title": "Chuỗi Hàm khởi tạo (Constructor Chaining) & Từ khóa super",
-      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "file": "pro192/slots/slot-15.md",
       "slidePdf": "/media/pro192/resources/Inheritance.pdf",
       "slidePptx": "/media/pro192/slides/Inheritance.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-02.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q2)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Hiểu quy tắc Constructor không được kế thừa và chuỗi gọi `super(...)` từ lớp cha lên lớp con.",
+        "Nhận diện cơ chế trình biên dịch tự động chèn `super()` ngầm khi lập trình viên không gọi tường minh.",
+        "Phân biệt rạch ròi cách dùng `super` vs `this` (thuộc tính, phương thức, constructor)."
+      ],
+      "examTraps": [
+        "Bẫy kinh điển cả FE lẫn Q2 PE: Nếu lớp cha chỉ có constructor có tham số (không có `SuperClass()` rỗng) mà constructor con quên viết `super(args)` ở dòng 1 → **lỗi biên dịch ngay lập tức** vì compiler tự chèn `super()`!",
+        "Cả `super(...)` và `this(...)` đều phải ở dòng đầu constructor, nên **không bao giờ được gọi cùng lúc trong 1 constructor**."
+      ],
+      "peRefs": [
+        "PE1-Q2",
+        "PE2-Q2",
+        "PE3-Q2",
+        "PE4-Q2",
+        "PE5-Q2"
+      ],
+      "slideImages": [
+        "/media/pro192/images/inheritance3.png",
+        "/media/pro192/images/inheritance4.png"
       ]
     },
     {
       "slot": 16,
       "stage": 4,
       "title": "Ghi đè Phương thức (@Override) & Che giấu Phương thức Tĩnh",
-      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "file": "pro192/slots/slot-16.md",
       "slidePdf": "/media/pro192/resources/Inheritance.pdf",
       "slidePptx": "/media/pro192/slides/Inheritance.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-01.md",
         "java/basis/java-basic-questions-02.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q2)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Áp dụng đúng 4 quy tắc Method Overriding (chữ ký, kiểu trả về Covariant, Access Modifier không thu hẹp).",
+        "Luôn gắn `@Override` để trình biên dịch bắt lỗi gõ sai tên phương thức (nhất là `toString()` trong Q2 PE).",
+        "Phân biệt Method Overriding (instance method) với Method Hiding (`static` method)."
+      ],
+      "examTraps": [
+        "Bẫy **Hiding `static` Method**: Nếu cha và con đều có `static void show()`, lời gọi `Parent p = new Child(); p.show();` sẽ chạy bản của **Parent** (theo kiểu tham chiếu lúc compile), KHÔNG có đa hình động!",
+        "Khi ghi đè `toString()` ở Q2 PE (như `SpecDaisy`, `SpecCala`, `OLEDScreen`), chú ý định dạng dấu cách sau dấu phẩy theo đúng yêu cầu từng đề (`name, color, age` vs `color,quantity,type`)."
+      ],
+      "peRefs": [
+        "PE1-Q2",
+        "PE2-Q2",
+        "PE3-Q2",
+        "PE4-Q2",
+        "PE5-Q2"
+      ],
+      "slideImages": [
+        "/media/pro192/images/inheritance5.png",
+        "/media/pro192/images/hidden-method.png"
       ]
     },
     {
       "slot": 17,
       "stage": 4,
       "title": "Kiểu tĩnh vs Kiểu động, instanceof, Casting & Mảng Đối tượng (ItemList)",
-      "file": "pro192/giai-doan-4-slot-14-17.md",
+      "file": "pro192/slots/slot-17.md",
       "slidePdf": "/media/pro192/resources/ArrayOfObjects.pdf",
       "slidePptx": "/media/pro192/slides/ArrayOfObjects.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-02.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q2/Q3)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 30,
+      "objectives": [
+        "Phân biệt Kiểu tĩnh (Static/Reference Type lúc compile) và Kiểu động (Dynamic/Object Type lúc runtime).",
+        "Sử dụng toán tử `instanceof` kiểm tra an toàn trước khi Downcasting để tránh `ClassCastException`.",
+        "Quản lý mảng đối tượng đa hình (`Item[]` / `ArrayOfObjects`) không lỗi tràn chỉ số `MAX`."
+      ],
+      "examTraps": [
+        "Downcasting không kiểm tra `instanceof` sẽ **vẫn biên dịch qua**, nhưng nổ `ClassCastException` lúc chạy nếu đối tượng thực tế không khớp.",
+        "Với mảng cố định `Item[MAX]`, khi xóa phần tử lúc mảng đầy `numOfItem == MAX`, vòng lặp dịch trái chỉ được chạy đến `numOfItem - 2` (`i < numOfItem - 1`), sau đó mới `list[--numOfItem] = null`."
+      ],
+      "peRefs": [
+        "PE2-Q3",
+        "PE3-Q3"
+      ],
+      "slideImages": [
+        "/media/pro192/images/inheritance6.png",
+        "/media/pro192/images/array3.png",
+        "/media/pro192/images/array4.png",
+        "/media/pro192/images/array5.png"
       ]
     },
     {
       "slot": 18,
       "stage": 5,
       "title": "Bản chất Tính Đa hình, Dynamic Binding & Overloading vs Overriding",
-      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "file": "pro192/slots/slot-18.md",
       "slidePdf": "/media/pro192/resources/Polymorphism.pdf",
       "slidePptx": "/media/pro192/slides/Polymorphism.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-02.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q2/Q3)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Hiểu bản chất Đa hình tại thời điểm biên dịch (Overloading) vs thời điểm chạy (Overriding).",
+        "Trình bày cơ chế Dynamic Binding (Late Binding) thông qua Method Table khi `Parent ref = new Child()`.",
+        "Phân biệt tường minh bảng 6 tiêu chí giữa Overloading và Overriding."
+      ],
+      "examTraps": [
+        "Bẫy FE kinh điển: **Thuộc tính (fields)** KHÔNG tham gia đa hình (truy xuất `ref.x` luôn lấy field của kiểu tĩnh `Parent`), chỉ **instance method** mới có Dynamic Binding!",
+        "Hai hàm trùng tên, cùng tham số nhưng chỉ khác kiểu trả về (`int foo()` vs `double foo()`) **không phải Overloading** → lỗi biên dịch."
+      ],
+      "peRefs": [
+        "PE1-Q2",
+        "PE3-Q2",
+        "PE5-Q2"
+      ],
+      "slideImages": [
+        "/media/pro192/images/polymorphism1.png",
+        "/media/pro192/images/polymorphism2.png",
+        "/media/pro192/images/polymophism1.png"
       ]
     },
     {
       "slot": 19,
       "stage": 5,
       "title": "Lớp Trừu tượng (Abstract Class) & Phương thức Trừu tượng",
-      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "file": "pro192/slots/slot-19.md",
       "slidePdf": "/media/pro192/resources/Polymorphism.pdf",
       "slidePptx": "/media/pro192/slides/Polymorphism.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-02.md"
+      ],
+      "examFocus": [
+        "Thi FE",
+        "OOP Nâng cao"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Hiểu vai trò của `abstract class` và `abstract method` trong mô hình thiết kế phân tầng.",
+        "Nắm quy tắc cấm khởi tạo trực tiếp `new AbstractClass()` nhưng vẫn dùng constructor qua `super(...)`.",
+        "Phân biệt nghĩa vụ cài đặt của `concrete subclass` so với `abstract subclass`."
+      ],
+      "examTraps": [
+        "Bẫy FE: Lớp không có bất kỳ `abstract method` nào vẫn có thể khai báo `abstract class`; ngược lại, chỉ cần có 1 `abstract method` thì **bắt buộc** cả lớp phải `abstract`.",
+        "Không được kết hợp `abstract` với `final`, `private` hoặc `static` trên cùng một phương thức."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/polymorphism3.png"
       ]
     },
     {
       "slot": 20,
       "stage": 5,
       "title": "Giao diện (Interface) & Kỹ thuật Đa kế thừa Hành vi",
-      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "file": "pro192/slots/slot-20.md",
       "slidePdf": "/media/pro192/resources/Polymorphism.pdf",
       "slidePptx": "/media/pro192/slides/Polymorphism.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-02.md",
         "java/new-features/java8-common-new-features.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q3/Q4)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Hiểu bản chất `interface` là bản hợp đồng hành vi (`public static final` fields + `public abstract` methods).",
+        "Áp dụng đúng `implements` để giải trọn vẹn **Q3 (`IDaisy`, `IShoes`, `ILadder`) và Q4 (`IString`, `ILink`)** của đề PE.",
+        "Phân biệt đa kế thừa Interface (`extends A, B`) với điểm khác biệt giữa Abstract Class và Interface."
+      ],
+      "examTraps": [
+        "Bẫy **0 điểm Q3/Q4 PE**: Đề thi đã cung cấp sẵn interface ở dạng `.class` bytecode (ví dụ `IDaisy.class`, `IString.class`) — bạn **KHÔNG ĐƯỢC tự tạo file `IDaisy.java` hay `IString.java`**, chỉ tạo lớp `MyDaisy implements IDaisy`.",
+        "Mọi phương thức cài đặt lại từ interface bắt buộc giữ nguyên quyền **`public`** (nếu bỏ quên chữ `public`, trình biên dịch báo lỗi thu hẹp về `default`)."
+      ],
+      "peRefs": [
+        "PE1-Q3",
+        "PE1-Q4",
+        "PE3-Q4",
+        "PE4-Q3",
+        "PE4-Q4",
+        "PE5-Q3",
+        "PE5-Q4"
+      ],
+      "slideImages": [
+        "/media/pro192/images/interface1.png"
       ]
     },
     {
       "slot": 21,
       "stage": 5,
       "title": "Lớp Nội danh (Anonymous Class) & Tổng kết Đa hình",
-      "file": "pro192/giai-doan-5-slot-18-21.md",
+      "file": "pro192/slots/slot-21.md",
       "slidePdf": "/media/pro192/resources/Polymorphism.pdf",
       "slidePptx": "/media/pro192/slides/Polymorphism.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/syntactic-sugar.md",
         "java/basis/proxy.md"
-      ]
+      ],
+      "examFocus": [
+        "Thi PE (Q3)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Hiểu bản chất Lớp nội danh (Anonymous Class) khi khởi tạo tức thì từ Interface hoặc Abstract Class.",
+        "Nắm cú pháp dấu chấm phẩy `;` kết thúc biểu thức và tên file bytecode `Outer$1.class`.",
+        "Biết quy tắc \"Effectively Final\" và ứng dụng trực tiếp tạo `Comparator<T>` tùy biến trên JDK 8."
+      ],
+      "examTraps": [
+        "Quên dấu `;` sau ngoặc nhọn đóng `};` của Anonymous Class là lỗi cú pháp hay gặp.",
+        "Trong đề thi PE chạy JDK 8, Anonymous Class `new Comparator<T>() { ... }` (hoặc Lambda tương đương) là cách nhanh nhất để cài đặt bộ so sánh đa tiêu chí cho `Collections.sort()`."
+      ],
+      "peRefs": [
+        "PE1-Q3",
+        "PE4-Q3"
+      ],
+      "slideImages": []
     },
     {
       "slot": 22,
       "stage": 6,
       "title": "Bản chất Ngoại lệ, Phân cấp Throwable & Checked vs Unchecked",
-      "file": "pro192/giai-doan-6-slot-22-24.md",
+      "file": "pro192/slots/slot-22.md",
       "slidePdf": "/media/pro192/resources/Exception%20Handling.pdf",
       "slidePptx": "/media/pro192/slides/Exception%20Handling.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-03.md"
+      ],
+      "examFocus": [
+        "Thi FE",
+        "Thực chiến"
+      ],
+      "estimatedMinutes": 20,
+      "objectives": [
+        "Hiểu cây phân cấp `Throwable` (`Error` vs `Exception`) và cơ chế lan truyền lỗi trên Call Stack.",
+        "Phân biệt rạch ròi **Checked Exception** (ép xử lý lúc compile) vs **Unchecked / RuntimeException**.",
+        "Nhận diện các ngoại lệ Runtime hay gặp (`NullPointerException`, `ArrayIndexOutOfBoundsException`, `ArithmeticException`, `NumberFormatException`)."
+      ],
+      "examTraps": [
+        "`RuntimeException` và các lớp con (kể cả `ClassCastException`, `IndexOutOfBoundsException`) thuộc nhóm **Unchecked Exception** dù nằm dưới nhánh `Exception`.",
+        "Không dùng `try-catch` để bắt `Error` (như `OutOfMemoryError` hay `StackOverflowError`) rồi cố chạy tiếp vì trạng thái JVM không còn an toàn."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/exception.png",
+        "/media/pro192/images/exception1.png",
+        "/media/pro192/images/exception2.png"
       ]
     },
     {
       "slot": 23,
       "stage": 6,
       "title": "Cấu trúc try-catch-finally & Dọn dẹp Tài nguyên An toàn",
-      "file": "pro192/giai-doan-6-slot-22-24.md",
+      "file": "pro192/slots/slot-23.md",
       "slidePdf": "/media/pro192/resources/Exception%20Handling.pdf",
       "slidePptx": "/media/pro192/slides/Exception%20Handling.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-03.md"
+      ],
+      "examFocus": [
+        "Thi FE",
+        "Thực chiến"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Viết đúng thứ tự các khối `catch` từ ngoại lệ cụ thể (lớp con) đến ngoại lệ tổng quát (lớp cha).",
+        "Hiểu bản chất cam kết thực thi của khối `finally` kể cả khi có `return` hoặc ngoại lệ không khớp.",
+        "Nắm luồng thực thi khi lồng khối `try-catch` và khi `finally` chứa `return` (cạm bẫy ghi đè giá trị trả về)."
+      ],
+      "examTraps": [
+        "Bẫy FE kinh điển: Đặt `catch (Exception e)` đứng trước `catch (ArithmeticException e)` gây lỗi biên dịch **`exception ArithmeticException has already been caught`** (unreachable code).",
+        "Nếu trong `finally` có lệnh `return`, giá trị của `finally` sẽ **ghi đè** giá trị `return` trước đó trong khối `try` hoặc `catch`."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/exception3.png",
+        "/media/pro192/images/exception4.png",
+        "/media/pro192/images/exception5.png",
+        "/media/pro192/images/exception6.png"
       ]
     },
     {
       "slot": 24,
       "stage": 6,
       "title": "Ủy quyền throws, Ném Ngoại lệ throw & Tạo Custom Exception",
-      "file": "pro192/giai-doan-6-slot-22-24.md",
+      "file": "pro192/slots/slot-24.md",
       "slidePdf": "/media/pro192/resources/Exception%20Handling.pdf",
       "slidePptx": "/media/pro192/slides/Exception%20Handling.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/java-basic-questions-03.md"
+      ],
+      "examFocus": [
+        "Thi FE",
+        "Thực chiến"
+      ],
+      "estimatedMinutes": 20,
+      "objectives": [
+        "Phân biệt từ khóa `throw` (chủ động ném một đối tượng ngoại lệ) và `throws` (khai báo ủy quyền ở chữ ký hàm).",
+        "Xây dựng Custom Exception kế thừa `Exception` (checked) hoặc `RuntimeException` (unchecked).",
+        "Cài đặt vòng lặp `try-catch` chuẩn hóa ép nhập dữ liệu hợp lệ với `Scanner`."
+      ],
+      "examTraps": [
+        "Bẫy FE: Khi lớp con ghi đè (`@Override`) phương thức của lớp cha có `throws`, lớp con **không được ném ra Checked Exception mới hoặc rộng hơn** lớp cha.",
+        "Khi viết vòng lặp bắt nhập sai với `Scanner.nextInt()`, bắt buộc gọi `sc.nextLine()` trong khối `catch` (hoặc `finally`) để xóa dữ liệu lỗi khỏi buffer, tránh lặp vô hạn."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/exception7.png",
+        "/media/pro192/images/exception8.png",
+        "/media/pro192/images/exception9.png"
       ]
     },
     {
       "slot": 25,
       "stage": 7,
       "title": "Tổng quan Java Collections Framework, List & Iterator An toàn",
-      "file": "pro192/giai-doan-7-slot-25-27.md",
+      "file": "pro192/slots/slot-25.md",
       "slidePdf": "/media/pro192/resources/Collections.pdf",
       "slidePptx": "/media/pro192/slides/Collections.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/collection/java-collection-questions-01.md",
         "java/collection/arraylist-source-code.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q3)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 30,
+      "objectives": [
+        "Hiểu cây phân cấp Java Collections Framework (`Collection` vs `Map`) và cách chọn `ArrayList` / `LinkedList` / `Vector`.",
+        "Duyệt và **xóa phần tử an toàn** trong `List` bằng `Iterator.remove()` hoặc duyệt lùi chỉ mục cho Q3 PE (`PE4-Q3`, `PE5-Q3`).",
+        "Biết kỹ thuật `class TicketList extends ArrayList<Ticket>` thường gặp trong các biến thể Q3 PE (`PE2-Q3`, `PE3-Q3`)."
+      ],
+      "examTraps": [
+        "Bẫy **chết người ở Q3 PE** (`PE4-Q3 MyShoes.f3`, `PE5-Q3 MyLadder.f3`): Dùng `for (Shoes s : t) { t.remove(s); }` sẽ nổ **`ConcurrentModificationException`** ngay lúc chạy; còn dùng `for (int i = 0; ...)` xóa xuôi mà quên `i--` sẽ **bỏ sót phần tử liền kề** → Hãy dùng `Iterator` hoặc duyệt ngược `i = t.size() - 1` về `0`!",
+        "Trong JDK 8, nhớ kiểm tra `t == null || t.isEmpty()` trước khi tìm phần tử đầu/lớn nhất."
+      ],
+      "peRefs": [
+        "PE1-Q3",
+        "PE2-Q3",
+        "PE3-Q3",
+        "PE4-Q3",
+        "PE5-Q3"
+      ],
+      "slideImages": [
+        "/media/pro192/images/7.01.gif",
+        "/media/pro192/images/7.0.1.1.gif",
+        "/media/pro192/images/7.02.gif",
+        "/media/pro192/images/7.0.2.2.gif",
+        "/media/pro192/images/7.03a.gif",
+        "/media/pro192/images/7.03b.gif",
+        "/media/pro192/images/7.04.gif",
+        "/media/pro192/images/7.05.gif",
+        "/media/pro192/images/7.06a.gif",
+        "/media/pro192/images/7.06b.gif",
+        "/media/pro192/images/7.06c.gif",
+        "/media/pro192/images/7.06d.gif",
+        "/media/pro192/images/7.06e.gif",
+        "/media/pro192/images/7.06f.gif",
+        "/media/pro192/images/7.06g.gif",
+        "/media/pro192/images/7.06h.gif",
+        "/media/pro192/images/7.06i.gif",
+        "/media/pro192/images/7.06j.gif",
+        "/media/pro192/images/7.06k.gif",
+        "/media/pro192/images/7.0.6l.gif",
+        "/media/pro192/images/7.07.gif"
       ]
     },
     {
       "slot": 26,
       "stage": 7,
       "title": "Cấu trúc Set (HashSet vs TreeSet) & Map (HashMap vs TreeMap)",
-      "file": "pro192/giai-doan-7-slot-25-27.md",
+      "file": "pro192/slots/slot-26.md",
       "slidePdf": "/media/pro192/resources/Collections.pdf",
       "slidePptx": "/media/pro192/slides/Collections.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/collection/hashmap-source-code.md",
         "java/collection/java-collection-questions-01.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q3/Q4)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 30,
+      "objectives": [
+        "Phân biệt `HashSet` (`O(1)`) vs `TreeSet` (Red-Black Tree `O(log n)`, cấm `null`) và hợp đồng vàng `hashCode()` + `equals()`.",
+        "Sử dụng `HashMap` / `TreeMap` để đếm tần suất, tra cứu và duyệt đúng hiệu năng bằng `entrySet()`.",
+        "Ứng dụng `Set<Character>` đếm chữ số/ký tự **phân biệt** (exact distinct count) trong các bài Q4 PE (`PE5-Q4`)."
+      ],
+      "examTraps": [
+        "Nếu bạn chỉ override `equals()` mà **quên `hashCode()`** trên class tự viết (như `Student`, `Product`), `HashSet`/`HashMap` sẽ coi 2 đối tượng giống hệt nhau là **2 khóa khác nhau**.",
+        "`TreeSet` và `TreeMap` không cho phép khóa `null` (ném `NullPointerException`), và yêu cầu phần tử/key cài `Comparable` hoặc truyền `Comparator`."
+      ],
+      "peRefs": [
+        "PE5-Q4"
+      ],
+      "slideImages": [
+        "/media/pro192/images/7.08.gif",
+        "/media/pro192/images/7.09.gif",
+        "/media/pro192/images/7.10.gif",
+        "/media/pro192/images/7.11.gif",
+        "/media/pro192/images/7.12.gif",
+        "/media/pro192/images/7.13.gif",
+        "/media/pro192/images/7.14.gif",
+        "/media/pro192/images/7.15a.gif",
+        "/media/pro192/images/7.15b.gif",
+        "/media/pro192/images/7.15c.gif",
+        "/media/pro192/images/7.15d.gif",
+        "/media/pro192/images/7.15e.gif",
+        "/media/pro192/images/7.15f.gif",
+        "/media/pro192/images/7.16.gif",
+        "/media/pro192/images/7.17.gif"
       ]
     },
     {
       "slot": 27,
       "stage": 7,
       "title": "Thuật toán Collections / Arrays & Comparable vs Comparator",
-      "file": "pro192/giai-doan-7-slot-25-27.md",
+      "file": "pro192/slots/slot-27.md",
       "slidePdf": "/media/pro192/resources/Support%20Classes.pdf",
       "slidePptx": "/media/pro192/slides/Support%20Classes.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/collection/java-collection-questions-02.md",
         "java/collection/java-collection-precautions-for-use.md"
+      ],
+      "examFocus": [
+        "Thi PE (Q3)",
+        "Thi FE"
+      ],
+      "estimatedMinutes": 30,
+      "objectives": [
+        "Phân biệt và cài đặt thành thạo `Comparable<T>` (`compareTo`) vs `Comparator<T>` (`compare`).",
+        "Làm chủ kỹ thuật **Partial Sort** (gom các phần tử thỏa điều kiện ra list phụ, sort riêng, rồi ghi trả lại đúng các vị trí cũ) — dạng tủ Q3 PE (`PE1-Q3 MyDaisy.f2`).",
+        "Dùng đúng các thuật toán trong `Collections` (`sort`, `reverse`, `frequency`, `binarySearch`) và `Arrays.toString()`."
+      ],
+      "examTraps": [
+        "Bẫy **Partial Sort Q3 PE (`PE1-Q3`)**: Đề yêu cầu *\"Sort elements whose name contains lowercase in ascending order of age, while keeping positions of other objects unchanged\"*. Nếu bạn gọi thẳng `Collections.sort(t)` trên toàn list `t` là **sai hoàn toàn**.",
+        "Bẫy **tràn số khi trừ int trong Comparator**: Tránh viết `return a.getPrice() - b.getPrice()` nếu giá trị có thể rất lớn hoặc kiểu `double` → Hãy dùng `Integer.compare(a, b)` hoặc `Double.compare(a, b)`!"
+      ],
+      "peRefs": [
+        "PE1-Q3",
+        "PE4-Q3"
+      ],
+      "slideImages": [
+        "/media/pro192/images/7.18a.gif",
+        "/media/pro192/images/7.18b.gif",
+        "/media/pro192/images/7.18c.gif",
+        "/media/pro192/images/7.18d.gif",
+        "/media/pro192/images/7.18e.gif",
+        "/media/pro192/images/7.18f.gif",
+        "/media/pro192/images/7.18g.gif",
+        "/media/pro192/images/7.19a.gif",
+        "/media/pro192/images/7.19b.gif",
+        "/media/pro192/images/7.19c.gif",
+        "/media/pro192/images/7.19d.gif"
       ]
     },
     {
       "slot": 28,
       "stage": 8,
       "title": "Tổng quan I/O Streams, java.io.File & Thao tác Thư mục",
-      "file": "pro192/giai-doan-8-slot-28-30.md",
+      "file": "pro192/slots/slot-28.md",
       "slidePdf": "/media/pro192/resources/File%20IO.pdf",
       "slidePptx": "/media/pro192/slides/File%20IO.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/io/io-basis.md"
+      ],
+      "examFocus": [
+        "Thi FE",
+        "Thực chiến"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Phân biệt hướng luồng InputStream / OutputStream (Byte) vs Reader / Writer (Character) và bảng mã UTF-8.",
+        "Hiểu lớp `java.io.File` chỉ đại diện cho metadata/đường dẫn chứ **không đọc/ghi nội dung tệp**.",
+        "Sử dụng `exists()`, `isFile()`, `isDirectory()`, `listFiles()` và phân biệt `getAbsolutePath()` vs `getCanonicalPath()`."
+      ],
+      "examTraps": [
+        "Bẫy FE: Gọi `new File(\"data.txt\")` **KHÔNG tự động tạo ra file vật lý trên ổ đĩa** (phải gọi `createNewFile()` hoặc mở bằng Stream ghi mới tạo).",
+        "`getCanonicalPath()` tự động chuẩn hóa bỏ `..` và `.`, trong khi `getAbsolutePath()` giữ nguyên chuỗi tương đối ghép thêm."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/ioexample.png",
+        "/media/pro192/images/IO.01.gif",
+        "/media/pro192/images/IO.02.gif",
+        "/media/pro192/images/IO.03.gif",
+        "/media/pro192/images/IO.04.gif",
+        "/media/pro192/images/IO.05.gif",
+        "/media/pro192/images/IO.06.gif",
+        "/media/pro192/images/IO.07.gif",
+        "/media/pro192/images/IO.08.gif",
+        "/media/pro192/images/IO.09A.gif",
+        "/media/pro192/images/IO.09B.gif",
+        "/media/pro192/images/IO.09C.gif",
+        "/media/pro192/images/IO.09D.gif",
+        "/media/pro192/images/IO.09E.gif",
+        "/media/pro192/images/IO.10.gif",
+        "/media/pro192/images/IO.11.gif"
       ]
     },
     {
       "slot": 29,
       "stage": 8,
       "title": "Luồng Ký tự (Character Streams), UTF-8, BufferedReader & try-with-resources",
-      "file": "pro192/giai-doan-8-slot-28-30.md",
+      "file": "pro192/slots/slot-29.md",
       "slidePdf": "/media/pro192/resources/File%20IO.pdf",
       "slidePptx": "/media/pro192/slides/File%20IO.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/io/io-basis.md",
         "java/io/io-design-patterns.md"
+      ],
+      "examFocus": [
+        "Thi FE",
+        "Thực chiến"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Đọc và bóc tách dữ liệu văn bản CSV từng dòng bằng `BufferedReader.readLine()` kết hợp `StringBuilder`.",
+        "Phân biệt ghi đè (`new FileWriter(f)`) vs ghi nối đuôi (`new FileWriter(f, true)`) và vai trò `flush()` / `close()`.",
+        "Áp dụng chuẩn **`try-with-resources`** (Java 7+) + `StandardCharsets.UTF_8` để không rò rỉ file và không lỗi font tiếng Việt."
+      ],
+      "examTraps": [
+        "`FileReader.read()` trả về `int` (`-1` khi EOF), trong khi `BufferedReader.readLine()` trả về `String` (**`null`** khi EOF).",
+        "Quên gọi `flush()` hoặc `close()` (hoặc lỗi giữa chừng trước khi tới `close()` thủ công) khiến dữ liệu kẹt trong Output Buffer, file trên đĩa vẫn **0 byte**."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/IO.12A.gif",
+        "/media/pro192/images/IO.12B.gif",
+        "/media/pro192/images/IO.12C.gif",
+        "/media/pro192/images/IO.12D.gif",
+        "/media/pro192/images/IO.12E.gif",
+        "/media/pro192/images/IO.12F.gif",
+        "/media/pro192/images/IO.12G.gif",
+        "/media/pro192/images/IO.12H.gif",
+        "/media/pro192/images/IO.12I.gif",
+        "/media/pro192/images/IO.12J.gif",
+        "/media/pro192/images/IO.12K.gif",
+        "/media/pro192/images/IO.12L.gif",
+        "/media/pro192/images/IO.12M.gif",
+        "/media/pro192/images/IO.12N.gif",
+        "/media/pro192/images/IO.12O.gif",
+        "/media/pro192/images/IO.12P.gif",
+        "/media/pro192/images/IO.12Q.gif",
+        "/media/pro192/images/IO.12R.gif",
+        "/media/pro192/images/IO.12S.gif",
+        "/media/pro192/images/IO.12T.gif"
       ]
     },
     {
       "slot": 30,
       "stage": 8,
       "title": "Luồng Nhị phân, RandomAccessFile & Tuần tự hóa (Serialization)",
-      "file": "pro192/giai-doan-8-slot-28-30.md",
+      "file": "pro192/slots/slot-30.md",
       "slidePdf": "/media/pro192/resources/File%20IO.pdf",
       "slidePptx": "/media/pro192/slides/File%20IO.pptx",
       "exercisesCount": 5,
       "studyBridge": [
         "java/basis/serialization.md",
         "java/io/io-basis.md"
+      ],
+      "examFocus": [
+        "Thi FE",
+        "Thực chiến"
+      ],
+      "estimatedMinutes": 25,
+      "objectives": [
+        "Phân biệt Low-level (`FileInputStream`) vs High-level (`DataInputStream` cho primitive, `ObjectInputStream` cho Object).",
+        "Sử dụng `RandomAccessFile` với `seek(pos)` đọc/ghi ngẫu nhiên và tránh `EOFException`.",
+        "Cài đặt `Serializable`, `serialVersionUID`, `transient` và hiểu nguyên nhân lỗi `StreamCorruptedException`."
+      ],
+      "examTraps": [
+        "Không được mở `ObjectOutputStream` ở chế độ `append = true` nối đuôi file nhị phân có sẵn vì sẽ chèn Stream Header mới vào giữa file gây **`StreamCorruptedException`** khi đọc lại.",
+        "Thuộc tính `static` và `transient` đều **không được tuần tự hóa**; khi đọc lại trên Heap, trường `transient` nhận giá trị mặc định (`null` / `0` / `false`)."
+      ],
+      "peRefs": [],
+      "slideImages": [
+        "/media/pro192/images/IO.13.gif",
+        "/media/pro192/images/IO.14.gif",
+        "/media/pro192/images/IO.15A.gif",
+        "/media/pro192/images/IO.15B.gif",
+        "/media/pro192/images/IO.15C.gif",
+        "/media/pro192/images/IO.15D.gif",
+        "/media/pro192/images/IO.15E.gif",
+        "/media/pro192/images/IO.15F.gif",
+        "/media/pro192/images/IO.15G.gif",
+        "/media/pro192/images/IO.16.gif",
+        "/media/pro192/images/IO.17.gif",
+        "/media/pro192/images/IO.18A.gif",
+        "/media/pro192/images/IO.18B.gif",
+        "/media/pro192/images/IO.18C.gif",
+        "/media/pro192/images/IO.18D.gif",
+        "/media/pro192/images/IO.18E.gif",
+        "/media/pro192/images/IO.18F.gif",
+        "/media/pro192/images/IO.18G.gif",
+        "/media/pro192/images/IO.18H.gif",
+        "/media/pro192/images/IO.18I.gif"
       ]
     }
   ],

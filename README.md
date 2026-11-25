@@ -45,8 +45,8 @@ e:\JavAncode\
 
 ## Giáo trình Trường PRO192 (`content/vi/pro192/`)
 
-- **10 tệp Markdown chuẩn hóa:** [README.md](./content/vi/pro192/README.md), 8 tệp giai đoạn (`giai-doan-1-slot-01-05.md` → `giai-doan-8-slot-28-30.md`, đủ 30 Slots & 150 bài tập tự luyện có lời giải), và [pe-challenges.md](./content/vi/pro192/pe-challenges.md) (4 bộ đề thực chiến PE Q1–Q4).
-- **Tài nguyên offline:** `187` ảnh/GIF, `14` slide `.pptx`, `14` tài liệu `.pdf` và `banking.rar` tại `public/media/pro192/`, kèm bảng ánh xạ Study Bridge trong [pro192.json](./metadata/pro192.json).
+- **32 tệp Markdown chuẩn hóa:** [README.md](./content/vi/pro192/README.md), **30 bài học độc lập theo chuẩn 5 khối + Active Recall `<details>`** (`slots/slot-01.md` → `slots/slot-30.md`, đủ 30 Slots & 150 bài tập tự luyện), và [pe-challenges.md](./content/vi/pro192/pe-challenges.md).
+- **Tài nguyên offline:** `187` ảnh/GIF (`186` sơ đồ bài giảng + logo), `14` slide `.pptx`, `14` tài liệu `.pdf` và `banking.rar` tại `public/media/pro192/`, kèm bảng ánh xạ Study Bridge & mục tiêu từng Slot trong [pro192.json](./metadata/pro192.json).
 
 ## Bản quyền & Nguồn gốc
 
