@@ -340,6 +340,13 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
         kind: 'pro192',
         updatedAt: new Date().toISOString(),
       });
+    } else if (mode === 'pro192' && slug === 'pe-patterns' && !loading && !error && parsed) {
+      recordVisit({
+        path: '/pro192/pe-patterns',
+        title: displayTitle,
+        kind: 'pro192',
+        updatedAt: new Date().toISOString(),
+      });
     } else if (mode === 'docs' && docRel && !loading && !error && parsed) {
       recordVisit({
         path: `/docs/${docRel}`,
@@ -445,6 +452,9 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
 
   const breadcrumbText = useMemo(() => {
     if (mode === 'pro192') {
+      if (slug === 'pe-patterns') {
+        return 'PRO192 > Bí kíp & 7 Khuôn mẫu PE (JDK 8)';
+      }
       if (activeSlot && activeStage) {
         return `PRO192 > Giai đoạn ${activeStage.id} > Slot ${String(activeSlot.slot).padStart(2, '0')}`;
       }
@@ -819,6 +829,13 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                       <span>Ma trận 30 Slots</span>
                     </Link>
                     <Link
+                      to="/pro192/pe-patterns"
+                      className="flex items-center gap-2 rounded-lg border border-[var(--info)]/35 bg-[var(--info-soft)] px-2.5 py-2 font-medium text-[var(--info-text)] hover:opacity-90"
+                    >
+                      <BookOpen className="h-3.5 w-3.5 text-[var(--info)]" />
+                      <span>Bí kíp &amp; 7 Khuôn mẫu PE</span>
+                    </Link>
+                    <Link
                       to="/resources"
                       className="flex items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 py-2 text-[var(--text-secondary)] hover:border-[var(--accent)]"
                     >
@@ -978,12 +995,20 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                       Chọn bất kỳ Slot nào để đọc lý thuyết chuẩn, mở Slide PDF, làm bài tập ẩn đáp án hoặc nhảy thẳng sang bài chuyên sâu JavaGuide.
                     </p>
                   </div>
-                  <Link
-                    to="/pro192/slots/slot-01"
-                    className="rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
-                  >
-                    Bắt đầu Slot 01 →
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      to="/pro192/pe-patterns"
+                      className="rounded-lg border border-[var(--info)]/40 bg-[var(--info-soft)] px-3.5 py-2 text-xs font-semibold text-[var(--info-text)] hover:opacity-90"
+                    >
+                      📘 Bí kíp &amp; 7 Khuôn mẫu PE →
+                    </Link>
+                    <Link
+                      to="/pro192/slots/slot-01"
+                      className="rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
+                    >
+                      Bắt đầu Slot 01 →
+                    </Link>
+                  </div>
                 </header>
 
                 <div className="space-y-5">
@@ -1303,11 +1328,13 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="inline-block rounded-md border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-medium text-[var(--accent-text)]">
-                          {mode === 'pro192' && activeSlot
-                            ? `Slot ${String(activeSlot.slot).padStart(2, '0')} · GĐ ${activeSlot.stage} · PRO192`
-                            : mode === 'pro192' && activeStage
-                              ? `Slot ${activeStage.slots[0]}–${activeStage.slots[activeStage.slots.length - 1]} · PRO192`
-                              : `${currentDocInfo?.domainLabel || 'JavaGuide'} · ${bilingualMode ? 'VI ↔ EN' : loadedLang.toUpperCase()}`}
+                          {mode === 'pro192' && slug === 'pe-patterns'
+                            ? 'PRO192 · Bí kíp PE (JDK 8)'
+                            : mode === 'pro192' && activeSlot
+                              ? `Slot ${String(activeSlot.slot).padStart(2, '0')} · GĐ ${activeSlot.stage} · PRO192`
+                              : mode === 'pro192' && activeStage
+                                ? `Slot ${activeStage.slots[0]}–${activeStage.slots[activeStage.slots.length - 1]} · PRO192`
+                                : `${currentDocInfo?.domainLabel || 'JavaGuide'} · ${bilingualMode ? 'VI ↔ EN' : loadedLang.toUpperCase()}`}
                         </span>
                         {mode === 'pro192' && activeSlot?.examFocus?.map((tag) => (
                           <span

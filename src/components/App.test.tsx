@@ -91,33 +91,39 @@ const MOCK_PRO192: Pro192Data = {
   peChallenges: [
     {
       id: 1,
-      code: 'PE 01',
+      code: 'PE1-Q1',
+      paper: 'PE1',
+      questionNo: 'Q1',
+      marks: 2,
       cat: 'oop',
-      title: 'Quản lý Sinh viên OOP & Lọc GPA',
-      meta: 'Dạng Q1–Q2 • Cơ bản • 25 phút',
+      title: 'Crocus — Encapsulation & Xử lý Chữ số',
+      meta: 'PE1 · Q1 · 2 điểm · 15 phút',
       relatedSlots: [1],
-      desc: 'Viết lớp Student và hàm filterHonor() kiểm tra null an toàn.',
-      checklist: ['Đúng constructor & getter/setter (3đ)', 'Xử lý null an toàn (3đ)'],
-      entityFileName: 'Student.java',
-      entityCode: 'public class Student { private double gpa; public double getGpa() { return gpa; } }',
+      desc: 'Viết lớp Crocus với getName() xóa chữ số cuối và setWeight() trừ đi số ký tự non-digit.',
+      checklist: ['getName() xóa chữ số cuối', 'setWeight() trừ số non-digit'],
+      entityFileName: '',
+      entityCode: '',
       starterCode:
-        'import java.util.*;\npublic class Main {\n  public static List<Student> filterHonor(List<Student> list) {\n    return new ArrayList<>();\n  }\n}',
+        'public class Crocus {\n  private String name;\n  private int weight;\n  public Crocus() {}\n  public Crocus(String name, int weight) { this.name = name; this.weight = weight; }\n  public String getName() { return name; }\n  public int getWeight() { return weight; }\n  public void setWeight(int weight) { this.weight = weight; }\n}',
       cleanCode:
-        'import java.util.*;\npublic class Main {\n  public static List<Student> filterHonor(List<Student> list) {\n    if (list == null || list.isEmpty()) return Collections.emptyList();\n    List<Student> res = new ArrayList<>();\n    for (Student s : list) { if (s != null && s.getGpa() >= 8.0) res.add(s); }\n    res.sort(Comparator.comparingDouble(Student::getGpa).reversed());\n    return res;\n  }\n}',
+        'public class Crocus {\n  private String name;\n  private int weight;\n  public Crocus() {}\n  public Crocus(String name, int weight) { this.name = name; this.weight = weight; }\n  public String getName() { if (name == null) return ""; for (int i = name.length() - 1; i >= 0; i--) { if (Character.isDigit(name.charAt(i))) return name.substring(0, i) + name.substring(i + 1); } return name; }\n  public int getWeight() { return weight; }\n  public void setWeight(int weight) { int nonDigitCount = 0; if (name != null) { for (int i = 0; i < name.length(); i++) { if (!Character.isDigit(name.charAt(i))) nonDigitCount++; } } this.weight = weight - nonDigitCount; }\n}',
     },
     {
       id: 2,
-      code: 'PE 02',
+      code: 'PE1-Q2',
+      paper: 'PE1',
+      questionNo: 'Q2',
+      marks: 3,
       cat: 'oop',
-      title: 'Hệ thống Thư viện Sách',
-      meta: 'Dạng Q2–Q3 • Trung bình • 35 phút',
+      title: 'SpecDaisy — Kế thừa & Xử lý Chữ thường',
+      meta: 'PE1 · Q2 · 3 điểm · 20 phút',
       relatedSlots: [1],
-      desc: 'Kế thừa Book qua super().',
-      checklist: ['Dùng extends Book & super()'],
-      entityFileName: 'Book.java',
-      entityCode: 'public class Book { protected String title; }',
-      starterCode: 'public class EBook extends Book {\n  public EBook() {}\n}',
-      cleanCode: 'public class EBook extends Book {\n  public EBook() { super(); }\n}',
+      desc: 'Kế thừa Daisy qua super(name, age).',
+      checklist: ['Dùng extends Daisy & super()'],
+      entityFileName: 'Daisy.java',
+      entityCode: 'public class Daisy { private String name; private int age; }',
+      starterCode: 'public class SpecDaisy extends Daisy {\n  public SpecDaisy() {}\n}',
+      cleanCode: 'public class SpecDaisy extends Daisy {\n  public SpecDaisy(String name, int age, String color) { super(name, age); }\n}',
     },
   ],
   assets: {
@@ -362,7 +368,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     expect(screen.getByText(/Bạn hỏi: “Làm sao tối ưu ngắn hơn nữa\?”/)).toBeInTheDocument();
   });
 
-  it('infers PE 02 class filenames (EBook.java) and renders cloud OpenJDK 21 compile diagnostics and passing test cases', async () => {
+  it('infers PE1-Q2 class filenames (SpecDaisy.java & Daisy.java) and renders cloud OpenJDK 21 compile diagnostics and passing test cases', async () => {
     let callCount = 0;
     installFetchMock((method) => {
       if (method === 'GET') {
@@ -382,10 +388,10 @@ describe('JavaBrew Night Coffee Lab UI', () => {
             runMs: 0,
             exitCode: 1,
             stdout: '',
-            stderr: "Book.java:1: error: ';' expected\npublic class Book { protected String title }\n                                            ^",
+            stderr: "Daisy.java:1: error: ';' expected\npublic class Daisy { private String name }\n                                            ^",
             diagnostics: [
               {
-                file: 'Book.java',
+                file: 'Daisy.java',
                 line: 1,
                 column: 45,
                 severity: 'error',
@@ -405,13 +411,13 @@ describe('JavaBrew Night Coffee Lab UI', () => {
           runMs: 145,
           exitCode: 0,
           timedOut: false,
-          stdout: 'EBook[Java Core, 85.0]',
+          stdout: 'daisy, yellow, 2',
           stderr: '',
           diagnostics: [],
           testResults: [
-            { id: 'TC1', name: 'Ke thua Book', passed: true, durationMs: 2 },
-            { id: 'TC2', name: '@Override getFinalPrice()', passed: true, durationMs: 3 },
-            { id: 'TC3', name: 'toString() EBook[...]', passed: true, durationMs: 1 },
+            { id: 'TC1', name: 'toString() Daisy & SpecDaisy', passed: true, durationMs: 2 },
+            { id: 'TC2', name: 'setData() dao 2 chu thuong', passed: true, durationMs: 3 },
+            { id: 'TC3', name: 'getValue() kiem tra color', passed: true, durationMs: 1 },
           ],
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -426,19 +432,35 @@ describe('JavaBrew Night Coffee Lab UI', () => {
       </MemoryRouter>
     );
 
-    const ebookTab = await screen.findByRole('tab', { name: 'EBook.java' });
-    const bookTab = screen.getByRole('tab', { name: 'Book.java' });
-    expect(ebookTab).toHaveAttribute('aria-selected', 'true');
+    const specTab = await screen.findByRole('tab', { name: 'SpecDaisy.java' });
+    const daisyTab = screen.getByRole('tab', { name: 'Daisy.java' });
+    expect(specTab).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByText(/☕ OpenJDK 21 Sandbox/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
-    const diagBtn = await screen.findByRole('button', { name: /Book\.java:1:45/i });
+    const diagBtn = await screen.findByRole('button', { name: /Daisy\.java:1:45/i });
     fireEvent.click(diagBtn);
-    expect(bookTab).toHaveAttribute('aria-selected', 'true');
+    expect(daisyTab).toHaveAttribute('aria-selected', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
     expect(await screen.findByText('✔ 3/3 Test Cases PASSED! (OpenJDK 21)')).toBeInTheDocument();
-    expect(screen.getByText('@Override getFinalPrice()')).toBeInTheDocument();
+    expect(screen.getByText('setData() dao 2 chu thuong')).toBeInTheDocument();
+  });
+
+  it('renders /pe Paper filters and link to /pro192/pe-patterns handbook', async () => {
+    render(
+      <MemoryRouter initialEntries={['/pe']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/PE1-Q1: Crocus/i)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'PE1 (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Q1 · Encapsulation' })).toBeInTheDocument();
+    const patternsLinks = screen.getAllByRole('link', { name: /Khuôn mẫu/i });
+    expect(patternsLinks[0]).toHaveAttribute('href', '/pro192/pe-patterns');
   });
 
   it('opens SearchModal with Ctrl+K and SettingsModal BYOK config', async () => {

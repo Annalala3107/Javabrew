@@ -7,7 +7,7 @@ import {
   type JavaDiagnostic,
   type JavaTestCaseResult,
 } from './javaValidation';
-import { buildPeHarness } from './peHarnesses';
+import { buildPeHarness, getPeInterfaceFiles } from './peHarnesses';
 
 const BASE_SANDBOX_NAME = 'javabrew-openjdk21-base';
 const SANDBOX_REGION = 'sin1' as const;
@@ -298,6 +298,22 @@ export async function POST(request: Request): Promise<Response> {
       content: f.content,
     }));
     const compileTargets: string[] = payload.files.map((f) => f.name);
+    const seenTargets = new Set<string>(compileTargets.map((name) => name.toLowerCase()));
+
+    const appendExtraFiles = (extraFiles?: Array<{ path: string; content: string }>) => {
+      if (!extraFiles) return;
+      for (const extra of extraFiles) {
+        const baseName = extra.path.split('/').pop() || '';
+        if (baseName && extra.path.startsWith(`${WORK_DIR}/`) && extra.path.endsWith('.java')) {
+          if (seenTargets.has(baseName.toLowerCase())) {
+            continue;
+          }
+          seenTargets.add(baseName.toLowerCase());
+          compileTargets.push(baseName);
+        }
+        workFiles.push(extra);
+      }
+    };
 
     let entryClass = primaryFileName.replace(/\.java$/, '');
     let useUserStdin = false;
@@ -314,11 +330,7 @@ export async function POST(request: Request): Promise<Response> {
         path: `${WORK_DIR}/${harness.fileName}`,
         content: harness.content,
       });
-      if (harness.extraFiles) {
-        for (const extra of harness.extraFiles) {
-          workFiles.push(extra);
-        }
-      }
+      appendExtraFiles(harness.extraFiles);
       compileTargets.push(harness.fileName);
       entryClass = harness.entryClass;
     } else {
@@ -332,6 +344,9 @@ export async function POST(request: Request): Promise<Response> {
             content: payload.stdin,
           });
         }
+        if (payload.peId) {
+          appendExtraFiles(getPeInterfaceFiles(payload.peId));
+        }
       } else if (payload.peId) {
         const smoke = buildPeHarness(payload.peId, 'run');
         if (smoke) {
@@ -339,6 +354,7 @@ export async function POST(request: Request): Promise<Response> {
             path: `${WORK_DIR}/${smoke.fileName}`,
             content: smoke.content,
           });
+          appendExtraFiles(smoke.extraFiles);
           compileTargets.push(smoke.fileName);
           entryClass = smoke.entryClass;
         }

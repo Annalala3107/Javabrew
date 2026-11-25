@@ -71,12 +71,13 @@ export function SearchModal() {
         const hay = normalizeSearchText(`${pe.title} ${pe.meta}`);
         if (!q || hay.includes(q)) {
           const numId = Number(pe.id) || 1;
+          const peCodeMatch = pe.title.match(/(PE\d+-Q\d+)/i);
           items.push({
             key: `pe-${pe.id}`,
             kind: 'pe',
             title: pe.title,
             subtitle: pe.meta,
-            badge: `PE ${String(numId).padStart(2, '0')}`,
+            badge: peCodeMatch ? peCodeMatch[1].toUpperCase() : `PE ${String(numId).padStart(2, '0')}`,
             to: `/studio/${numId}`,
             score: q ? 105 : 65,
           });
@@ -185,7 +186,7 @@ export function SearchModal() {
     { id: 'docs', label: `JavaGuide (${searchIndex?.totalArticles ?? 354})` },
     { id: 'slots', label: `Slots (${searchIndex?.pro192Slots.length ?? 30})` },
     { id: 'exercises', label: `Bài tập (${searchIndex?.totalExercises ?? 150})` },
-    { id: 'pe', label: `Đề PE (${searchIndex?.totalPeChallenges ?? 4})` },
+    { id: 'pe', label: `Đề PE (${searchIndex?.totalPeChallenges ?? 19})` },
   ];
 
   return (

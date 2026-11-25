@@ -32,7 +32,7 @@ export function DashboardPage() {
   const doneArticles = progress.completedArticles.length;
   const jgPct = Math.round((doneArticles / totalArticles) * 100);
 
-  const totalPe = pro192?.peChallenges?.length ?? pro192?.course.totalPeChallenges ?? 4;
+  const totalPe = pro192?.peChallenges?.length ?? pro192?.course.totalPeChallenges ?? 19;
   const passedPeCount = pro192?.peChallenges
     ? pro192.peChallenges.filter((p) => progress.peStatus[p.id] === 'pass').length
     : progress.completedPe.length;

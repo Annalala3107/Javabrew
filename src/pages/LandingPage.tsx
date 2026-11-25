@@ -79,6 +79,7 @@ export function LandingPage() {
 
   const totalSlots = pro192?.course.totalSlots ?? 30;
   const totalExercises = pro192?.course.totalExercises ?? 150;
+  const totalPe = pro192?.course.totalPeChallenges ?? 19;
   const totalArticles = navigation?.totalArticles ?? 354;
 
   const resumeLabel = progress.lastVisited
@@ -207,7 +208,7 @@ export function LandingPage() {
                 Giáo trình chuẩn trường (PRO192)
               </h2>
               <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                Hệ thống hóa {totalSlots} Slots trên lớp cùng {totalExercises} bài tập tự luyện, 14 slide PDF/PPTX và 4 bộ đề thực hành PE.
+                Hệ thống hóa {totalSlots} Slots trên lớp cùng {totalExercises} bài tập tự luyện, 14 slide PDF/PPTX và {totalPe} câu đề thực hành PE thật (PE1–PE5).
               </p>
             </div>
             <div className="space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
@@ -313,7 +314,7 @@ export function LandingPage() {
                   Ôn nước rút thi PE
                 </h3>
                 <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                  Thực hành 4 đề mẫu chuẩn cấu trúc trường trong Code Studio, bấm giờ thi thật, xem Diff Clean Code và tránh bẫy NPE.
+                  Thực hành {totalPe} câu đề thi thật chuẩn Java JDK 1.8 (PE1–PE5) trong Code Studio, bấm giờ thi thật, xem Diff Clean Code và bí kíp 7 khuôn mẫu.
                 </p>
               </div>
               <span className="text-xs font-semibold text-[var(--accent-text)]">

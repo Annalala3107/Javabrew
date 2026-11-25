@@ -5,11 +5,12 @@ import { describe, expect, it } from 'vitest';
 import {
   hasMainMethod,
   inferJavaFileName,
+  MAX_PE_ID,
   MAX_TOTAL_SOURCE_BYTES,
   parseJavacDiagnostics,
   validateCompilePayload,
 } from '../../server/javaValidation';
-import { buildPeHarness } from '../../server/peHarnesses';
+import { buildPeHarness, getPeInterfaceFiles } from '../../server/peHarnesses';
 import type { Pro192Data } from '../types/content';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -19,12 +20,32 @@ describe('javaValidation & peHarnesses', () => {
     fs.readFileSync(path.join(ROOT, 'metadata', 'pro192.json'), 'utf8')
   ) as Pro192Data;
 
-  it('infers exact public class filename across all real PE challenges (including EBook & ItemList)', () => {
+  it('infers exact public class filename across all 19 real PE challenges', () => {
     const challenges = proData.peChallenges || [];
-    expect(challenges).toHaveLength(4);
+    expect(challenges).toHaveLength(19);
 
     const names = challenges.map((ch) => inferJavaFileName(ch.starterCode, 'Main.java'));
-    expect(names).toEqual(['Main.java', 'EBook.java', 'ItemList.java', 'Main.java']);
+    expect(names).toEqual([
+      'Crocus.java',
+      'SpecDaisy.java',
+      'MyDaisy.java',
+      'MyString.java',
+      'Camel.java',
+      'SpecCala.java',
+      'TicketList.java',
+      'CoffeeShop.java',
+      'OLEDScreen.java',
+      'EmployeeList.java',
+      'MyStringNumberTool.java',
+      'Person.java',
+      'SpecChair.java',
+      'MyShoes.java',
+      'MyLink.java',
+      'Coral.java',
+      'SpecLadder.java',
+      'MyLadder.java',
+      'MyString.java',
+    ]);
 
     const commentTrap = `
       // public class FakeCommentedClass {}
@@ -50,7 +71,33 @@ describe('javaValidation & peHarnesses', () => {
     ).toBe(false);
   });
 
-  it('rejects path traversal, reserved harness names, duplicate names, and oversized payloads', () => {
+  it('rejects invalid peId, path traversal, reserved harness names, duplicate names, and oversized payloads', () => {
+    expect(MAX_PE_ID).toBe(19);
+
+    expect(
+      validateCompilePayload({
+        mode: 'grade',
+        peId: 0,
+        files: [{ name: 'Crocus.java', content: 'public class Crocus {}' }],
+      }).ok
+    ).toBe(false);
+
+    expect(
+      validateCompilePayload({
+        mode: 'grade',
+        peId: 20,
+        files: [{ name: 'Crocus.java', content: 'public class Crocus {}' }],
+      }).ok
+    ).toBe(false);
+
+    expect(
+      validateCompilePayload({
+        mode: 'grade',
+        peId: 19,
+        files: [{ name: 'MyString.java', content: 'public class MyString implements IString {}' }],
+      }).ok
+    ).toBe(true);
+
     const badPath = validateCompilePayload({
       mode: 'run',
       files: [{ name: '../Evil.java', content: 'class Evil {}' }],
@@ -83,8 +130,8 @@ describe('javaValidation & peHarnesses', () => {
       mode: 'grade',
       peId: 2,
       files: [
-        { name: 'EBook.java', content: 'public class EBook extends Book {}' },
-        { name: 'Book.java', content: 'public class Book {}' },
+        { name: 'SpecDaisy.java', content: 'public class SpecDaisy extends Daisy {}' },
+        { name: 'Daisy.java', content: 'public class Daisy {}' },
       ],
       stdin: 'input',
     });
@@ -93,52 +140,84 @@ describe('javaValidation & peHarnesses', () => {
 
   it('parses javac stderr diagnostics with accurate file, line, column, and grader mapping', () => {
     const stderr = [
-      '/vercel/sandbox/work/Student.java:7: error: \';\' expected',
-      '        this.gpa = gpa',
+      '/vercel/sandbox/work/Daisy.java:7: error: \';\' expected',
+      '        this.age = age',
       '                      ^',
-      'Main.java:3: warning: [unchecked] unchecked conversion',
-      '__JavaBrewPe01Grader.java:18: error: cannot find symbol filterHonor',
+      'SpecDaisy.java:3: warning: [unchecked] unchecked conversion',
+      '__JavaBrewPe01Grader.java:18: error: cannot find symbol getWeight',
     ].join('\n');
 
-    const diags = parseJavacDiagnostics(stderr, 'Main.java');
+    const diags = parseJavacDiagnostics(stderr, 'Crocus.java');
     expect(diags).toEqual([
       {
-        file: 'Student.java',
+        file: 'Daisy.java',
         line: 7,
         column: 23,
         severity: 'error',
         message: "';' expected",
       },
       {
-        file: 'Main.java',
+        file: 'SpecDaisy.java',
         line: 3,
         column: 1,
         severity: 'warning',
         message: '[unchecked] unchecked conversion',
       },
       {
-        file: 'Main.java',
+        file: 'Crocus.java',
         line: 1,
         column: 1,
         severity: 'error',
         message:
-          'Chữ ký class hoặc phương thức chưa khớp đề bài PE (cannot find symbol filterHonor).',
+          'Chữ ký class hoặc phương thức chưa khớp đề bài PE (cannot find symbol getWeight).',
       },
     ]);
   });
 
-  it('builds server-side OpenJDK harnesses for all 4 PE problems in both run and grade modes', () => {
-    for (const id of [1, 2, 3, 4]) {
+  it('builds server-side OpenJDK harnesses and interface extraFiles for all 19 PE problems', () => {
+    const assertAllJavaStringsBalanced = (javaSource: string) => {
+      for (const line of javaSource.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) continue;
+        let inString = false;
+        let inChar = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if ((inString || inChar) && ch === '\\') {
+            i++;
+            continue;
+          }
+          if (!inChar && ch === '"') {
+            inString = !inString;
+          } else if (!inString && ch === "'") {
+            inChar = !inChar;
+          }
+        }
+        expect(inString, `Unclosed Java string literal on line: ${line}`).toBe(false);
+        expect(inChar, `Unclosed Java char literal on line: ${line}`).toBe(false);
+      }
+    };
+
+    for (let id = 1; id <= 19; id++) {
       const gradeSpec = buildPeHarness(id, 'grade');
       expect(gradeSpec).not.toBeNull();
       expect(gradeSpec?.content).toContain('Locale.setDefault(Locale.US)');
       expect(gradeSpec?.content).toContain('__JB_TESTS_START__');
+      assertAllJavaStringsBalanced(gradeSpec!.content);
 
       const runSpec = buildPeHarness(id, 'run');
       expect(runSpec).not.toBeNull();
       expect(runSpec?.content).toContain('public static void main');
+      expect(runSpec?.content).toContain('Locale.setDefault(Locale.US)');
+      assertAllJavaStringsBalanced(runSpec!.content);
     }
-    const pe4 = buildPeHarness(4, 'grade');
-    expect(pe4?.extraFiles?.[0]?.path).toBe('/tmp/jb-work/products.csv');
+
+    expect(getPeInterfaceFiles(3)[0]?.path).toBe('/tmp/jb-work/IDaisy.java');
+    expect(getPeInterfaceFiles(4)[0]?.path).toBe('/tmp/jb-work/IString.java');
+    expect(getPeInterfaceFiles(11)[0]?.path).toBe('/tmp/jb-work/IStringNumberTool.java');
+    expect(getPeInterfaceFiles(14)[0]?.path).toBe('/tmp/jb-work/IShoes.java');
+    expect(getPeInterfaceFiles(15)[0]?.path).toBe('/tmp/jb-work/ILink.java');
+    expect(getPeInterfaceFiles(18)[0]?.path).toBe('/tmp/jb-work/ILadder.java');
+    expect(getPeInterfaceFiles(19)[0]?.path).toBe('/tmp/jb-work/IString.java');
   });
 });

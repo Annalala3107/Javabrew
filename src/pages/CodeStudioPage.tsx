@@ -79,7 +79,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   );
 
   const [leftTab, setLeftTab] = useState<'spec' | 'theory'>('spec');
-  const [activeFile, setActiveFile] = useState<'main' | 'entity'>('main');
+  const [activeFile, setActiveFile] = useState<'main' | 'entity' | 'interface'>('main');
   const [showAiPane, setShowAiPane] = useState(true);
   const [showDiff, setShowDiff] = useState(false);
 
@@ -352,8 +352,11 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     });
   };
 
-  const updateCodeAndScheduleDraft = (target: 'main' | 'entity', nextValue: string) => {
-    if (!activePe) return;
+  const updateCodeAndScheduleDraft = (
+    target: 'main' | 'entity' | 'interface',
+    nextValue: string
+  ) => {
+    if (!activePe || target === 'interface') return;
     const nextMain = target === 'main' ? nextValue : mainCode;
     const nextEntity = target === 'entity' ? nextValue : entityCode;
 
@@ -397,6 +400,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   }, [activePe, pro192]);
 
   // PE File Names
+  const hasEntityFile = Boolean(activePe?.entityCode?.trim());
+  const hasInterfaceFile = Boolean(activePe?.interfaceFileName && activePe?.interfaceCode);
+
   const mainFileName = useMemo(() => {
     if (!activePe) return 'Main.java';
     const fallback = inferJavaFileName(activePe.starterCode, 'Main.java');
@@ -404,17 +410,22 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   }, [activePe, mainCode]);
 
   const entityFileName = useMemo(() => {
-    if (!activePe) return 'Student.java';
-    return inferJavaFileName(entityCode, activePe.entityFileName);
-  }, [activePe, entityCode]);
+    if (!activePe || !hasEntityFile) return '';
+    return inferJavaFileName(entityCode, activePe.entityFileName || 'Entity.java');
+  }, [activePe, hasEntityFile, entityCode]);
 
-  const peFileTabs = useMemo(
-    () => [
-      { id: 'main' as const, label: mainFileName },
-      { id: 'entity' as const, label: entityFileName },
-    ],
-    [mainFileName, entityFileName]
-  );
+  const peFileTabs = useMemo(() => {
+    const tabs: Array<{ id: 'main' | 'entity' | 'interface'; label: string }> = [
+      { id: 'main', label: mainFileName },
+    ];
+    if (hasEntityFile && entityFileName) {
+      tabs.push({ id: 'entity', label: entityFileName });
+    }
+    if (hasInterfaceFile && activePe?.interfaceFileName) {
+      tabs.push({ id: 'interface', label: `🔒 ${activePe.interfaceFileName}` });
+    }
+    return tabs;
+  }, [mainFileName, hasEntityFile, entityFileName, hasInterfaceFile, activePe?.interfaceFileName]);
 
   // Playground Effective File Names (sync with edited public class declaration cleanly)
   const playgroundEffectiveFiles = useMemo(() => {
@@ -442,13 +453,17 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     ? activePgFile?.content ?? ''
     : activeFile === 'main'
       ? mainCode
-      : entityCode;
+      : activeFile === 'entity'
+        ? entityCode
+        : activePe?.interfaceCode ?? '';
 
   const activeFileName = playgroundMode
     ? activePgFile?.name ?? 'Main.java'
     : activeFile === 'main'
       ? mainFileName
-      : entityFileName;
+      : activeFile === 'entity'
+        ? entityFileName || mainFileName
+        : activePe?.interfaceFileName ?? mainFileName;
 
   const activeFileDiagnostics = useMemo(
     () => diagnostics.filter((d) => d.file === activeFileName),
@@ -468,7 +483,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       }));
       return;
     }
-    const targetTab: 'main' | 'entity' = diag.file === entityFileName ? 'entity' : 'main';
+    const targetTab: 'main' | 'entity' =
+      hasEntityFile && diag.file === entityFileName ? 'entity' : 'main';
     setActiveFile(targetTab);
     setShowDiff(false);
     setJumpTarget((prev) => ({
@@ -642,7 +658,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
     try {
       const filesToSend =
-        mainFileName === entityFileName
+        !hasEntityFile || !entityFileName || mainFileName === entityFileName
           ? [{ name: mainFileName, content: mainCode }]
           : [
               { name: mainFileName, content: mainCode },
@@ -1123,6 +1139,17 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     return (found || playgroundEffectiveFiles[0])?.name.replace(/\.java$/, '') || 'Main';
   }, [playgroundEffectiveFiles]);
 
+  const challengesByPaper = useMemo(() => {
+    const groups = new Map<string, typeof challenges>();
+    for (const c of challenges) {
+      const p = c.paper || c.code.match(/^(PE\d+)/i)?.[1]?.toUpperCase() || 'Đề PE';
+      const arr = groups.get(p) ?? [];
+      arr.push(c);
+      groups.set(p, arr);
+    }
+    return Array.from(groups.entries());
+  }, [challenges]);
+
   const currentLineCount = mainCode.split(/\r?\n/).length;
   const cleanLineCount = activePe ? activePe.cleanCode.split(/\r?\n/).length : 0;
 
@@ -1135,9 +1162,10 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   }
 
   const entryMainClass = mainFileName.replace(/\.java$/, '');
+  const peJavacFiles = [entityFileName, mainFileName].filter(Boolean).join(' ');
   const javacCommand = playgroundMode
     ? `javac ${playgroundEffectiveFiles.map((f) => f.name).join(' ')} && java ${pgEntryClass}`
-    : `javac ${entityFileName} ${mainFileName} && java ${entryMainClass}`;
+    : `javac ${peJavacFiles} && java ${entryMainClass}`;
 
   const engineBadgeLabel = playgroundMode
     ? sandboxHealth === 'ready'
@@ -1183,10 +1211,14 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
               <option value="playground">
                 ☕ Java Playground (Tự do · tối đa {MAX_PLAYGROUND_FILES} file)
               </option>
-              {challenges.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code}: {c.title}
-                </option>
+              {challengesByPaper.map(([paperName, groupItems]) => (
+                <optgroup key={paperName} label={`Bộ đề ${paperName}`}>
+                  {groupItems.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.code}: {c.title}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
 
@@ -1403,18 +1435,26 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                     dạng <code className="text-[var(--accent-text)]">toString()</code> chính xác
                     từng ký tự.
                   </p>
-                  {relatedSlot ? (
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    {relatedSlot ? (
+                      <Link
+                        to={`/pro192/${stageFileToSlug(relatedSlot.file)}?slot=${relatedSlot.slot}`}
+                        className="inline-block text-[var(--info)] underline"
+                      >
+                        Mở đầy đủ Slot {relatedSlot.slot} →
+                      </Link>
+                    ) : (
+                      <Link to="/pro192" className="inline-block text-[var(--info)] underline">
+                        Mở giáo trình PRO192 →
+                      </Link>
+                    )}
                     <Link
-                      to={`/pro192/${stageFileToSlug(relatedSlot.file)}?slot=${relatedSlot.slot}`}
-                      className="inline-block text-[var(--info)] underline"
+                      to="/pro192/pe-patterns"
+                      className="inline-block font-medium text-[var(--accent-text)] underline"
                     >
-                      Mở đầy đủ Slot {relatedSlot.slot} →
+                      📘 Bí kíp &amp; 7 Khuôn mẫu PE (JDK 8) →
                     </Link>
-                  ) : (
-                    <Link to="/pro192" className="inline-block text-[var(--info)] underline">
-                      Mở giáo trình PRO192 →
-                    </Link>
-                  )}
+                  </div>
                 </div>
               )}
             </>
@@ -1543,7 +1583,28 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
             )}
           </div>
 
-          {playgroundMode || !showDiff ? (
+          {!playgroundMode && !showDiff && activeFile === 'interface' && hasInterfaceFile ? (
+            <div className="flex min-h-[290px] flex-1 flex-col gap-3 overflow-auto p-4 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--info)]/35 bg-[var(--info-soft)] p-3">
+                <div className="space-y-0.5">
+                  <div className="font-semibold text-[var(--info-text)]">
+                    🔒 {activePe!.interfaceFileName} — Interface biên dịch sẵn (Chỉ đọc)
+                  </div>
+                  <p className="text-[var(--text-secondary)]">
+                    Trên máy chấm PEA/EOS thật, file này đã có sẵn dạng bytecode (.class). Chỉ dùng để tham chiếu chữ ký hàm — không tạo lại file khi nộp bài.
+                  </p>
+                </div>
+                <CopyCodeButton
+                  code={activePe!.interfaceCode!}
+                  label="Copy Interface"
+                  copiedLabel="Đã chép"
+                />
+              </div>
+              <pre className="flex-1 whitespace-pre-wrap rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 font-mono leading-relaxed text-[var(--text-primary)]">
+                {activePe!.interfaceCode}
+              </pre>
+            </div>
+          ) : playgroundMode || !showDiff ? (
             <JavaCodeEditor
               value={activeCode}
               onChange={(val) =>

@@ -29,6 +29,7 @@ export interface CompileRequestPayload {
 }
 
 export const MAX_SOURCE_FILES = 5;
+export const MAX_PE_ID = 19;
 export const MAX_TOTAL_SOURCE_BYTES = 65_536; // 64 KB
 export const MAX_STDIN_BYTES = 8_192; // 8 KB
 
@@ -87,8 +88,13 @@ export function validateCompilePayload(
 
   let peId: number | undefined;
   if (record.peId !== undefined && record.peId !== null) {
-    if (typeof record.peId !== 'number' || !Number.isInteger(record.peId) || record.peId < 1 || record.peId > 4) {
-      return { ok: false, error: 'peId không hợp lệ (chỉ hỗ trợ đề PE 1 đến 4).' };
+    if (
+      typeof record.peId !== 'number' ||
+      !Number.isInteger(record.peId) ||
+      record.peId < 1 ||
+      record.peId > MAX_PE_ID
+    ) {
+      return { ok: false, error: `peId không hợp lệ (chỉ hỗ trợ đề PE 1 đến ${MAX_PE_ID}).` };
     }
     peId = record.peId;
   } else if (mode === 'grade') {

@@ -79,6 +79,11 @@ describe('resolveMarkdownHref', () => {
       target: '/pe',
     });
 
+    expect(resolveMarkdownHref('pro192/README.md', './pe-patterns.md')).toEqual({
+      kind: 'internal',
+      target: '/pro192/pe-patterns',
+    });
+
     expect(
       resolveMarkdownHref('pro192/slots/slot-01.md', '/media/pro192/resources/Get%20Start.pdf')
     ).toEqual({
@@ -125,16 +130,17 @@ describe('Real PRO192 data integrity', () => {
     }
   });
 
-  it('parses all 4 PE challenges from real pe-challenges.md', () => {
+  it('parses all 19 real PE challenges from pe-challenges.md', () => {
     const pePath = path.join(ROOT, 'content', 'vi', 'pro192', 'pe-challenges.md');
     const raw = fs.readFileSync(pePath, 'utf8');
     const parsed = parseMarkdownDocument(raw);
     const challenges = parsePeChallenges(parsed.body);
 
-    expect(challenges).toHaveLength(4);
-    expect(challenges.map((c) => c.durationMinutes)).toEqual([25, 35, 50, 85]);
+    expect(challenges).toHaveLength(19);
     for (const ch of challenges) {
+      expect(ch.durationMinutes).toBeGreaterThan(0);
       expect(ch.requirementsMd.length).toBeGreaterThan(20);
+      expect(ch.pitfallsMd.length).toBeGreaterThan(10);
       expect(ch.solutionMd.length).toBeGreaterThan(50);
     }
   });

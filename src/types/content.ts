@@ -71,6 +71,9 @@ export interface Pro192Slot {
 export interface Pro192PeChallengeMeta {
   id: number;
   code: string;
+  paper?: string;
+  questionNo?: string;
+  marks?: number;
   cat: string;
   title: string;
   meta: string;
@@ -79,6 +82,8 @@ export interface Pro192PeChallengeMeta {
   checklist: string[];
   entityFileName: string;
   entityCode: string;
+  interfaceFileName?: string;
+  interfaceCode?: string;
   starterCode: string;
   cleanCode: string;
 }
