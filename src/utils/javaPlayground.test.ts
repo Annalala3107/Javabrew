@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_PLAYGROUND_FILES,
+  PLAYGROUND_TEMPLATES,
+  decodePlaygroundShareParam,
+  encodePlaygroundShareParam,
+  findPlaygroundTemplate,
   prepareJavaPlaygroundFiles,
   validateNewJavaFileName,
 } from './javaPlayground';
@@ -68,5 +72,45 @@ System.out.println(price + " " + tags + " " + LocalDate.now());`;
 
     const fullList = Array.from({ length: MAX_PLAYGROUND_FILES }, (_, i) => `C${i}.java`);
     expect(validateNewJavaFileName('Extra.java', fullList).ok).toBe(false);
+  });
+
+  it('ships 15 curated PRO192 templates starting with demo-intro and unique ids', () => {
+    expect(PLAYGROUND_TEMPLATES).toHaveLength(15);
+    expect(PLAYGROUND_TEMPLATES[0]?.id).toBe('demo-intro');
+
+    const ids = PLAYGROUND_TEMPLATES.map((t) => t.id);
+    expect(new Set(ids).size).toBe(15);
+    expect(ids).toEqual(
+      expect.arrayContaining(['demo-intro', 'hello-scanner', 'oop-multi', 'collections-stream'])
+    );
+
+    const demo = findPlaygroundTemplate('demo-intro');
+    expect(demo?.files.some((f) => f.name === 'Main.java')).toBe(true);
+    expect(findPlaygroundTemplate('non-existent-template')).toBeNull();
+  });
+
+  it('round-trips multi-file UTF-8 playgrounds through URL share params and rejects bad payloads', () => {
+    const encoded = encodePlaygroundShareParam({
+      files: [
+        { id: 'f1', name: 'Main.java', content: 'public class Main { // Xin chào JavaBrew }' },
+        { id: 'f2', name: 'Helper.java', content: 'class Helper { static int ok() { return 1; } }' },
+      ],
+      stdin: '42\nXin chào',
+    });
+
+    expect(encoded).toBeTruthy();
+    const decoded = decodePlaygroundShareParam(encoded!);
+    expect(decoded).not.toBeNull();
+    expect(decoded?.files.map((f) => f.name)).toEqual(['Main.java', 'Helper.java']);
+    expect(decoded?.files[0]?.content).toContain('Xin chào JavaBrew');
+    expect(decoded?.stdin).toBe('42\nXin chào');
+
+    expect(decodePlaygroundShareParam('%%%invalid%%%')).toBeNull();
+
+    const oversized = encodePlaygroundShareParam({
+      files: [{ id: 'big', name: 'Main.java', content: 'a'.repeat(20_000) }],
+      stdin: '',
+    });
+    expect(oversized).toBeNull();
   });
 });

@@ -175,6 +175,12 @@ export function LandingPage() {
                 >
                   Thử Code Studio ngay
                 </Link>
+                <Link
+                  to="/studio/playground?example=demo-intro"
+                  className="inline-flex min-h-[44px] items-center rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-4 py-2.5 text-xs font-medium text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                >
+                  ☕ Java Tryit (W3Schools)
+                </Link>
               </div>
 
               <p data-hero-stagger className="text-xs text-[var(--text-dim)]">

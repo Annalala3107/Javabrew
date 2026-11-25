@@ -345,22 +345,31 @@ export function DashboardPage() {
           </div>
         </Link>
 
-        <Link
-          to="/studio"
-          className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-left transition-colors hover:border-[var(--info)]"
-        >
-          <span className="rounded-lg bg-[var(--info-soft)] p-2 text-[var(--info)]">
-            <Sparkles className="h-4 w-4" />
-          </span>
-          <div>
-            <div className="font-semibold text-[var(--text-primary)]">
-              Mở JavaBrew Code Studio
+        <div className="flex flex-col gap-2">
+          <Link
+            to="/studio"
+            className="flex flex-1 items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-left transition-colors hover:border-[var(--info)]"
+          >
+            <span className="rounded-lg bg-[var(--info-soft)] p-2 text-[var(--info)]">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div>
+              <div className="font-semibold text-[var(--text-primary)]">
+                Mở JavaBrew Code Studio
+              </div>
+              <div className="mt-0.5 text-[var(--text-muted)]">
+                Code trực tiếp, Diff Clean Code &amp; nhận góp ý từ AI Mentor
+              </div>
             </div>
-            <div className="mt-0.5 text-[var(--text-muted)]">
-              Code trực tiếp, Diff Clean Code &amp; nhận góp ý từ AI Mentor
-            </div>
-          </div>
-        </Link>
+          </Link>
+          <Link
+            to="/studio/playground?example=demo-intro"
+            className="inline-flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-medium text-emerald-300 transition-colors hover:bg-emerald-500/15"
+          >
+            <span>☕ Java Tryit — Chạy code kiểu W3Schools</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
 
         <div className="flex flex-col justify-between gap-2">
           <a

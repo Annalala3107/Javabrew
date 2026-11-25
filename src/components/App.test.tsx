@@ -729,4 +729,76 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     expect(lastPayload?.peId).toBeUndefined();
     expect(lastPayload?.files?.map((f) => f.name)).toEqual(['Main.java', 'Helper.java']);
   });
+
+  it('supports W3Schools Tryit split-pane, layout toggle, Auto-Run, and 15 examples in Code Studio', async () => {
+    const origFetch = globalThis.fetch;
+    const runCalls: Array<{ mode?: string; files?: Array<{ name: string; content: string }> }> = [];
+
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith('/api/java-run')) {
+        const method = (init?.method || 'GET').toUpperCase();
+        if (method === 'GET') {
+          return new Response(JSON.stringify({ available: true, runtime: 'OpenJDK 21' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        const parsed = init?.body
+          ? (JSON.parse(String(init.body)) as {
+              mode?: string;
+              files?: Array<{ name: string; content: string }>;
+            })
+          : {};
+        runCalls.push(parsed);
+        const isMulti = parsed.files?.some((f) => f.name === 'Student.java');
+        return new Response(
+          JSON.stringify({
+            available: true,
+            ok: true,
+            phase: 'run',
+            jdkVersion: 'OpenJDK 21',
+            compileMs: 35,
+            runMs: 14,
+            exitCode: 0,
+            timedOut: false,
+            stdout: isMulti ? 'Student[SE180001 - An]' : 'Hello JavaBrew Tryit!',
+            stderr: '',
+            diagnostics: [],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return origFetch(input, init);
+    });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/studio/playground?example=demo-intro']}>
+          <AppProvider>
+            <AppRoutes />
+          </AppProvider>
+        </MemoryRouter>
+      );
+
+      const splitPane = await screen.findByTestId('tryit-split-pane');
+      expect(splitPane).toHaveAttribute('data-orientation', 'horizontal');
+
+      const terminal = screen.getByTestId('studio-output-terminal');
+      expect(await screen.findByText(/Hello JavaBrew Tryit!/i)).toBeInTheDocument();
+      expect(terminal.textContent).toContain('Hello JavaBrew Tryit!');
+      expect(runCalls.length).toBeGreaterThanOrEqual(1);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Xoay bố cục Ngang hoặc Dọc' }));
+      expect(screen.getByTestId('tryit-split-pane')).toHaveAttribute('data-orientation', 'vertical');
+
+      fireEvent.click(screen.getByRole('button', { name: /Mẫu \(15\)/i }));
+      fireEvent.click(await screen.findByRole('button', { name: /OOP Đa file \(Student \+ Main\)/i }));
+
+      expect(await screen.findByRole('tab', { name: 'Student.java' })).toBeInTheDocument();
+      expect(await screen.findByText(/Student\[SE180001 - An\]/i)).toBeInTheDocument();
+    } finally {
+      vi.stubGlobal('fetch', origFetch);
+    }
+  });
 });

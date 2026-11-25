@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { FilePlus2, Pause, Play, RotateCcw, Timer, Trash2 } from 'lucide-react';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  BookOpen,
+  Columns2,
+  Eraser,
+  FilePlus2,
+  Pause,
+  Play,
+  RotateCcw,
+  Rows2,
+  Share2,
+  Timer,
+  Trash2,
+  Zap,
+} from 'lucide-react';
 import { JavaCodeEditor, type JumpTarget } from '../components/JavaCodeEditor';
+import { TryitSplitPane } from '../components/TryitSplitPane';
 import { CopyCodeButton } from '../components/lucian/CopyCodeButton';
 import { LucianChecklistItem } from '../components/lucian/LucianChecklistItem';
 import { MorphActionButton } from '../components/lucian/MorphActionButton';
@@ -20,10 +34,14 @@ import {
   PLAYGROUND_TEMPLATES,
   clearPlaygroundWorkspace,
   cloneTemplateFiles,
+  decodePlaygroundShareParam,
+  encodePlaygroundShareParam,
+  findPlaygroundTemplate,
   readPlaygroundWorkspace,
   savePlaygroundWorkspace,
   validateNewJavaFileName,
   type PlaygroundFile,
+  type PlaygroundTemplateCategory,
   type PlaygroundWorkspaceState,
 } from '../utils/javaPlayground';
 import { evaluatePeCode, type PeDiagnosisCard, type PeEvaluationResult } from '../utils/peEvaluator';
@@ -45,10 +63,50 @@ interface PlaygroundRouteState {
   note?: string;
 }
 
+const STORAGE_ORIENTATION = 'javabrew:studio_orientation';
+const STORAGE_SPLIT = 'javabrew:studio_split';
+const STORAGE_AUTORUN = 'javabrew:studio_autorun';
+
 function formatClock(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function readStoredOrientation(): 'horizontal' | 'vertical' {
+  try {
+    return localStorage.getItem(STORAGE_ORIENTATION) === 'vertical' ? 'vertical' : 'horizontal';
+  } catch {
+    return 'horizontal';
+  }
+}
+
+function readStoredSplit(): number {
+  try {
+    const raw = Number(localStorage.getItem(STORAGE_SPLIT));
+    if (Number.isFinite(raw) && raw >= 28 && raw <= 72) return Math.round(raw);
+  } catch {
+    // ignore
+  }
+  return 52;
+}
+
+function readStoredAutoRun(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_AUTORUN) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function computeEffectiveFiles(files: PlaygroundFile[]) {
+  const used = new Set<string>();
+  return files.map((f) => {
+    const inferred = inferJavaFileName(f.content, f.name);
+    const effective = used.has(inferred.toLowerCase()) ? f.name : inferred;
+    used.add(effective.toLowerCase());
+    return { id: f.id, name: effective, content: f.content };
+  });
 }
 
 const LEFT_TAB_OPTIONS = [
@@ -61,13 +119,25 @@ const ENGINE_MODE_OPTIONS = [
   { id: 'static' as const, label: 'Chỉ Static (Tức thì)' },
 ];
 
+const EXAMPLE_CATEGORIES: Array<'Tất cả' | PlaygroundTemplateCategory> = [
+  'Tất cả',
+  'Cơ bản',
+  'OOP',
+  'Collections',
+  'Thực chiến PE',
+];
+
 export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const { peId } = useParams<{ peId?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { pro192, theme, byokKey, markPeStatus, addMistake, recordVisit, pushToast } = useApp();
 
   const playgroundMode = isPlayground || peId === 'playground';
+  const urlExampleId = searchParams.get('example');
+  const urlSharedCode = searchParams.get('code');
+
   const challenges = useMemo(() => pro192?.peChallenges ?? [], [pro192]);
   const numericId = Number(peId) || 1;
   const activePe = useMemo(
@@ -80,30 +150,88 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
   const [leftTab, setLeftTab] = useState<'spec' | 'theory'>('spec');
   const [activeFile, setActiveFile] = useState<'main' | 'entity' | 'interface'>('main');
-  const [showAiPane, setShowAiPane] = useState(true);
+  const [showAiPane, setShowAiPane] = useState(() => !playgroundMode);
+  const [showExamplesDrawer, setShowExamplesDrawer] = useState(
+    () => playgroundMode && !urlExampleId && !(location.state as PlaygroundRouteState | null)?.playgroundImport?.files?.length
+  );
+  const [exampleCategory, setExampleCategory] = useState<'Tất cả' | PlaygroundTemplateCategory>('Tất cả');
   const [showDiff, setShowDiff] = useState(false);
+
+  const [splitOrientation, setSplitOrientation] = useState<'horizontal' | 'vertical'>(readStoredOrientation);
+  const [splitPercent, setSplitPercent] = useState<number>(readStoredSplit);
+  const [autoRun, setAutoRun] = useState<boolean>(readStoredAutoRun);
 
   const [engineMode, setEngineMode] = useState<'cloud' | 'static'>('cloud');
   const [sandboxHealth, setSandboxHealth] = useState<'checking' | 'ready' | 'offline'>('checking');
+  const [sandboxRuntimeLabel, setSandboxRuntimeLabel] = useState<string>('OpenJDK 21 Sandbox');
   const [isExecuting, setIsExecuting] = useState(false);
 
-  const initialPg = useMemo<PlaygroundWorkspaceState>(() => {
+  const initialBootstrap = useMemo<{
+    state: PlaygroundWorkspaceState;
+    activeExampleId: string | null;
+    fromShareOrExample: boolean;
+  }>(() => {
     const routeState = location.state as PlaygroundRouteState | null;
     if (routeState?.playgroundImport?.files?.length) {
-      return routeState.playgroundImport;
+      return {
+        state: routeState.playgroundImport,
+        activeExampleId: null,
+        fromShareOrExample: true,
+      };
+    }
+    if (playgroundMode && urlExampleId) {
+      const tpl = findPlaygroundTemplate(urlExampleId);
+      if (tpl) {
+        const cloned = cloneTemplateFiles(tpl.id);
+        return {
+          state: {
+            files: cloned.files,
+            activeFileId: cloned.files[0].id,
+            stdin: cloned.template.stdin,
+            sourceLabel: cloned.template.title,
+          },
+          activeExampleId: cloned.template.id,
+          fromShareOrExample: true,
+        };
+      }
+    }
+    if (playgroundMode && urlSharedCode) {
+      const decoded = decodePlaygroundShareParam(urlSharedCode);
+      if (decoded) {
+        return {
+          state: decoded,
+          activeExampleId: null,
+          fromShareOrExample: true,
+        };
+      }
     }
     const saved = readPlaygroundWorkspace();
-    if (saved) return saved;
+    if (saved) {
+      return {
+        state: saved,
+        activeExampleId: null,
+        fromShareOrExample: false,
+      };
+    }
     const starter = cloneTemplateFiles(PLAYGROUND_TEMPLATES[0].id);
     return {
-      files: starter.files,
-      activeFileId: starter.files[0].id,
-      stdin: starter.template.stdin,
+      state: {
+        files: starter.files,
+        activeFileId: starter.files[0].id,
+        stdin: starter.template.stdin,
+      },
+      activeExampleId: starter.template.id,
+      fromShareOrExample: Boolean(playgroundMode),
     };
     // Intentionally evaluated once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const initialPg = initialBootstrap.state;
+
+  const [activeExampleId, setActiveExampleId] = useState<string | null>(
+    initialBootstrap.activeExampleId
+  );
   const [showStdin, setShowStdin] = useState(() => playgroundMode && initialPg.stdin.length > 0);
   const [stdinInput, setStdinInput] = useState(() => (playgroundMode ? initialPg.stdin : ''));
 
@@ -154,6 +282,21 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const pgDraftTimerRef = useRef<number>(0);
   const runAbortRef = useRef<AbortController | null>(null);
   const appliedImportKeyRef = useRef<string | null>(null);
+  const appliedQueryKeyRef = useRef<string>(
+    playgroundMode
+      ? urlExampleId
+        ? `ex:${urlExampleId}`
+        : urlSharedCode
+          ? `code:${urlSharedCode}`
+          : ''
+      : ''
+  );
+  const pendingAutoRunRef = useRef<string | null>(
+    playgroundMode && urlExampleId ? `ex:${urlExampleId}` : null
+  );
+  const lastAutoRanKeyRef = useRef<string | null>(null);
+  const prevPlaygroundModeRef = useRef<boolean>(playgroundMode);
+
   const latestDraftRef = useRef<{ peId: number; main: string; entity: string; dirty: boolean } | null>(
     null
   );
@@ -173,6 +316,46 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
   const [secondsLeft, setSecondsLeft] = useState(suggestedMinutes * 60);
   const [timerRunning, setTimerRunning] = useState(false);
+
+  // Sync AI Mentor, drawer, and run state cleanly when switching between PE <-> Playground
+  useEffect(() => {
+    if (prevPlaygroundModeRef.current === playgroundMode) return;
+    prevPlaygroundModeRef.current = playgroundMode;
+    runAbortRef.current?.abort();
+    setShowDiff(false);
+    setDiagnostics([]);
+    setCloudTestResults([]);
+    setLastTiming(null);
+    setShowAiPane(!playgroundMode);
+    if (!playgroundMode) {
+      setShowExamplesDrawer(false);
+    }
+  }, [playgroundMode]);
+
+  // Persist Tryit preferences cleanly
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_ORIENTATION, splitOrientation);
+    } catch {
+      // ignore
+    }
+  }, [splitOrientation]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_SPLIT, String(splitPercent));
+    } catch {
+      // ignore
+    }
+  }, [splitPercent]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_AUTORUN, autoRun ? '1' : '0');
+    } catch {
+      // ignore
+    }
+  }, [autoRun]);
 
   // Sync starter/draft immediately when switching PE challenge
   if (!playgroundMode && activePe && loadedPeId !== activePe.id) {
@@ -222,6 +405,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setShowStdin(Boolean(incoming.stdin));
     setPgSourceLabel(incoming.sourceLabel);
     setPgImportBanner(routeState.note || 'Đã nạp đoạn mã từ bài học vào Java Playground.');
+    setActiveExampleId(null);
+    setShowExamplesDrawer(false);
     setPgDraftState('saved');
     latestPgRef.current = { state: incoming, dirty: false };
     savePlaygroundWorkspace(incoming);
@@ -234,7 +419,71 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setConsoleStatus('Đã nạp đoạn mã — sẵn sàng chạy thử OpenJDK 21');
     setConsoleTone('muted');
     setConsoleOutput('Nhấn "▶ Run Code" (hoặc Ctrl+Enter) để biên dịch & chạy ngay đoạn mã này.');
+    pendingAutoRunRef.current = null;
   }, [playgroundMode, location.key, location.state]);
+
+  // Handle URL query changes (?example=... or ?code=...)
+  useEffect(() => {
+    if (!playgroundMode) return;
+    const routeState = location.state as PlaygroundRouteState | null;
+    if (routeState?.playgroundImport?.files?.length) return;
+
+    const queryKey = urlExampleId
+      ? `ex:${urlExampleId}`
+      : urlSharedCode
+        ? `code:${urlSharedCode}`
+        : '';
+    if (!queryKey || appliedQueryKeyRef.current === queryKey) return;
+
+    if (urlExampleId) {
+      const tpl = findPlaygroundTemplate(urlExampleId);
+      if (tpl) {
+        appliedQueryKeyRef.current = queryKey;
+        const cloned = cloneTemplateFiles(tpl.id);
+        const nextState: PlaygroundWorkspaceState = {
+          files: cloned.files,
+          activeFileId: cloned.files[0].id,
+          stdin: cloned.template.stdin,
+          sourceLabel: cloned.template.title,
+        };
+        setPlaygroundFiles(cloned.files);
+        setPgActiveFileId(cloned.files[0].id);
+        setStdinInput(cloned.template.stdin);
+        setShowStdin(cloned.template.stdin.length > 0);
+        setPgSourceLabel(cloned.template.title);
+        setPgImportBanner(cloned.template.subtitle);
+        setActiveExampleId(cloned.template.id);
+        setPgDraftState('clean');
+        latestPgRef.current = { state: nextState, dirty: false };
+        savePlaygroundWorkspace(nextState);
+        setDiagnostics([]);
+        setLastTiming(null);
+        setConsoleStatus(`Đã nạp mẫu "${cloned.template.title}"`);
+        setConsoleTone('muted');
+        setConsoleOutput('Nhấn "▶ Run Code" để biên dịch và xem kết quả bên khung Output.');
+        pendingAutoRunRef.current = queryKey;
+      }
+      return;
+    }
+
+    if (urlSharedCode) {
+      const decoded = decodePlaygroundShareParam(urlSharedCode);
+      if (decoded) {
+        appliedQueryKeyRef.current = queryKey;
+        setPlaygroundFiles(decoded.files);
+        setPgActiveFileId(decoded.activeFileId);
+        setStdinInput(decoded.stdin);
+        setShowStdin(decoded.stdin.length > 0);
+        setPgSourceLabel(decoded.sourceLabel);
+        setPgImportBanner('Đã nạp mã nguồn từ liên kết chia sẻ.');
+        setActiveExampleId(null);
+        setPgDraftState('saved');
+        latestPgRef.current = { state: decoded, dirty: false };
+        savePlaygroundWorkspace(decoded);
+        pendingAutoRunRef.current = queryKey;
+      }
+    }
+  }, [playgroundMode, urlExampleId, urlSharedCode, location.state]);
 
   // Probe sandbox health on mount
   useEffect(() => {
@@ -242,6 +491,11 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     void checkJavaSandboxHealth(controller.signal).then((health) => {
       if (!controller.signal.aborted) {
         setSandboxHealth(health.available ? 'ready' : 'offline');
+        if (health.runtime && /piston|judge0|external/i.test(health.runtime)) {
+          setSandboxRuntimeLabel(health.runtime);
+        } else {
+          setSandboxRuntimeLabel('OpenJDK 21 Sandbox');
+        }
       }
     });
     return () => controller.abort();
@@ -266,17 +520,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
   useEffect(() => {
     if (playgroundMode) {
-      runAbortRef.current?.abort();
-      setShowDiff(false);
-      setDiagnostics([]);
-      setCloudTestResults([]);
-      setLastTiming(null);
-      setConsoleStatus('Java Playground · Sẵn sàng chạy OpenJDK 21');
-      setConsoleTone('muted');
-      setConsoleOutput('Tạo hoặc chỉnh sửa tối đa 5 tệp .java rồi nhấn "▶ Run Code" để chạy thật.');
       recordVisit({
-        path: '/studio/playground',
-        title: 'Java Playground (Tự do)',
+        path: activeExampleId ? `/studio/playground?example=${activeExampleId}` : '/studio/playground',
+        title: activeExampleId ? `Java Tryit (${activeExampleId})` : 'Java Tryit Playground',
         kind: 'studio',
         updatedAt: new Date().toISOString(),
       });
@@ -312,7 +558,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       kind: 'studio',
       updatedAt: new Date().toISOString(),
     });
-  }, [playgroundMode, activePe, recordVisit]);
+  }, [playgroundMode, activePe, activeExampleId, recordVisit]);
 
   useEffect(() => {
     return () => {
@@ -428,15 +674,10 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   }, [mainFileName, hasEntityFile, entityFileName, hasInterfaceFile, activePe?.interfaceFileName]);
 
   // Playground Effective File Names (sync with edited public class declaration cleanly)
-  const playgroundEffectiveFiles = useMemo(() => {
-    const used = new Set<string>();
-    return playgroundFiles.map((f) => {
-      const inferred = inferJavaFileName(f.content, f.name);
-      const effective = used.has(inferred.toLowerCase()) ? f.name : inferred;
-      used.add(effective.toLowerCase());
-      return { id: f.id, name: effective, content: f.content };
-    });
-  }, [playgroundFiles]);
+  const playgroundEffectiveFiles = useMemo(
+    () => computeEffectiveFiles(playgroundFiles),
+    [playgroundFiles]
+  );
 
   const playgroundTabs = useMemo(
     () => playgroundEffectiveFiles.map((f) => ({ id: f.id, label: f.name })),
@@ -537,9 +778,16 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     return false;
   };
 
-  const runPlaygroundCloud = async (): Promise<boolean> => {
-    if (isExecuting) return false;
+  const runPlaygroundCloud = async (
+    overrideFiles?: PlaygroundFile[],
+    overrideStdin?: string,
+    forceAbort = false
+  ): Promise<boolean> => {
+    if (isExecuting && !forceAbort) return false;
     flushPlaygroundDraft();
+
+    const targetFiles = computeEffectiveFiles(overrideFiles ?? playgroundFiles);
+    const targetStdin = overrideStdin !== undefined ? overrideStdin : stdinInput;
 
     runAbortRef.current?.abort();
     const controller = new AbortController();
@@ -549,16 +797,16 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setDiagnostics([]);
     setCloudTestResults([]);
     setLastTiming(null);
-    setConsoleStatus('☕ Đang biên dịch & chạy trên OpenJDK 21 Sandbox...');
+    setConsoleStatus('☕ Đang biên dịch & chạy trên OpenJDK Sandbox...');
     setConsoleTone('amber');
-    setConsoleOutput('Đang khởi chạy Firecracker microVM OpenJDK 21...');
+    setConsoleOutput('Đang khởi chạy biên dịch javac và thực thi trên JVM...');
 
     try {
       const res = await runJavaInCloud(
         {
           mode: 'run',
-          files: playgroundEffectiveFiles.map(({ name, content }) => ({ name, content })),
-          stdin: stdinInput,
+          files: targetFiles.map(({ name, content }) => ({ name, content })),
+          stdin: targetStdin,
         },
         controller.signal
       );
@@ -570,7 +818,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         setConsoleStatus('⚡ OpenJDK Sandbox chưa khả dụng Offline');
         setConsoleTone('amber');
         setConsoleOutput(
-          `${res.unavailableReason || 'Không kết nối được tới OpenJDK 21 Sandbox.'}\n\nMẹo: Bấm "Copy lệnh javac" bên trên để chạy trực tiếp bộ ${playgroundEffectiveFiles.length} tệp này trên NetBeans / Terminal máy bạn.`
+          `${res.unavailableReason || 'Không kết nối được tới OpenJDK Sandbox.'}\n\nMẹo: Bấm "Copy lệnh javac" để chạy trực tiếp bộ ${targetFiles.length} tệp này trên NetBeans / Terminal máy bạn (hoặc cấu hình biến JAVA_RUNNER_URL).`
         );
         return false;
       }
@@ -579,7 +827,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       setLastTiming({
         compileMs: res.compileMs,
         runMs: res.runMs,
-        engineLabel: res.jdkVersion || 'OpenJDK 21',
+        engineLabel: res.jdkVersion || sandboxRuntimeLabel,
       });
 
       if (res.phase === 'compile') {
@@ -617,17 +865,29 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         return false;
       }
       setSandboxHealth('offline');
-      setConsoleStatus('⚡ Không kết nối được OpenJDK 21 Sandbox');
+      setConsoleStatus('⚡ Không kết nối được OpenJDK Sandbox');
       setConsoleTone('amber');
       setConsoleOutput('Mất kết nối tới Sandbox — hãy thử lại hoặc dùng nút Copy lệnh javac.');
       return false;
     } finally {
       if (runAbortRef.current === controller) {
         runAbortRef.current = null;
+        setIsExecuting(false);
       }
-      setIsExecuting(false);
     }
   };
+
+  // Trigger Auto-Run once per newly loaded example / lesson import when runner is healthy
+  useEffect(() => {
+    if (!playgroundMode || !autoRun || sandboxHealth !== 'ready' || isExecuting) return;
+    const pendingKey = pendingAutoRunRef.current;
+    if (!pendingKey || lastAutoRanKeyRef.current === pendingKey) return;
+
+    lastAutoRanKeyRef.current = pendingKey;
+    pendingAutoRunRef.current = null;
+    void runPlaygroundCloud();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playgroundMode, autoRun, sandboxHealth, isExecuting, playgroundFiles]);
 
   const executeJava = async (mode: 'run' | 'grade'): Promise<boolean> => {
     if (playgroundMode) {
@@ -652,9 +912,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setDiagnostics([]);
     setCloudTestResults([]);
     setLastTiming(null);
-    setConsoleStatus('☕ Đang biên dịch trên OpenJDK 21 Sandbox...');
+    setConsoleStatus('☕ Đang biên dịch trên OpenJDK Sandbox...');
     setConsoleTone('amber');
-    setConsoleOutput('Đang khởi chạy Firecracker microVM OpenJDK 21 và biên dịch mã nguồn...');
+    setConsoleOutput('Đang khởi chạy môi trường OpenJDK và biên dịch mã nguồn...');
 
     try {
       const filesToSend =
@@ -807,8 +1067,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     } finally {
       if (runAbortRef.current === controller) {
         runAbortRef.current = null;
+        setIsExecuting(false);
       }
-      setIsExecuting(false);
     }
   };
 
@@ -897,32 +1157,45 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       stdin: stdinInput,
       sourceLabel: pgSourceLabel,
     };
+    const prevExampleId = activeExampleId;
     const { template, files } = cloneTemplateFiles(templateId);
+
+    appliedQueryKeyRef.current = `ex:${template.id}`;
+    setSearchParams({ example: template.id }, { replace: true });
     setPlaygroundFiles(files);
     setPgActiveFileId(files[0].id);
     setStdinInput(template.stdin);
     setShowStdin(template.stdin.length > 0);
-    setPgSourceLabel(undefined);
-    setPgImportBanner(null);
+    setPgSourceLabel(template.title);
+    setPgImportBanner(template.subtitle);
+    setActiveExampleId(template.id);
     setDiagnostics([]);
     setLastTiming(null);
     setConsoleStatus(`Đã nạp mẫu "${template.title}"`);
     setConsoleTone('muted');
-    setConsoleOutput('Nhấn "▶ Run Code" để biên dịch và chạy mẫu này trên OpenJDK 21.');
+    setConsoleOutput('Nhấn "▶ Run Code" để biên dịch và chạy mẫu này trên OpenJDK.');
     schedulePlaygroundSave(
       {
         files,
         activeFileId: files[0].id,
         stdin: template.stdin,
+        sourceLabel: template.title,
       },
       true
     );
+
+    if (autoRun && sandboxHealth === 'ready') {
+      lastAutoRanKeyRef.current = `ex:${template.id}:manual-${Date.now()}`;
+      pendingAutoRunRef.current = null;
+      void runPlaygroundCloud(files, template.stdin, true);
+    }
 
     pushToast({
       title: `Đã chuyển sang mẫu: ${template.title}`,
       tone: 'info',
       undoLabel: 'Hoàn tác',
       onUndo: () => {
+        setActiveExampleId(prevExampleId);
         setPlaygroundFiles(prevState.files);
         setPgActiveFileId(prevState.activeFileId);
         setStdinInput(prevState.stdin);
@@ -930,6 +1203,49 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         setPgSourceLabel(prevState.sourceLabel);
         schedulePlaygroundSave(prevState, true);
       },
+    });
+  };
+
+  const handleSharePlayground = async () => {
+    const matchedTemplate = activeExampleId ? findPlaygroundTemplate(activeExampleId) : null;
+    const isUnmodifiedTemplate =
+      matchedTemplate &&
+      playgroundEffectiveFiles.length === matchedTemplate.files.length &&
+      playgroundEffectiveFiles.every(
+        (f, i) =>
+          f.name === matchedTemplate.files[i]?.name &&
+          f.content === matchedTemplate.files[i]?.content
+      ) &&
+      stdinInput === matchedTemplate.stdin;
+
+    let shareUrl: string;
+    if (isUnmodifiedTemplate) {
+      shareUrl = `${window.location.origin}/studio/playground?example=${encodeURIComponent(matchedTemplate.id)}`;
+    } else {
+      const encoded = encodePlaygroundShareParam({
+        files: playgroundEffectiveFiles,
+        stdin: stdinInput,
+      });
+      if (!encoded) {
+        pushToast({
+          title: 'Đoạn mã quá dài để tạo link chia sẻ',
+          description: 'Hãy rút gọn dưới 16 KB rồi thử lại.',
+          tone: 'warn',
+        });
+        return;
+      }
+      shareUrl = `${window.location.origin}/studio/playground?code=${encoded}`;
+    }
+
+    try {
+      await navigator.clipboard?.writeText(shareUrl);
+    } catch {
+      // Ignore clipboard failures in restricted contexts
+    }
+    pushToast({
+      title: 'Đã chép liên kết Java Tryit!',
+      description: isUnmodifiedTemplate ? `Mẫu: ${matchedTemplate.title}` : 'Link chứa đầy đủ mã nguồn của bạn.',
+      tone: 'success',
     });
   };
 
@@ -974,28 +1290,29 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         stdin: stdinInput,
         sourceLabel: pgSourceLabel,
       };
-      const { template, files } = cloneTemplateFiles(PLAYGROUND_TEMPLATES[0].id);
+      const targetId = activeExampleId || PLAYGROUND_TEMPLATES[0].id;
+      const { template, files } = cloneTemplateFiles(targetId);
       window.clearTimeout(pgDraftTimerRef.current);
       clearPlaygroundWorkspace();
       setPlaygroundFiles(files);
       setPgActiveFileId(files[0].id);
       setStdinInput(template.stdin);
       setShowStdin(template.stdin.length > 0);
-      setPgSourceLabel(undefined);
+      setPgSourceLabel(template.title);
       setPgImportBanner(null);
       setPgDraftState('clean');
       latestPgRef.current = {
-        state: { files, activeFileId: files[0].id, stdin: template.stdin },
+        state: { files, activeFileId: files[0].id, stdin: template.stdin, sourceLabel: template.title },
         dirty: false,
       };
       setDiagnostics([]);
       setJumpTarget(null);
       setLastTiming(null);
-      setConsoleStatus('Java Playground · Đã khôi phục mẫu mặc định');
+      setConsoleStatus(`Java Tryit · Đã khôi phục mẫu ${template.title}`);
       setConsoleTone('muted');
-      setConsoleOutput('Nhấn "▶ Run Code" để chạy mẫu Cơ bản (Hello + Scanner stdin).');
+      setConsoleOutput('Nhấn "▶ Run Code" để biên dịch và chạy mẫu này.');
       pushToast({
-        title: 'Đã khôi phục Playground mặc định',
+        title: 'Đã khôi phục mẫu mặc định',
         tone: 'info',
         undoLabel: 'Hoàn tác',
         onUndo: () => {
@@ -1114,9 +1431,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     const fallbackReply = playgroundMode
       ? /tối ưu|ngắn|clean/i.test(cleanPrompt)
         ? `AI Mentor (Playground): Trong ${activeFileName}, hãy đặt tên tệp trùng chính xác với \`public class\`, đóng Scanner/BufferedReader cẩn thận và kiểm tra tham số null ở đầu phương thức.`
-        : `AI Mentor (Playground): Tệp ${activeFileName} đang chạy trên OpenJDK 21. Nếu chương trình đọc bàn phím (\`Scanner\`), hãy mở mục "+ Nhập stdin" bên dưới Console để truyền dữ liệu đầu vào.`
+        : `AI Mentor (Playground): Tệp ${activeFileName} đang chạy trên OpenJDK. Nếu chương trình đọc bàn phím (\`Scanner\`), hãy mở mục "+ Nhập stdin" bên khung Output để truyền dữ liệu đầu vào.`
       : /tối ưu|ngắn|clean/i.test(cleanPrompt)
-        ? `AI Mentor: Với ${activePe!.code}, hãy ưu tiên kiểm tra dữ liệu biên (null / mảng rỗng) ở đầu hàm bằng Early Return, sau đó tách phần kiểm tra hoặc dùng Comparator / try-with-resources để giảm độ sâu if-else.`
+        ? `AI Mentor: Với ${activePe!.code}, hãy ưu tiên kiểm tra dữ liệu biên (null / mảng rỗng) ở đầu hàm bằng Early Return, sau đó tách phần kiểm tra hoặc dùng Comparator / Iterator để giảm độ sâu if-else.`
         : `AI Mentor: Đoạn code ${activePe!.code} tập trung vào ${activePe!.meta}. Kiểm tra kỹ tiêu chí: ${activePe!.checklist[0] || 'xử lý null an toàn'} và bấm "⚡ So sánh Bản Tối ưu (Diff)" để đối chiếu trực quan.`;
 
     setChatHistory((prev) => [
@@ -1150,6 +1467,14 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     return Array.from(groups.entries());
   }, [challenges]);
 
+  const filteredTemplates = useMemo(
+    () =>
+      exampleCategory === 'Tất cả'
+        ? PLAYGROUND_TEMPLATES
+        : PLAYGROUND_TEMPLATES.filter((t) => t.category === exampleCategory),
+    [exampleCategory]
+  );
+
   const currentLineCount = mainCode.split(/\r?\n/).length;
   const cleanLineCount = activePe ? activePe.cleanCode.split(/\r?\n/).length : 0;
 
@@ -1169,30 +1494,489 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
   const engineBadgeLabel = playgroundMode
     ? sandboxHealth === 'ready'
-      ? '☕ OpenJDK 21 Sandbox'
+      ? `☕ ${sandboxRuntimeLabel}`
       : sandboxHealth === 'checking'
         ? '☕ Đang kiểm tra Sandbox'
         : '⚡ Offline (Chạy bằng javac local)'
     : engineMode === 'static'
       ? '⚡ Static Pattern Evaluator'
       : sandboxHealth === 'ready'
-        ? '☕ OpenJDK 21 Sandbox'
+        ? `☕ ${sandboxRuntimeLabel}`
         : sandboxHealth === 'checking'
           ? '☕ Đang kiểm tra Sandbox'
           : '⚡ Static Pattern Evaluator (Fallback)';
+
+  const primaryEditorPane = (
+    <>
+      {playgroundMode && pgSourceLabel && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--info)]/30 bg-[var(--info-soft)] px-3 py-1.5 text-xs">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="font-semibold text-[var(--info-text)]">
+              {activeExampleId ? `☕ Mẫu Tryit (${activeExampleId})` : 'Đang chạy thử từ bài học'}
+            </span>
+            <span className="truncate font-mono text-[var(--text-secondary)]">
+              {pgSourceLabel}
+            </span>
+            {pgImportBanner && (
+              <span className="hidden text-[var(--text-muted)] sm:inline">— {pgImportBanner}</span>
+            )}
+          </div>
+          {!showExamplesDrawer && (
+            <button
+              type="button"
+              onClick={() => setShowExamplesDrawer(true)}
+              className="shrink-0 font-semibold text-[var(--info-text)] underline"
+            >
+              Đổi mẫu khác ({PLAYGROUND_TEMPLATES.length})
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* File Tabs & File Controls / Diff Toggle */}
+      <div className="flex flex-col gap-2 border-b border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-2 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {playgroundMode ? (
+            <SlidingPillTabs
+              options={playgroundTabs}
+              value={activePgFile?.id || playgroundTabs[0]?.id || ''}
+              onChange={setPgActiveFileId}
+              ariaLabel="Chọn tệp mã nguồn Java trong Playground"
+              tone="neutral"
+              className="font-mono"
+            />
+          ) : (
+            <SlidingPillTabs
+              options={peFileTabs}
+              value={activeFile}
+              onChange={setActiveFile}
+              ariaLabel="Chọn tệp mã nguồn Java"
+              tone="neutral"
+              className="font-mono"
+            />
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="hidden font-mono text-xs text-[var(--text-dim)] xl:inline">
+              Ctrl+Enter để chạy
+            </span>
+            {playgroundMode ? (
+              <>
+                <span className="font-mono text-xs text-[var(--text-dim)]">
+                  {playgroundFiles.length}/{MAX_PLAYGROUND_FILES} tệp
+                </span>
+                {playgroundFiles.length < MAX_PLAYGROUND_FILES && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewFileError(null);
+                      setNewFileInputVisible((v) => !v);
+                    }}
+                    className="inline-flex min-h-[34px] items-center gap-1 rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface)] px-2.5 py-1 font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
+                  >
+                    <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>+ Thêm tệp</span>
+                  </button>
+                )}
+                {playgroundFiles.length > 1 && activePgFile && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteActivePlaygroundFile}
+                    aria-label={`Xóa tệp ${activePgFile.name}`}
+                    title={`Xóa tệp ${activePgFile.name}`}
+                    className="inline-flex min-h-[34px] items-center gap-1 rounded-md border border-[var(--danger)]/40 bg-[var(--danger-soft)] px-2 py-1 font-medium text-[var(--danger-text)] hover:opacity-90"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Xóa {activePgFile.name}</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowDiff((d) => !d)}
+                className="min-h-[36px] rounded-md border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-2.5 py-1 font-medium text-[var(--accent-text)] hover:opacity-90"
+              >
+                ⚡ {showDiff ? 'Quay lại Code Editor' : 'So sánh Bản Tối ưu (Diff)'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {playgroundMode && newFileInputVisible && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAddPlaygroundFile();
+            }}
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-2"
+          >
+            <label htmlFor="pg-new-file-input" className="font-medium text-[var(--text-secondary)]">
+              Tên lớp mới:
+            </label>
+            <input
+              id="pg-new-file-input"
+              type="text"
+              value={newFileName}
+              onChange={(e) => {
+                setNewFileName(e.target.value);
+                setNewFileError(null);
+              }}
+              placeholder="Ví dụ: Student hoặc Student.java"
+              className="min-h-[34px] flex-1 rounded border border-[var(--border-default)] bg-[var(--bg-code)] px-2.5 py-1 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="min-h-[34px] rounded bg-[var(--accent)] px-3 py-1 font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
+            >
+              Tạo tệp
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setNewFileInputVisible(false);
+                setNewFileError(null);
+              }}
+              className="min-h-[34px] rounded px-2.5 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            >
+              Hủy
+            </button>
+            {newFileError && (
+              <div className="w-full text-xs text-[var(--danger-text)]">{newFileError}</div>
+            )}
+          </form>
+        )}
+      </div>
+
+      {!playgroundMode && !showDiff && activeFile === 'interface' && hasInterfaceFile ? (
+        <div className="flex min-h-[290px] flex-1 flex-col gap-3 overflow-auto p-4 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--info)]/35 bg-[var(--info-soft)] p-3">
+            <div className="space-y-0.5">
+              <div className="font-semibold text-[var(--info-text)]">
+                🔒 {activePe!.interfaceFileName} — Interface biên dịch sẵn (Chỉ đọc)
+              </div>
+              <p className="text-[var(--text-secondary)]">
+                Trên máy chấm PEA/EOS thật, file này đã có sẵn dạng bytecode (.class). Chỉ dùng để tham chiếu chữ ký hàm — không tạo lại file khi nộp bài.
+              </p>
+            </div>
+            <CopyCodeButton
+              code={activePe!.interfaceCode!}
+              label="Copy Interface"
+              copiedLabel="Đã chép"
+            />
+          </div>
+          <pre className="flex-1 whitespace-pre-wrap rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 font-mono leading-relaxed text-[var(--text-primary)]">
+            {activePe!.interfaceCode}
+          </pre>
+        </div>
+      ) : playgroundMode || !showDiff ? (
+        <JavaCodeEditor
+          value={activeCode}
+          onChange={(val) =>
+            playgroundMode && activePgFile
+              ? updatePlaygroundCode(activePgFile.id, val)
+              : updateCodeAndScheduleDraft(activeFile, val)
+          }
+          onBlur={playgroundMode ? flushPlaygroundDraft : flushLatestDraft}
+          onRunShortcut={() => void handleRunCode()}
+          theme={theme}
+          diagnostics={activeFileDiagnostics}
+          jumpTarget={jumpTarget}
+          minHeight={playgroundMode ? 430 : 340}
+        />
+      ) : (
+        <div className="grid min-h-[320px] flex-1 grid-cols-1 gap-3 overflow-auto p-4 text-xs md:grid-cols-2">
+          <div className="space-y-2 rounded-lg border border-[var(--danger)]/40 bg-[var(--bg-surface)] p-3">
+            <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-1.5">
+              <span className="font-semibold text-[var(--danger-text)]">Code hiện tại</span>
+              <span className="font-mono tabular-nums text-[var(--text-dim)]">
+                {currentLineCount} dòng
+              </span>
+            </div>
+            <pre className="whitespace-pre-wrap font-mono leading-relaxed text-[var(--text-secondary)]">
+              {mainCode}
+            </pre>
+          </div>
+
+          <div className="flex flex-col justify-between space-y-2 rounded-lg border border-[var(--success)]/50 bg-[var(--bg-surface)] p-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-1.5">
+                <span className="font-semibold text-[var(--success-text)]">
+                  Gợi ý Clean Code (Tối ưu)
+                </span>
+                <span className="font-mono tabular-nums text-[var(--text-dim)]">
+                  {cleanLineCount} dòng
+                </span>
+              </div>
+              <pre className="whitespace-pre-wrap font-mono leading-relaxed text-[var(--text-primary)]">
+                {activePe!.cleanCode}
+              </pre>
+            </div>
+            <button
+              type="button"
+              onClick={handleApplyCleanCode}
+              className="min-h-[38px] w-full rounded-lg bg-[var(--success)] py-2 font-bold text-[#1C1917] transition-opacity hover:opacity-90"
+            >
+              ✔ Áp dụng đoạn code tối ưu này
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const secondaryOutputPane = (
+    <div className="flex flex-1 flex-col gap-2.5 p-3.5 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] pb-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-[var(--text-primary)]">
+            {playgroundMode ? 'Kết quả chạy (Output)' : 'Console & Kết quả Test PE'}
+          </span>
+          <span
+            title="Biên dịch & chạy thật trên Vercel OpenJDK Sandbox hoặc Piston/Judge0 Fallback."
+            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-xs text-[var(--text-muted)]"
+          >
+            {engineBadgeLabel}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {!playgroundMode && (
+            <SlidingPillTabs
+              options={ENGINE_MODE_OPTIONS}
+              value={engineMode}
+              onChange={setEngineMode}
+              ariaLabel="Chọn chế độ biên dịch"
+              tone="neutral"
+            />
+          )}
+          <CopyCodeButton
+            code={javacCommand}
+            label="Copy lệnh javac"
+            copiedLabel="Đã chép"
+            ariaLabel="Sao chép lệnh biên dịch javac local"
+            onCopied={() =>
+              pushToast({
+                title: 'Đã chép lệnh javac local',
+                description: javacCommand,
+                tone: 'success',
+              })
+            }
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setConsoleOutput('');
+              setDiagnostics([]);
+              setCloudTestResults([]);
+              setConsoleStatus('Đã xóa Output');
+              setConsoleTone('muted');
+            }}
+            aria-label="Xóa output console"
+            className="inline-flex min-h-[28px] items-center gap-1 rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          >
+            <Eraser className="h-3 w-3" aria-hidden="true" />
+            <span>Xóa</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className={`font-mono font-medium ${statusColorCls}`}>{consoleStatus}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {lastTiming && (
+            <span className="font-mono text-xs text-[var(--text-dim)]">
+              {lastTiming.engineLabel} · javac {lastTiming.compileMs}ms · jvm {lastTiming.runMs}ms
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowStdin((s) => !s)}
+            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          >
+            {showStdin ? 'Ẩn stdin' : '+ Nhập stdin'}
+          </button>
+        </div>
+      </div>
+
+      {showStdin && (
+        <div className="space-y-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-2.5">
+          <label
+            htmlFor="studio-stdin-box"
+            className="block font-medium text-[var(--text-secondary)]"
+          >
+            Dữ liệu đầu vào chuẩn (<code className="font-mono">stdin</code>) cho{' '}
+            <code className="font-mono">Scanner(System.in)</code>:
+          </label>
+          <textarea
+            id="studio-stdin-box"
+            rows={2}
+            value={stdinInput}
+            onChange={(e) => {
+              const nextStdin = e.target.value;
+              setStdinInput(nextStdin);
+              if (playgroundMode) {
+                schedulePlaygroundSave({
+                  files: playgroundFiles,
+                  activeFileId: pgActiveFileId,
+                  stdin: nextStdin,
+                  sourceLabel: pgSourceLabel,
+                });
+              }
+            }}
+            onBlur={() => {
+              if (playgroundMode) flushPlaygroundDraft();
+            }}
+            placeholder="Ví dụ: An&#10;9.25"
+            className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-code)] p-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+          />
+        </div>
+      )}
+
+      {/* Clickable javac compiler diagnostics */}
+      {diagnostics.length > 0 && (
+        <div
+          aria-label="Danh sách lỗi biên dịch javac"
+          className="space-y-1.5 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-2.5"
+        >
+          <div className="font-semibold text-[var(--danger-text)]">
+            Chẩn đoán javac ({diagnostics.length}) — bấm để nhảy tới dòng:
+          </div>
+          <div className="space-y-1">
+            {diagnostics.map((diag, idx) => (
+              <button
+                key={`${diag.file}-${diag.line}-${idx}`}
+                type="button"
+                onClick={() => handleJumpToDiagnostic(diag)}
+                className="flex w-full items-start gap-2 rounded px-2 py-1 text-left font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/70"
+              >
+                <span
+                  className={
+                    diag.severity === 'error'
+                      ? 'shrink-0 font-semibold text-[var(--danger-text)]'
+                      : 'shrink-0 font-semibold text-[var(--accent-text)]'
+                  }
+                >
+                  {diag.file}:{diag.line}:{diag.column}
+                </span>
+                <span className="break-words text-[var(--text-secondary)]">
+                  {diag.message}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Structured OpenJDK test case results (PE mode) */}
+      {!playgroundMode && cloudTestResults.length > 0 && (
+        <div
+          aria-label="Kết quả từng Test Case OpenJDK 21"
+          className="grid grid-cols-1 gap-2"
+        >
+          {cloudTestResults.map((tc) => (
+            <div
+              key={tc.id}
+              className={[
+                'space-y-1 rounded-lg border p-2.5',
+                tc.passed
+                  ? 'border-[var(--success)]/40 bg-[var(--success-soft)]'
+                  : 'border-[var(--danger)]/40 bg-[var(--danger-soft)]',
+              ].join(' ')}
+            >
+              <div className="flex items-center justify-between font-mono font-semibold">
+                <span
+                  className={
+                    tc.passed ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'
+                  }
+                >
+                  {tc.passed ? '✔' : '✕'} {tc.id}
+                </span>
+                <span className="text-[var(--text-dim)]">{tc.durationMs}ms</span>
+              </div>
+              <div className="font-medium text-[var(--text-primary)]">{tc.name}</div>
+              {!tc.passed && (
+                <div className="space-y-0.5 font-mono text-xs text-[var(--text-muted)]">
+                  {tc.expected && <div>Kỳ vọng: {tc.expected}</div>}
+                  {tc.actual && <div>Thực tế: {tc.actual}</div>}
+                  {tc.error && <div className="text-[var(--danger-text)]">{tc.error}</div>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <pre
+        data-testid="studio-output-terminal"
+        className="min-h-[180px] flex-1 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)] p-3.5 font-mono text-[13px] leading-relaxed text-[var(--text-primary)]"
+      >
+        {consoleOutput || '(Output trống)'}
+      </pre>
+
+      <p className="text-xs text-[var(--text-dim)]">
+        {playgroundMode ? (
+          <>
+            W3Schools-style Tryit · OpenJDK Sandbox &amp; Fallback Runner. Lệnh máy local:{' '}
+            <code className="text-[var(--text-muted)]">{javacCommand}</code>
+          </>
+        ) : (
+          <>
+            Hybrid 2 lớp: biên dịch &amp; chấm Test Case thật trên{' '}
+            <strong>OpenJDK Sandbox</strong> + phân tích Clean Code tức thì bởi{' '}
+            <strong>Static Pattern Evaluator</strong>. Lệnh máy local:{' '}
+            <code className="text-[var(--text-muted)]">{javacCommand}</code>
+          </>
+        )}
+      </p>
+    </div>
+  );
 
   return (
     <div className="flex flex-1 flex-col">
       {/* Studio Sub-toolbar */}
       <div className="border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2.5">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex flex-wrap items-center gap-2.5">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               to="/pe"
               className="inline-flex min-h-[36px] items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               ← Kho đề PE
             </Link>
+
+            <div className="inline-flex rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  flushLatestDraft();
+                  navigate('/studio/playground?example=demo-intro');
+                }}
+                className={[
+                  'min-h-[32px] rounded-md px-2.5 py-1 font-semibold transition-colors',
+                  playgroundMode
+                    ? 'bg-[var(--success)] font-bold text-[#1C1917]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                ].join(' ')}
+              >
+                ☕ Java Tryit
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  flushPlaygroundDraft();
+                  navigate(`/studio/${activePe?.id ?? 1}`);
+                }}
+                className={[
+                  'min-h-[32px] rounded-md px-2.5 py-1 font-semibold transition-colors',
+                  !playgroundMode
+                    ? 'bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                ].join(' ')}
+              >
+                🎯 Luyện Đề PE
+              </button>
+            </div>
 
             <select
               aria-label="Chọn chế độ hoặc đề PE trong Code Studio"
@@ -1206,10 +1990,10 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   navigate(`/studio/${e.target.value}`);
                 }
               }}
-              className="min-h-[36px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-bold text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+              className="min-h-[36px] max-w-[260px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-bold text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
             >
               <option value="playground">
-                ☕ Java Playground (Tự do · tối đa {MAX_PLAYGROUND_FILES} file)
+                ☕ Java Tryit (Tự do · tối đa {MAX_PLAYGROUND_FILES} file)
               </option>
               {challengesByPaper.map(([paperName, groupItems]) => (
                 <optgroup key={paperName} label={`Bộ đề ${paperName}`}>
@@ -1277,9 +2061,75 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                     : 'Code gốc'}
             </span>
 
+            {playgroundMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowExamplesDrawer((s) => !s)}
+                  aria-expanded={showExamplesDrawer}
+                  className={[
+                    'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-medium transition-colors',
+                    showExamplesDrawer
+                      ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-text)]'
+                      : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                  ].join(' ')}
+                >
+                  <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Mẫu ({PLAYGROUND_TEMPLATES.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAutoRun((a) => !a)}
+                  aria-pressed={autoRun}
+                  title="Tự động chạy khi mở mẫu mới"
+                  className={[
+                    'inline-flex min-h-[36px] items-center gap-1 rounded-lg border px-2.5 py-1.5 font-medium transition-colors',
+                    autoRun
+                      ? 'border-[var(--success)]/40 bg-[var(--success-soft)] text-[var(--success-text)]'
+                      : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                  ].join(' ')}
+                >
+                  <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Auto-Run</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void handleSharePlayground()}
+                  className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Chia sẻ</span>
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() =>
+                setSplitOrientation((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal'))
+              }
+              aria-label="Xoay bố cục Ngang hoặc Dọc"
+              title={
+                splitOrientation === 'horizontal'
+                  ? 'Đang chia Trái / Phải — bấm để xếp Trên / Dưới'
+                  : 'Đang xếp Trên / Dưới — bấm để chia Trái / Phải'
+              }
+              className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            >
+              {splitOrientation === 'horizontal' ? (
+                <Columns2 className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <Rows2 className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              <span>{splitOrientation === 'horizontal' ? 'Ngang ⇄ Dọc' : 'Dọc ⇄ Ngang'}</span>
+            </button>
+
             <MorphActionButton
               label="▶ Run Code"
               variant={playgroundMode ? 'primary' : 'secondary'}
+              className={playgroundMode ? '!bg-[var(--success)] !text-[#1C1917] hover:opacity-90' : ''}
               disabled={isExecuting}
               onClick={handleRunCode}
             />
@@ -1303,7 +2153,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
               onClick={handleReset}
               title={
                 playgroundMode
-                  ? 'Khôi phục mẫu Playground mặc định'
+                  ? 'Khôi phục mẫu hiện tại về bản gốc'
                   : 'Khôi phục code gốc (Starter Code)'
               }
               className="min-h-[36px] rounded-lg px-2.5 py-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -1314,545 +2164,186 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         </div>
       </div>
 
-      {/* 3-Pane Studio Workspace */}
-      <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 lg:grid-cols-12">
-        {/* Left Pane: Playground Templates OR PE Problem & Theory */}
-        <aside className="space-y-4 border-b border-[var(--border-default)] bg-[var(--bg-surface)]/50 p-4 text-xs lg:col-span-3 lg:border-b-0 lg:border-r">
-          {playgroundMode ? (
-            <div className="space-y-3">
-              <div>
-                <div className="text-sm font-semibold text-[var(--text-primary)]">
-                  Java Playground (Tự do)
-                </div>
-                <p className="mt-1 leading-relaxed text-[var(--text-muted)]">
-                  Tạo tới {MAX_PLAYGROUND_FILES} lớp <code className="font-mono">.java</code>, nhập{' '}
-                  <code className="font-mono">stdin</code> và biên dịch trực tiếp bằng{' '}
-                  <strong>OpenJDK 21</strong>.
-                </p>
-              </div>
-
-              {pgSourceLabel && (
-                <div className="space-y-1 rounded-lg border border-[var(--info)]/35 bg-[var(--info-soft)] p-2.5">
-                  <div className="font-semibold text-[var(--info-text)]">
-                    Đang chạy thử từ bài học
-                  </div>
-                  <div className="truncate font-mono text-xs text-[var(--text-secondary)]">
-                    {pgSourceLabel}
-                  </div>
-                  {pgImportBanner && (
-                    <p className="leading-snug text-[var(--text-muted)]">{pgImportBanner}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <div className="font-semibold text-[var(--text-primary)]">
-                  Mẫu khởi động nhanh:
-                </div>
-                <div className="space-y-1.5">
-                  {PLAYGROUND_TEMPLATES.map((tpl) => (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      onClick={() => handleSelectPlaygroundTemplate(tpl.id)}
-                      className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-2.5 text-left transition-colors hover:border-[var(--accent)]"
-                    >
-                      <div className="font-semibold text-[var(--text-primary)]">{tpl.title}</div>
-                      <div className="mt-0.5 text-xs text-[var(--text-muted)]">{tpl.subtitle}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)] p-3 leading-relaxed text-[var(--text-muted)]">
-                <div className="font-semibold text-[var(--accent-text)]">Mẹo dùng Playground:</div>
-                <p>• Lớp <code className="text-[var(--accent-text)]">public class</code> nào cần tự đổi tên tệp sẽ tự đồng bộ theo tên lớp đó.</p>
-                <p>• Sandbox hỗ trợ tối đa {MAX_PLAYGROUND_FILES} tệp (64 KB), giới hạn 8 giây chạy JVM &amp; tắt mạng.</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <SlidingPillTabs
-                options={LEFT_TAB_OPTIONS}
-                value={leftTab}
-                onChange={setLeftTab}
-                ariaLabel="Chuyển đề bài PE hoặc lý thuyết nhanh"
-                tone="neutral"
-              />
-
-              {leftTab === 'spec' ? (
-                <div className="space-y-3">
-                  <div className="text-sm font-semibold text-[var(--text-primary)]">
-                    Yêu cầu bài toán:
-                  </div>
-                  <p className="leading-relaxed text-[var(--text-muted)]">{activePe!.desc}</p>
-
-                  <div className="space-y-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3">
-                    <div className="font-semibold text-[var(--text-primary)]">
-                      Checklist tiêu chí:
+      {/* Main Split-Pane Workspace with Optional Side Drawers */}
+      <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col lg:flex-row">
+        {/* Left Drawer: 15 Playground Examples OR PE Problem & Theory */}
+        {(!playgroundMode || showExamplesDrawer) && (
+          <aside className="w-full shrink-0 space-y-3 border-b border-[var(--border-default)] bg-[var(--bg-surface)]/50 p-4 text-xs lg:w-72 lg:border-b-0 lg:border-r">
+            {playgroundMode ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">
+                      Java Tryit ({PLAYGROUND_TEMPLATES.length} mẫu)
                     </div>
-                    <div className="space-y-1.5">
-                      {activePe!.checklist.map((criterion) => {
-                        const checked = Boolean(checkedCriteria[criterion]);
-                        return (
-                          <LucianChecklistItem
-                            key={criterion}
-                            checked={checked}
-                            strikethrough
-                            ariaLabel={`Đánh dấu tiêu chí: ${criterion}`}
-                            onToggle={() =>
-                              setCheckedCriteria((prev) => ({
-                                ...prev,
-                                [criterion]: !prev[criterion],
-                              }))
-                            }
-                            label={<span className="leading-snug">{criterion}</span>}
-                          />
-                        );
-                      })}
-                    </div>
+                    <p className="text-[var(--text-muted)]">Chọn mẫu để nạp vào Split-Pane</p>
                   </div>
-
-                  <div className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)] p-3 font-mono text-[var(--text-muted)]">
-                    <div className="mb-1 text-[var(--text-dim)]">Thông tin đề:</div>
-                    <div>{activePe!.meta}</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2.5 leading-relaxed text-[var(--text-muted)]">
-                  <div className="font-semibold text-[var(--accent-text)]">
-                    Mẹo làm nhanh {activePe!.code}:
-                  </div>
-                  <p>
-                    1. Luôn kiểm tra dữ liệu biên (
-                    <code className="text-[var(--accent-text)]">null</code>, chuỗi rỗng, giới hạn
-                    mảng) ngay dòng đầu tiên của hàm.
-                  </p>
-                  <p>
-                    2. Chú ý annotation{' '}
-                    <code className="text-[var(--accent-text)]">@Override</code>, đóng luồng bằng{' '}
-                    <code className="text-[var(--accent-text)]">try-with-resources</code> và định
-                    dạng <code className="text-[var(--accent-text)]">toString()</code> chính xác
-                    từng ký tự.
-                  </p>
-                  <div className="flex flex-col gap-1.5 pt-1">
-                    {relatedSlot ? (
-                      <Link
-                        to={`/pro192/${stageFileToSlug(relatedSlot.file)}?slot=${relatedSlot.slot}`}
-                        className="inline-block text-[var(--info)] underline"
-                      >
-                        Mở đầy đủ Slot {relatedSlot.slot} →
-                      </Link>
-                    ) : (
-                      <Link to="/pro192" className="inline-block text-[var(--info)] underline">
-                        Mở giáo trình PRO192 →
-                      </Link>
-                    )}
-                    <Link
-                      to="/pro192/pe-patterns"
-                      className="inline-block font-medium text-[var(--accent-text)] underline"
-                    >
-                      📘 Bí kíp &amp; 7 Khuôn mẫu PE (JDK 8) →
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </aside>
-
-        {/* Center Pane: CodeMirror 6 Editor / Diff View + Bottom Console */}
-        <div
-          className={[
-            'flex flex-col border-b border-[var(--border-default)] bg-[var(--bg-code)] lg:border-b-0',
-            showAiPane ? 'lg:col-span-6 lg:border-r' : 'lg:col-span-9',
-          ].join(' ')}
-        >
-          {/* File Tabs & File Controls / Diff Toggle */}
-          <div className="flex flex-col gap-2 border-b border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-2 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              {playgroundMode ? (
-                <SlidingPillTabs
-                  options={playgroundTabs}
-                  value={activePgFile?.id || playgroundTabs[0]?.id || ''}
-                  onChange={setPgActiveFileId}
-                  ariaLabel="Chọn tệp mã nguồn Java trong Playground"
-                  tone="neutral"
-                  className="font-mono"
-                />
-              ) : (
-                <SlidingPillTabs
-                  options={peFileTabs}
-                  value={activeFile}
-                  onChange={setActiveFile}
-                  ariaLabel="Chọn tệp mã nguồn Java"
-                  tone="neutral"
-                  className="font-mono"
-                />
-              )}
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="hidden font-mono text-xs text-[var(--text-dim)] sm:inline">
-                  Ctrl+Enter để chạy
-                </span>
-                {playgroundMode ? (
-                  <>
-                    <span className="font-mono text-xs text-[var(--text-dim)]">
-                      {playgroundFiles.length}/{MAX_PLAYGROUND_FILES} tệp
-                    </span>
-                    {playgroundFiles.length < MAX_PLAYGROUND_FILES && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewFileError(null);
-                          setNewFileInputVisible((v) => !v);
-                        }}
-                        className="inline-flex min-h-[34px] items-center gap-1 rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface)] px-2.5 py-1 font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
-                      >
-                        <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>+ Thêm tệp</span>
-                      </button>
-                    )}
-                    {playgroundFiles.length > 1 && activePgFile && (
-                      <button
-                        type="button"
-                        onClick={handleDeleteActivePlaygroundFile}
-                        aria-label={`Xóa tệp ${activePgFile.name}`}
-                        title={`Xóa tệp ${activePgFile.name}`}
-                        className="inline-flex min-h-[34px] items-center gap-1 rounded-md border border-[var(--danger)]/40 bg-[var(--danger-soft)] px-2 py-1 font-medium text-[var(--danger-text)] hover:opacity-90"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Xóa {activePgFile.name}</span>
-                      </button>
-                    )}
-                  </>
-                ) : (
                   <button
                     type="button"
-                    onClick={() => setShowDiff((d) => !d)}
-                    className="min-h-[36px] rounded-md border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-2.5 py-1 font-medium text-[var(--accent-text)] hover:opacity-90"
+                    onClick={() => setShowExamplesDrawer(false)}
+                    aria-label="Đóng danh sách mẫu"
+                    className="rounded border border-[var(--border-default)] px-2 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   >
-                    ⚡ {showDiff ? 'Quay lại Code Editor' : 'So sánh Bản Tối ưu (Diff)'}
+                    ✕
                   </button>
-                )}
-              </div>
-            </div>
-
-            {playgroundMode && newFileInputVisible && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleAddPlaygroundFile();
-                }}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-2"
-              >
-                <label htmlFor="pg-new-file-input" className="font-medium text-[var(--text-secondary)]">
-                  Tên lớp mới:
-                </label>
-                <input
-                  id="pg-new-file-input"
-                  type="text"
-                  value={newFileName}
-                  onChange={(e) => {
-                    setNewFileName(e.target.value);
-                    setNewFileError(null);
-                  }}
-                  placeholder="Ví dụ: Student hoặc Student.java"
-                  className="min-h-[34px] flex-1 rounded border border-[var(--border-default)] bg-[var(--bg-code)] px-2.5 py-1 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="min-h-[34px] rounded bg-[var(--accent)] px-3 py-1 font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
-                >
-                  Tạo tệp
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewFileInputVisible(false);
-                    setNewFileError(null);
-                  }}
-                  className="min-h-[34px] rounded px-2.5 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  Hủy
-                </button>
-                {newFileError && (
-                  <div className="w-full text-xs text-[var(--danger-text)]">{newFileError}</div>
-                )}
-              </form>
-            )}
-          </div>
-
-          {!playgroundMode && !showDiff && activeFile === 'interface' && hasInterfaceFile ? (
-            <div className="flex min-h-[290px] flex-1 flex-col gap-3 overflow-auto p-4 text-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--info)]/35 bg-[var(--info-soft)] p-3">
-                <div className="space-y-0.5">
-                  <div className="font-semibold text-[var(--info-text)]">
-                    🔒 {activePe!.interfaceFileName} — Interface biên dịch sẵn (Chỉ đọc)
-                  </div>
-                  <p className="text-[var(--text-secondary)]">
-                    Trên máy chấm PEA/EOS thật, file này đã có sẵn dạng bytecode (.class). Chỉ dùng để tham chiếu chữ ký hàm — không tạo lại file khi nộp bài.
-                  </p>
                 </div>
-                <CopyCodeButton
-                  code={activePe!.interfaceCode!}
-                  label="Copy Interface"
-                  copiedLabel="Đã chép"
-                />
-              </div>
-              <pre className="flex-1 whitespace-pre-wrap rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 font-mono leading-relaxed text-[var(--text-primary)]">
-                {activePe!.interfaceCode}
-              </pre>
-            </div>
-          ) : playgroundMode || !showDiff ? (
-            <JavaCodeEditor
-              value={activeCode}
-              onChange={(val) =>
-                playgroundMode && activePgFile
-                  ? updatePlaygroundCode(activePgFile.id, val)
-                  : updateCodeAndScheduleDraft(activeFile, val)
-              }
-              onBlur={playgroundMode ? flushPlaygroundDraft : flushLatestDraft}
-              onRunShortcut={() => void handleRunCode()}
-              theme={theme}
-              diagnostics={activeFileDiagnostics}
-              jumpTarget={jumpTarget}
-            />
-          ) : (
-            <div className="grid min-h-[290px] flex-1 grid-cols-1 gap-3 overflow-auto p-4 text-xs md:grid-cols-2">
-              <div className="space-y-2 rounded-lg border border-[var(--danger)]/40 bg-[var(--bg-surface)] p-3">
-                <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-1.5">
-                  <span className="font-semibold text-[var(--danger-text)]">Code hiện tại</span>
-                  <span className="font-mono tabular-nums text-[var(--text-dim)]">
-                    {currentLineCount} dòng
-                  </span>
-                </div>
-                <pre className="whitespace-pre-wrap font-mono leading-relaxed text-[var(--text-secondary)]">
-                  {mainCode}
-                </pre>
-              </div>
 
-              <div className="flex flex-col justify-between space-y-2 rounded-lg border border-[var(--success)]/50 bg-[var(--bg-surface)] p-3">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-1.5">
-                    <span className="font-semibold text-[var(--success-text)]">
-                      Gợi ý Clean Code (Tối ưu)
-                    </span>
-                    <span className="font-mono tabular-nums text-[var(--text-dim)]">
-                      {cleanLineCount} dòng
-                    </span>
-                  </div>
-                  <pre className="whitespace-pre-wrap font-mono leading-relaxed text-[var(--text-primary)]">
-                    {activePe!.cleanCode}
-                  </pre>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleApplyCleanCode}
-                  className="min-h-[38px] w-full rounded-lg bg-[var(--success)] py-2 font-bold text-[#1C1917] transition-opacity hover:opacity-90"
-                >
-                  ✔ Áp dụng đoạn code tối ưu này
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Bottom Console + Engine Switcher + Diagnostics + Test Results */}
-          <div className="space-y-2.5 border-t border-[var(--border-default)] bg-[var(--bg-canvas)] p-3.5 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-[var(--text-primary)]">
-                  {playgroundMode ? 'Console (OpenJDK 21 Sandbox)' : 'Console & Kết quả Test PE'}
-                </span>
-                <span
-                  title={
-                    playgroundMode
-                      ? 'Biên dịch & chạy đa tệp Java thật trên OpenJDK 21 Firecracker microVM.'
-                      : 'Hybrid 2 lớp: biên dịch thật trên OpenJDK 21 Sandbox kết hợp Static Pattern Evaluator cho Clean Code.'
-                  }
-                  className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-xs text-[var(--text-muted)]"
-                >
-                  {engineBadgeLabel}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {!playgroundMode && (
-                  <SlidingPillTabs
-                    options={ENGINE_MODE_OPTIONS}
-                    value={engineMode}
-                    onChange={setEngineMode}
-                    ariaLabel="Chọn chế độ biên dịch"
-                    tone="neutral"
-                  />
-                )}
-                <CopyCodeButton
-                  code={javacCommand}
-                  label="Copy lệnh javac"
-                  copiedLabel="Đã chép"
-                  ariaLabel="Sao chép lệnh biên dịch javac local"
-                  onCopied={() =>
-                    pushToast({
-                      title: 'Đã chép lệnh javac local',
-                      description: javacCommand,
-                      tone: 'success',
-                    })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className={`font-mono font-medium ${statusColorCls}`}>{consoleStatus}</span>
-              <div className="flex flex-wrap items-center gap-2">
-                {lastTiming && (
-                  <span className="font-mono text-xs text-[var(--text-dim)]">
-                    {lastTiming.engineLabel} · javac {lastTiming.compileMs}ms · jvm {lastTiming.runMs}ms
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowStdin((s) => !s)}
-                  className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  {showStdin ? 'Ẩn stdin' : '+ Nhập stdin'}
-                </button>
-              </div>
-            </div>
-
-            {showStdin && (
-              <div className="space-y-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-2.5">
-                <label
-                  htmlFor="studio-stdin-box"
-                  className="block font-medium text-[var(--text-secondary)]"
-                >
-                  Dữ liệu đầu vào chuẩn (<code className="font-mono">stdin</code>) cho{' '}
-                  <code className="font-mono">Scanner(System.in)</code>:
-                </label>
-                <textarea
-                  id="studio-stdin-box"
-                  rows={2}
-                  value={stdinInput}
-                  onChange={(e) => {
-                    const nextStdin = e.target.value;
-                    setStdinInput(nextStdin);
-                    if (playgroundMode) {
-                      schedulePlaygroundSave({
-                        files: playgroundFiles,
-                        activeFileId: pgActiveFileId,
-                        stdin: nextStdin,
-                        sourceLabel: pgSourceLabel,
-                      });
-                    }
-                  }}
-                  onBlur={() => {
-                    if (playgroundMode) flushPlaygroundDraft();
-                  }}
-                  placeholder="Ví dụ: An&#10;9.25"
-                  className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-code)] p-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
-                />
-              </div>
-            )}
-
-            {/* Clickable javac compiler diagnostics */}
-            {diagnostics.length > 0 && (
-              <div
-                aria-label="Danh sách lỗi biên dịch javac"
-                className="space-y-1.5 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-2.5"
-              >
-                <div className="font-semibold text-[var(--danger-text)]">
-                  Chẩn đoán javac ({diagnostics.length}) — bấm để nhảy tới dòng:
-                </div>
-                <div className="space-y-1">
-                  {diagnostics.map((diag, idx) => (
-                    <button
-                      key={`${diag.file}-${diag.line}-${idx}`}
-                      type="button"
-                      onClick={() => handleJumpToDiagnostic(diag)}
-                      className="flex w-full items-start gap-2 rounded px-2 py-1 text-left font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/70"
-                    >
-                      <span
-                        className={
-                          diag.severity === 'error'
-                            ? 'shrink-0 font-semibold text-[var(--danger-text)]'
-                            : 'shrink-0 font-semibold text-[var(--accent-text)]'
-                        }
+                <div className="flex flex-wrap gap-1">
+                  {EXAMPLE_CATEGORIES.map((cat) => {
+                    const active = exampleCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setExampleCategory(cat)}
+                        className={[
+                          'rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors',
+                          active
+                            ? 'border-[var(--accent)] bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
+                            : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                        ].join(' ')}
                       >
-                        {diag.file}:{diag.line}:{diag.column}
-                      </span>
-                      <span className="break-words text-[var(--text-secondary)]">
-                        {diag.message}
-                      </span>
-                    </button>
-                  ))}
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="max-h-[480px] space-y-1.5 overflow-y-auto pr-1">
+                  {filteredTemplates.map((tpl) => {
+                    const isSelected = activeExampleId === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => handleSelectPlaygroundTemplate(tpl.id)}
+                        className={[
+                          'w-full rounded-lg border p-2.5 text-left transition-colors',
+                          isSelected
+                            ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                            : 'border-[var(--border-default)] bg-[var(--bg-canvas)] hover:border-[var(--accent)]',
+                        ].join(' ')}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-semibold text-[var(--text-primary)]">
+                            {tpl.title}
+                          </span>
+                          <span className="shrink-0 rounded bg-[var(--bg-surface)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--accent-text)]">
+                            {tpl.slotRef}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                          {tpl.subtitle}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            )}
+            ) : (
+              <>
+                <SlidingPillTabs
+                  options={LEFT_TAB_OPTIONS}
+                  value={leftTab}
+                  onChange={setLeftTab}
+                  ariaLabel="Chuyển đề bài PE hoặc lý thuyết nhanh"
+                  tone="neutral"
+                />
 
-            {/* Structured OpenJDK test case results (PE mode) */}
-            {!playgroundMode && cloudTestResults.length > 0 && (
-              <div
-                aria-label="Kết quả từng Test Case OpenJDK 21"
-                className="grid grid-cols-1 gap-2 sm:grid-cols-3"
-              >
-                {cloudTestResults.map((tc) => (
-                  <div
-                    key={tc.id}
-                    className={[
-                      'space-y-1 rounded-lg border p-2.5',
-                      tc.passed
-                        ? 'border-[var(--success)]/40 bg-[var(--success-soft)]'
-                        : 'border-[var(--danger)]/40 bg-[var(--danger-soft)]',
-                    ].join(' ')}
-                  >
-                    <div className="flex items-center justify-between font-mono font-semibold">
-                      <span
-                        className={
-                          tc.passed ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'
-                        }
-                      >
-                        {tc.passed ? '✔' : '✕'} {tc.id}
-                      </span>
-                      <span className="text-[var(--text-dim)]">{tc.durationMs}ms</span>
+                {leftTab === 'spec' ? (
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">
+                      Yêu cầu bài toán:
                     </div>
-                    <div className="font-medium text-[var(--text-primary)]">{tc.name}</div>
-                    {!tc.passed && (
-                      <div className="space-y-0.5 font-mono text-xs text-[var(--text-muted)]">
-                        {tc.expected && <div>Kỳ vọng: {tc.expected}</div>}
-                        {tc.actual && <div>Thực tế: {tc.actual}</div>}
-                        {tc.error && <div className="text-[var(--danger-text)]">{tc.error}</div>}
+                    <p className="leading-relaxed text-[var(--text-muted)]">{activePe!.desc}</p>
+
+                    <div className="space-y-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3">
+                      <div className="font-semibold text-[var(--text-primary)]">
+                        Checklist tiêu chí:
                       </div>
-                    )}
+                      <div className="space-y-1.5">
+                        {activePe!.checklist.map((criterion) => {
+                          const checked = Boolean(checkedCriteria[criterion]);
+                          return (
+                            <LucianChecklistItem
+                              key={criterion}
+                              checked={checked}
+                              strikethrough
+                              ariaLabel={`Đánh dấu tiêu chí: ${criterion}`}
+                              onToggle={() =>
+                                setCheckedCriteria((prev) => ({
+                                  ...prev,
+                                  [criterion]: !prev[criterion],
+                                }))
+                              }
+                              label={<span className="leading-snug">{criterion}</span>}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)] p-3 font-mono text-[var(--text-muted)]">
+                      <div className="mb-1 text-[var(--text-dim)]">Thông tin đề:</div>
+                      <div>{activePe!.meta}</div>
+                    </div>
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="space-y-2.5 leading-relaxed text-[var(--text-muted)]">
+                    <div className="font-semibold text-[var(--accent-text)]">
+                      Mẹo làm nhanh {activePe!.code}:
+                    </div>
+                    <p>
+                      1. Luôn kiểm tra dữ liệu biên (
+                      <code className="text-[var(--accent-text)]">null</code>, chuỗi rỗng, giới hạn
+                      mảng) ngay dòng đầu tiên của hàm.
+                    </p>
+                    <p>
+                      2. Chú ý annotation{' '}
+                      <code className="text-[var(--accent-text)]">@Override</code>, đóng luồng bằng{' '}
+                      <code className="text-[var(--accent-text)]">try-with-resources</code> và định
+                      dạng <code className="text-[var(--accent-text)]">toString()</code> chính xác
+                      từng ký tự.
+                    </p>
+                    <div className="flex flex-col gap-1.5 pt-1">
+                      {relatedSlot ? (
+                        <Link
+                          to={`/pro192/${stageFileToSlug(relatedSlot.file)}?slot=${relatedSlot.slot}`}
+                          className="inline-block text-[var(--info)] underline"
+                        >
+                          Mở đầy đủ Slot {relatedSlot.slot} →
+                        </Link>
+                      ) : (
+                        <Link to="/pro192" className="inline-block text-[var(--info)] underline">
+                          Mở giáo trình PRO192 →
+                        </Link>
+                      )}
+                      <Link
+                        to="/pro192/pe-patterns"
+                        className="inline-block font-medium text-[var(--accent-text)] underline"
+                      >
+                        📘 Bí kíp &amp; 7 Khuôn mẫu PE (JDK 8) →
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
+          </aside>
+        )}
 
-            <pre className="min-h-[72px] whitespace-pre-wrap rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)] p-3 font-mono text-xs text-[var(--text-muted)]">
-              {consoleOutput}
-            </pre>
+        {/* Center Tryit Split-Pane: Resizable Code Editor <-> Live Output Terminal */}
+        <TryitSplitPane
+          orientation={splitOrientation}
+          splitPercent={splitPercent}
+          onSplitChange={setSplitPercent}
+          primaryPane={primaryEditorPane}
+          secondaryPane={secondaryOutputPane}
+        />
 
-            <p className="text-xs text-[var(--text-dim)]">
-              {playgroundMode ? (
-                <>
-                  Biên dịch &amp; thực thi thật trên <strong>OpenJDK 21 Sandbox</strong>. Lệnh máy local:{' '}
-                  <code className="text-[var(--text-muted)]">{javacCommand}</code>
-                </>
-              ) : (
-                <>
-                  Hybrid 2 lớp: biên dịch &amp; chấm Test Case thật trên{' '}
-                  <strong>OpenJDK 21 Sandbox</strong> + phân tích Clean Code tức thì bởi{' '}
-                  <strong>Static Pattern Evaluator</strong>. Lệnh máy local:{' '}
-                  <code className="text-[var(--text-muted)]">{javacCommand}</code>
-                </>
-              )}
-            </p>
-          </div>
-        </div>
-
-        {/* Right Pane: AI Code Mentor (#086 Streaming Answer) */}
+        {/* Right Drawer: AI Code Mentor */}
         {showAiPane && (
-          <aside className="flex flex-col justify-between gap-3 bg-[var(--bg-surface)] p-4 text-xs lg:col-span-3">
+          <aside className="flex w-full shrink-0 flex-col justify-between gap-3 border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-xs lg:w-80 lg:border-l lg:border-t-0">
             <div className="max-h-[460px] space-y-3 overflow-y-auto pr-1">
               <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-2.5">
                 <span className="flex items-center gap-1.5 font-bold text-[var(--info-text)]">
@@ -1872,7 +2363,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                 {playgroundMode ? (
                   <div className="space-y-2 rounded-xl border border-[var(--info)]/35 bg-[var(--info-soft)] p-3">
                     <div className="font-semibold text-[var(--info-text)]">
-                      ☕ Trợ lý Java Playground
+                      ☕ Trợ lý Java Tryit Playground
                     </div>
                     <p className="leading-relaxed text-[var(--text-secondary)]">
                       Đang chỉnh sửa <code className="font-mono">{activeFileName}</code>. Bạn có thể
