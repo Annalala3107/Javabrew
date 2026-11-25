@@ -11,6 +11,8 @@ import { buildPeHarness } from './peHarnesses';
 
 const BASE_SANDBOX_NAME = 'javabrew-openjdk21-base';
 const SANDBOX_REGION = 'sin1' as const;
+const WORK_DIR = '/tmp/jb-work';
+const OUT_DIR = '/tmp/jb-out';
 const MAX_OUTPUT_BYTES = 32_768;
 const RUN_TIMEOUT_MS = 15_000;
 const RATE_WINDOW_MS = 60_000;
@@ -286,11 +288,13 @@ export async function POST(request: Request): Promise<Response> {
     sandbox = acquired.sandbox;
     const jdkVersion = acquired.jdkVersion;
 
-    await sandbox.mkDir('/vercel/sandbox/work');
-    await sandbox.mkDir('/vercel/sandbox/out');
+    const mkdirRes = await sandbox.runCommand('mkdir', ['-p', WORK_DIR, OUT_DIR]);
+    if (mkdirRes.exitCode !== 0) {
+      throw new Error(`mkdir failed: ${await mkdirRes.stderr()}`);
+    }
 
     const workFiles: Array<{ path: string; content: string }> = payload.files.map((f) => ({
-      path: `/vercel/sandbox/work/${f.name}`,
+      path: `${WORK_DIR}/${f.name}`,
       content: f.content,
     }));
     const compileTargets: string[] = payload.files.map((f) => f.name);
@@ -307,7 +311,7 @@ export async function POST(request: Request): Promise<Response> {
         );
       }
       workFiles.push({
-        path: `/vercel/sandbox/work/${harness.fileName}`,
+        path: `${WORK_DIR}/${harness.fileName}`,
         content: harness.content,
       });
       if (harness.extraFiles) {
@@ -324,7 +328,7 @@ export async function POST(request: Request): Promise<Response> {
         useUserStdin = payload.stdin.length > 0;
         if (useUserStdin) {
           workFiles.push({
-            path: '/vercel/sandbox/work/__stdin.txt',
+            path: `${WORK_DIR}/__stdin.txt`,
             content: payload.stdin,
           });
         }
@@ -332,7 +336,7 @@ export async function POST(request: Request): Promise<Response> {
         const smoke = buildPeHarness(payload.peId, 'run');
         if (smoke) {
           workFiles.push({
-            path: `/vercel/sandbox/work/${smoke.fileName}`,
+            path: `${WORK_DIR}/${smoke.fileName}`,
             content: smoke.content,
           });
           compileTargets.push(smoke.fileName);
@@ -369,8 +373,8 @@ export async function POST(request: Request): Promise<Response> {
     const tCompile = performance.now();
     const compileRes = await sandbox.runCommand({
       cmd: 'javac',
-      args: ['-encoding', 'UTF-8', '-Xlint:all', '-d', '/vercel/sandbox/out', ...compileTargets],
-      cwd: '/vercel/sandbox/work',
+      args: ['-encoding', 'UTF-8', '-Xlint:all', '-d', OUT_DIR, ...compileTargets],
+      cwd: WORK_DIR,
     });
     const compileMs = Math.round(performance.now() - tCompile);
     const compileStdout = await compileRes.stdout();
@@ -413,26 +417,26 @@ export async function POST(request: Request): Promise<Response> {
         '-XX:ActiveProcessorCount=2',
         '-Dfile.encoding=UTF-8',
         '-cp',
-        '/vercel/sandbox/out',
+        OUT_DIR,
       ];
       const runRes = useUserStdin
         ? await sandbox.runCommand({
             cmd: 'bash',
             args: [
               '-c',
-              'exec timeout -k 1s 8s java "$@" < /vercel/sandbox/work/__stdin.txt',
+              `exec timeout -k 1s 8s java "$@" < ${WORK_DIR}/__stdin.txt`,
               '--',
               ...jvmArgs,
               entryClass,
             ],
-            cwd: '/vercel/sandbox/work',
+            cwd: WORK_DIR,
             signal: controller.signal,
             timeoutMs: RUN_TIMEOUT_MS,
           })
         : await sandbox.runCommand({
             cmd: 'timeout',
             args: ['-k', '1s', '8s', 'java', ...jvmArgs, entryClass],
-            cwd: '/vercel/sandbox/work',
+            cwd: WORK_DIR,
             signal: controller.signal,
             timeoutMs: RUN_TIMEOUT_MS,
           });

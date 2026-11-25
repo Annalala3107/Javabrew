@@ -139,6 +139,6 @@ describe('javaValidation & peHarnesses', () => {
       expect(runSpec?.content).toContain('public static void main');
     }
     const pe4 = buildPeHarness(4, 'grade');
-    expect(pe4?.extraFiles?.[0]?.path).toBe('/vercel/sandbox/work/products.csv');
+    expect(pe4?.extraFiles?.[0]?.path).toBe('/tmp/jb-work/products.csv');
   });
 });

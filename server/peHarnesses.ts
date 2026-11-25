@@ -335,8 +335,8 @@ ${JSON_HELPERS}
         List<Product> loaded = null;
         try {
             Method loadMethod = Main.class.getMethod("loadProducts", String.class);
-            loaded = (List<Product>) loadMethod.invoke(null, "/vercel/sandbox/work/products.csv");
-            List<Product> missing = (List<Product>) loadMethod.invoke(null, "/vercel/sandbox/work/__nonexistent.csv");
+            loaded = (List<Product>) loadMethod.invoke(null, "/tmp/jb-work/products.csv");
+            List<Product> missing = (List<Product>) loadMethod.invoke(null, "/tmp/jb-work/__nonexistent.csv");
             p2 = loaded != null && loaded.size() == 3 && missing != null && missing.isEmpty();
             a2 = "validRows=" + (loaded == null ? "null" : loaded.size()) + ", missingFileRows=" + (missing == null ? "null" : missing.size());
             if (!p2) e2 = "loadProducts() phai doc 3 dong hop le va bo qua dong hong / tep khong ton tai";
@@ -380,7 +380,7 @@ ${JSON_HELPERS}
     fileName: `${entryClass}.java`,
     entryClass,
     content,
-    extraFiles: [{ path: '/vercel/sandbox/work/products.csv', content: PE4_CSV_DATA }],
+    extraFiles: [{ path: '/tmp/jb-work/products.csv', content: PE4_CSV_DATA }],
   };
 }
 
