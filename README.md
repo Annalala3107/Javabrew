@@ -19,7 +19,7 @@ e:\JavAncode\
 ├── metadata/
 │   ├── manifest.json             # Cây danh mục & metadata cho 354 bài JavaGuide
 │   ├── navigation.json           # Cây điều hướng đa tầng cho giao diện học tập
-│   ├── pro192.json               # Dữ liệu 30 Slots PRO192, 150 bài tập, Study Bridge & 4 đề PE
+│   ├── pro192.json               # Dữ liệu 30 Slots PRO192, 150 bài tập, Study Bridge & 19 câu PE thật (PE1–PE5)
 │   └── translation-glossary.md   # Quy chuẩn thuật ngữ & cú pháp dịch EN/VI
 ├── scripts/
 │   ├── verify-translations.mjs   # Kiểm định chất lượng dịch, code fence, ảnh & CJK
@@ -45,7 +45,7 @@ e:\JavAncode\
 
 ## Giáo trình Trường PRO192 (`content/vi/pro192/`)
 
-- **32 tệp Markdown chuẩn hóa:** [README.md](./content/vi/pro192/README.md), **30 bài học độc lập theo chuẩn 5 khối + Active Recall `<details>`** (`slots/slot-01.md` → `slots/slot-30.md`, đủ 30 Slots & 150 bài tập tự luyện), và [pe-challenges.md](./content/vi/pro192/pe-challenges.md).
+- **33 tệp Markdown chuẩn hóa:** [README.md](./content/vi/pro192/README.md), **30 bài học độc lập theo chuẩn 5 khối + Active Recall `<details>`** (`slots/slot-01.md` → `slots/slot-30.md`, đủ 30 Slots & 150 bài tập tự luyện), [pe-patterns.md](./content/vi/pro192/pe-patterns.md) và [pe-challenges.md](./content/vi/pro192/pe-challenges.md) (19 câu PE thật `PE1–PE5`).
 - **Tài nguyên offline:** `187` ảnh/GIF (`186` sơ đồ bài giảng + logo), `14` slide `.pptx`, `14` tài liệu `.pdf` và `banking.rar` tại `public/media/pro192/`, kèm bảng ánh xạ Study Bridge & mục tiêu từng Slot trong [pro192.json](./metadata/pro192.json).
 
 ## Bản quyền & Nguồn gốc

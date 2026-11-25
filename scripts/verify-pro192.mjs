@@ -17,8 +17,8 @@ if (leftoverLegacy.length > 0) {
   issues.push({ file: 'content/vi/pro192/', issue: `Legacy monolithic stage files still exist: ${leftoverLegacy.join(', ')}` });
 }
 
-// 2. Assert README.md & pe-challenges.md exist + no references to giai-doan-
-for (const coreFile of ['README.md', 'pe-challenges.md']) {
+// 2. Assert README.md, pe-patterns.md & pe-challenges.md exist + no references to giai-doan-
+for (const coreFile of ['README.md', 'pe-patterns.md', 'pe-challenges.md']) {
   const abs = path.join(PRO_DIR, coreFile);
   if (!fs.existsSync(abs)) {
     issues.push({ file: coreFile, issue: 'Missing core PRO192 Markdown file' });
@@ -29,6 +29,15 @@ for (const coreFile of ['README.md', 'pe-challenges.md']) {
       issues.push({ file: coreFile, issue: 'Contains stale reference to legacy giai-doan-*.md' });
     }
     checkCommonMarkdown(coreFile, txt, { allowHeapSlideTerms: coreFile === 'README.md' });
+    if (coreFile === 'pe-challenges.md') {
+      const peHeadings = txt.match(/^##\s+Đề PE \d+\s+—\s+.+?\([^)]+\)\s*$/gm) || [];
+      if (peHeadings.length !== 19) {
+        issues.push({
+          file: coreFile,
+          issue: `Expected 19 canonical PE headings, found ${peHeadings.length}`,
+        });
+      }
+    }
   }
 }
 
@@ -204,6 +213,72 @@ if (!fs.existsSync(META_PATH)) {
   for (const img of meta.assets.images) {
     const disk = path.join(ROOT, 'public', decodeURIComponent(img).slice(1));
     if (!fs.existsSync(disk)) issues.push({ file: 'metadata/pro192.json', issue: `Missing asset.images file: ${img}` });
+  }
+
+  // 5. Validate 19 real PE challenges + slots[].peRefs + JDK 8 / ASCII compliance
+  if (meta.course?.totalPeChallenges !== 19) {
+    issues.push({
+      file: 'metadata/pro192.json',
+      issue: `Expected course.totalPeChallenges === 19, got ${meta.course?.totalPeChallenges}`,
+    });
+  }
+  const peList = Array.isArray(meta.peChallenges) ? meta.peChallenges : [];
+  if (peList.length !== 19) {
+    issues.push({
+      file: 'metadata/pro192.json',
+      issue: `Expected 19 entries in peChallenges, found ${peList.length}`,
+    });
+  }
+  const peCodes = new Set();
+  for (let idx = 0; idx < peList.length; idx++) {
+    const ch = peList[idx];
+    if (ch.id !== idx + 1) {
+      issues.push({
+        file: 'metadata/pro192.json',
+        issue: `peChallenges[${idx}] expected id=${idx + 1}, got ${ch.id}`,
+      });
+    }
+    if (!ch.code || !ch.title || !ch.starterCode || !ch.cleanCode) {
+      issues.push({
+        file: 'metadata/pro192.json',
+        issue: `PE id=${ch.id} missing required code/title/starterCode/cleanCode`,
+      });
+    }
+    peCodes.add(ch.code);
+
+    for (const field of ['starterCode', 'entityCode', 'interfaceCode', 'cleanCode']) {
+      const code = ch[field];
+      if (typeof code !== 'string' || code.length === 0) continue;
+      if (/^\s*package\s+/m.test(code)) {
+        issues.push({
+          file: 'metadata/pro192.json',
+          issue: `${ch.code}.${field} declares forbidden package statement`,
+        });
+      }
+      if (/\.isBlank\s*\(|\b(?:List|Set|Map)\.of\s*\(|\.toList\s*\(|\.strip\s*\(|\.repeat\s*\(/.test(code)) {
+        issues.push({
+          file: 'metadata/pro192.json',
+          issue: `${ch.code}.${field} uses Java 11+ API instead of JDK 1.8`,
+        });
+      }
+      if (/[^\x00-\x7F]/.test(code)) {
+        issues.push({
+          file: 'metadata/pro192.json',
+          issue: `${ch.code}.${field} contains non-ASCII character (violates PEA/EOS ASCII rule)`,
+        });
+      }
+    }
+  }
+
+  for (const s of meta.slots) {
+    for (const ref of s.peRefs || []) {
+      if (!peCodes.has(ref)) {
+        issues.push({
+          file: 'metadata/pro192.json',
+          issue: `Slot ${s.slot} references unknown peRef "${ref}"`,
+        });
+      }
+    }
   }
 }
 

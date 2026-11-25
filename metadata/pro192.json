@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-25T10:22:06.790Z",
+  "generatedAt": "2026-11-25T10:59:32.251Z",
   "course": {
     "code": "PRO192",
     "name": "Object-Oriented Programming with Java",
     "totalSlots": 30,
     "totalStages": 8,
     "totalExercises": 150,
-    "totalPeChallenges": 4,
+    "totalPeChallenges": 19,
     "totalImages": 187,
     "totalSlides": 14,
     "totalResources": 15,
@@ -1363,95 +1363,501 @@
   "peChallenges": [
     {
       "id": 1,
-      "code": "PE 01",
+      "code": "PE1-Q1",
+      "paper": "PE1",
+      "questionNo": "Q1",
+      "marks": 2,
       "cat": "oop",
-      "title": "Quản lý Sinh viên OOP & Lọc GPA",
-      "meta": "Dạng Q1–Q2 • Cơ bản • 25 phút",
+      "title": "Crocus — Encapsulation & Xử lý Chữ số",
+      "meta": "PE1 · Q1 · 2 điểm · 15 phút",
       "relatedSlots": [
+        4,
+        8,
+        9,
         12,
-        13,
-        25,
-        27
+        13
       ],
-      "desc": "Viết lớp Student đóng gói hợp lệ và hàm lọc danh sách sinh viên có GPA >= 8.0, xử lý an toàn trường hợp danh sách null/rỗng và sắp xếp giảm dần theo GPA.",
+      "desc": "Viết lớp Crocus (-name: String, -weight: int) chuẩn JDK 8: getName() trả về name sau khi xóa chữ số cuối cùng; setWeight(int weight) cập nhật weight = newWeight - n (với n là số ký tự không phải chữ số trong name).",
       "checklist": [
-        "Đúng constructor & getter/setter kiểm tra biên [0.0, 10.0] (3đ)",
-        "Xử lý an toàn null / danh sách rỗng (3đ)",
-        "Sắp xếp & Output chuẩn định dạng Test Case (4đ)"
+        "Đủ 2 constructor Crocus() và Crocus(String, int) trong default package",
+        "getName() xóa đúng chữ số cuối cùng (crocus3 -> crocus) và an toàn null",
+        "setWeight(w) trừ đi đúng số ký tự non-digit trong name (crocus3, 10 -> 4)"
       ],
-      "entityFileName": "Student.java",
-      "entityCode": "public class Student {\n    private String name;\n    private double gpa;\n\n    public Student(String name, double gpa) {\n        this.name = (name == null) ? \"\" : name.trim();\n        this.gpa = (gpa >= 0.0 && gpa <= 10.0) ? gpa : 0.0;\n    }\n\n    public String getName() { return name; }\n    public double getGpa() { return gpa; }\n\n    public void setGpa(double gpa) {\n        if (gpa >= 0.0 && gpa <= 10.0) {\n            this.gpa = gpa;\n        }\n    }\n\n    @Override\n    public String toString() {\n        return String.format(\"%s - %.2f\", name, gpa);\n    }\n}",
-      "starterCode": "import java.util.*;\n\npublic class Main {\n    public static List<Student> filterHonor(List<Student> list) {\n        List<Student> result = new ArrayList<>();\n        // Bẫy PE: Chưa kiểm tra list == null và phần tử s == null!\n        for (Student s : list) {\n            if (s.getGpa() >= 8.0) {\n                result.add(s);\n            }\n        }\n        return result;\n    }\n}",
-      "cleanCode": "import java.util.*;\n\npublic class Main {\n    public static List<Student> filterHonor(List<Student> list) {\n        if (list == null || list.isEmpty()) {\n            return Collections.emptyList();\n        }\n        List<Student> result = new ArrayList<>();\n        for (Student s : list) {\n            if (s != null && s.getGpa() >= 8.0) {\n                result.add(s);\n            }\n        }\n        result.sort(Comparator.comparingDouble(Student::getGpa).reversed()\n                .thenComparing(Student::getName));\n        return result;\n    }\n}"
+      "entityFileName": "",
+      "entityCode": "",
+      "starterCode": "public class Crocus {\n    private String name;\n    private int weight;\n\n    public Crocus() {\n    }\n\n    public Crocus(String name, int weight) {\n        this.name = name;\n        this.weight = weight;\n    }\n\n    public String getName() {\n        // TODO: remove last digit of name\n        return name;\n    }\n\n    public int getWeight() {\n        return weight;\n    }\n\n    public void setWeight(int weight) {\n        // TODO: weight = newWeight - countNonDigits\n        this.weight = weight;\n    }\n}",
+      "cleanCode": "public class Crocus {\n    private String name;\n    private int weight;\n\n    public Crocus() {\n    }\n\n    public Crocus(String name, int weight) {\n        this.name = name;\n        this.weight = weight;\n    }\n\n    public String getName() {\n        if (name == null) {\n            return \"\";\n        }\n        for (int i = name.length() - 1; i >= 0; i--) {\n            if (Character.isDigit(name.charAt(i))) {\n                return name.substring(0, i) + name.substring(i + 1);\n            }\n        }\n        return name;\n    }\n\n    public int getWeight() {\n        return weight;\n    }\n\n    public void setWeight(int weight) {\n        int nonDigits = 0;\n        if (name != null) {\n            for (int i = 0; i < name.length(); i++) {\n                if (!Character.isDigit(name.charAt(i))) {\n                    nonDigits++;\n                }\n            }\n        }\n        this.weight = weight - nonDigits;\n    }\n}"
     },
     {
       "id": 2,
-      "code": "PE 02",
+      "code": "PE1-Q2",
+      "paper": "PE1",
+      "questionNo": "Q2",
+      "marks": 3,
       "cat": "oop",
-      "title": "Hệ thống Thư viện Sách (Inheritance & @Override)",
-      "meta": "Dạng Q2–Q3 • Trung bình • 35 phút",
+      "title": "SpecDaisy — Kế thừa & Xử lý Chữ thường",
+      "meta": "PE1 · Q2 · 3 điểm · 20 phút",
+      "relatedSlots": [
+        9,
+        14,
+        15,
+        16,
+        18
+      ],
+      "desc": "Tạo SpecDaisy extends Daisy (-color: String): toString() trả về \"name, color, age\"; setData() hoán đổi 2 chữ thường (a-z) đầu tiên trong name (DaIsy -> DsIay); getValue() xóa hết chữ thường nếu color có ít nhất 1 chữ thường.",
+      "checklist": [
+        "Gọi super(name, age) và ghi đè toString() đúng \"name, color, age\"",
+        "setData() đảo đúng 2 chữ cái thường a-z đầu tiên (DaIsy -> DsIay)",
+        "getValue() lọc chữ thường theo điều kiện của color (Yellow -> D123, YELLOW -> Daisy123)"
+      ],
+      "entityFileName": "Daisy.java",
+      "entityCode": "public class Daisy {\n    private String name;\n    private int age;\n\n    public Daisy() {\n    }\n\n    public Daisy(String name, int age) {\n        this.name = name;\n        this.age = age;\n    }\n\n    public String getName() {\n        return name;\n    }\n\n    public int getAge() {\n        return age;\n    }\n\n    public void setName(String name) {\n        this.name = name;\n    }\n\n    @Override\n    public String toString() {\n        return name + \", \" + age;\n    }\n}",
+      "starterCode": "public class SpecDaisy extends Daisy {\n    private String color;\n\n    public SpecDaisy() {\n    }\n\n    public SpecDaisy(String name, int age, String color) {\n        // TODO: initialize superclass and color\n    }\n\n    public String getColor() {\n        return color;\n    }\n\n    public void setData() {\n        // TODO: reverse first two lowercase letters in name\n    }\n\n    public String getValue() {\n        // TODO: check color lowercase and filter name\n        return \"\";\n    }\n}",
+      "cleanCode": "public class SpecDaisy extends Daisy {\n    private String color;\n\n    public SpecDaisy() {\n    }\n\n    public SpecDaisy(String name, int age, String color) {\n        super(name, age);\n        this.color = color;\n    }\n\n    public String getColor() {\n        return color;\n    }\n\n    @Override\n    public String toString() {\n        return getName() + \", \" + color + \", \" + getAge();\n    }\n\n    public void setData() {\n        String s = getName();\n        if (s == null) {\n            return;\n        }\n        int first = -1;\n        int second = -1;\n        for (int i = 0; i < s.length(); i++) {\n            char c = s.charAt(i);\n            if (c >= 'a' && c <= 'z') {\n                if (first == -1) {\n                    first = i;\n                } else {\n                    second = i;\n                    break;\n                }\n            }\n        }\n        if (second != -1) {\n            char[] arr = s.toCharArray();\n            char tmp = arr[first];\n            arr[first] = arr[second];\n            arr[second] = tmp;\n            setName(new String(arr));\n        }\n    }\n\n    public String getValue() {\n        String s = getName();\n        if (s == null) {\n            return \"\";\n        }\n        boolean hasLower = false;\n        if (color != null) {\n            for (int i = 0; i < color.length(); i++) {\n                char c = color.charAt(i);\n                if (c >= 'a' && c <= 'z') {\n                    hasLower = true;\n                    break;\n                }\n            }\n        }\n        if (!hasLower) {\n            return s;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < s.length(); i++) {\n            char c = s.charAt(i);\n            if (c < 'a' || c > 'z') {\n                sb.append(c);\n            }\n        }\n        return sb.toString();\n    }\n}"
+    },
+    {
+      "id": 3,
+      "code": "PE1-Q3",
+      "paper": "PE1",
+      "questionNo": "Q3",
+      "marks": 3,
+      "cat": "collections",
+      "title": "MyDaisy — Partial Sort & Palindrome",
+      "meta": "PE1 · Q3 · 3 điểm · 30 phút",
+      "relatedSlots": [
+        20,
+        21,
+        25,
+        27
+      ],
+      "desc": "Cài đặt MyDaisy implements IDaisy (interface bytecode có sẵn): f1 tổng age có cả chữ hoa & thường; f2 Partial Sort giữ nguyên vị trí không chứa chữ thường; f3 thay palindrome (case-sensitive) bằng non-palindrome đầu tiên.",
+      "checklist": [
+        "Không tạo file IDaisy.java, cài đủ f1, f2, f3 chuẩn JDK 8",
+        "f2 tách chỉ số và sắp xếp cục bộ (giữ nguyên phần tử chỉ gồm chữ hoa/số)",
+        "f3 tìm firstNonPalindrome trước khi thay các phần tử đối xứng"
+      ],
+      "entityFileName": "Daisy.java",
+      "entityCode": "public class Daisy {\n    private String name;\n    private int age;\n\n    public Daisy() {\n    }\n\n    public Daisy(String name, int age) {\n        this.name = name;\n        this.age = age;\n    }\n\n    public String getName() {\n        return name;\n    }\n\n    public int getAge() {\n        return age;\n    }\n\n    public void setName(String name) {\n        this.name = name;\n    }\n\n    public void setAge(int age) {\n        this.age = age;\n    }\n\n    @Override\n    public String toString() {\n        return \"(\" + name + \",\" + age + \")\";\n    }\n}",
+      "interfaceFileName": "IDaisy.java",
+      "interfaceCode": "import java.util.List;\n\npublic interface IDaisy {\n    public int f1(List<Daisy> t);\n    public void f2(List<Daisy> t);\n    public void f3(List<Daisy> t);\n}",
+      "starterCode": "import java.util.List;\n\npublic class MyDaisy implements IDaisy {\n\n    @Override\n    public int f1(List<Daisy> t) {\n        // TODO: sum ages where name has uppercase and lowercase\n        return 0;\n    }\n\n    @Override\n    public void f2(List<Daisy> t) {\n        // TODO: partial sort ascending by age for names containing a-z\n    }\n\n    @Override\n    public void f3(List<Daisy> t) {\n        // TODO: replace case-sensitive palindrome elements\n    }\n}",
+      "cleanCode": "import java.util.ArrayList;\nimport java.util.Collections;\nimport java.util.Comparator;\nimport java.util.List;\n\npublic class MyDaisy implements IDaisy {\n\n    private boolean hasLower(String s) {\n        if (s == null) {\n            return false;\n        }\n        for (int i = 0; i < s.length(); i++) {\n            char c = s.charAt(i);\n            if (c >= 'a' && c <= 'z') {\n                return true;\n            }\n        }\n        return false;\n    }\n\n    private boolean hasUpperAndLower(String s) {\n        if (s == null) {\n            return false;\n        }\n        boolean upper = false;\n        boolean lower = false;\n        for (int i = 0; i < s.length(); i++) {\n            char c = s.charAt(i);\n            if (c >= 'A' && c <= 'Z') {\n                upper = true;\n            } else if (c >= 'a' && c <= 'z') {\n                lower = true;\n            }\n        }\n        return upper && lower;\n    }\n\n    private boolean isPalindrome(String s) {\n        if (s == null) {\n            return false;\n        }\n        int l = 0;\n        int r = s.length() - 1;\n        while (l < r) {\n            if (s.charAt(l) != s.charAt(r)) {\n                return false;\n            }\n            l++;\n            r--;\n        }\n        return true;\n    }\n\n    @Override\n    public int f1(List<Daisy> t) {\n        if (t == null) {\n            return 0;\n        }\n        int sum = 0;\n        for (Daisy d : t) {\n            if (d != null && hasUpperAndLower(d.getName())) {\n                sum += d.getAge();\n            }\n        }\n        return sum;\n    }\n\n    @Override\n    public void f2(List<Daisy> t) {\n        if (t == null || t.isEmpty()) {\n            return;\n        }\n        List<Integer> indices = new ArrayList<Integer>();\n        List<Daisy> matched = new ArrayList<Daisy>();\n        for (int i = 0; i < t.size(); i++) {\n            Daisy d = t.get(i);\n            if (d != null && hasLower(d.getName())) {\n                indices.add(i);\n                matched.add(d);\n            }\n        }\n        Collections.sort(matched, new Comparator<Daisy>() {\n            @Override\n            public int compare(Daisy a, Daisy b) {\n                return Integer.compare(a.getAge(), b.getAge());\n            }\n        });\n        for (int k = 0; k < indices.size(); k++) {\n            t.set(indices.get(k), matched.get(k));\n        }\n    }\n\n    @Override\n    public void f3(List<Daisy> t) {\n        if (t == null || t.isEmpty()) {\n            return;\n        }\n        Daisy firstNonPalin = null;\n        for (Daisy d : t) {\n            if (d != null && !isPalindrome(d.getName())) {\n                firstNonPalin = d;\n                break;\n            }\n        }\n        if (firstNonPalin == null) {\n            return;\n        }\n        for (int i = 0; i < t.size(); i++) {\n            Daisy d = t.get(i);\n            if (d != null && isPalindrome(d.getName())) {\n                t.set(i, new Daisy(firstNonPalin.getName(), firstNonPalin.getAge()));\n            }\n        }\n    }\n}"
+    },
+    {
+      "id": 4,
+      "code": "PE1-Q4",
+      "paper": "PE1",
+      "questionNo": "Q4",
+      "marks": 2,
+      "cat": "string",
+      "title": "MyString — Vị trí Chữ cái và Chữ số",
+      "meta": "PE1 · Q4 · 2 điểm · 20 phút",
+      "relatedSlots": [
+        8,
+        9,
+        20
+      ],
+      "desc": "Viết MyString implements IString: f1 đếm từ có chữ cái đầu trước chữ số đầu VÀ chữ cái cuối sau chữ số cuối; f2 thay chữ số đầu tiên của mỗi từ bằng số chữ cái trong từ đó (không thừa dấu cách).",
+      "checklist": [
+        "Không tạo IString.java, tách từ an toàn với trim().split(\"\\\\s+\")",
+        "f1 kiểm tra tồn tại cả letter & digit và firstLetter < firstDigit && lastLetter > lastDigit",
+        "f2 thay duy nhất chữ số đầu tiên bằng số chữ cái, giữ nguyên từ không có chữ số"
+      ],
+      "entityFileName": "",
+      "entityCode": "",
+      "interfaceFileName": "IString.java",
+      "interfaceCode": "public interface IString {\n    public int f1(String str);\n    public String f2(String str);\n}",
+      "starterCode": "public class MyString implements IString {\n\n    @Override\n    public int f1(String str) {\n        // TODO: count matching words\n        return 0;\n    }\n\n    @Override\n    public String f2(String str) {\n        // TODO: replace first digit with letter count\n        return \"\";\n    }\n}",
+      "cleanCode": "public class MyString implements IString {\n\n    @Override\n    public int f1(String str) {\n        if (str == null) {\n            return 0;\n        }\n        String trimmed = str.trim();\n        if (trimmed.isEmpty()) {\n            return 0;\n        }\n        String[] words = trimmed.split(\"\\\\s+\");\n        int count = 0;\n        for (String w : words) {\n            int firstLetter = -1;\n            int lastLetter = -1;\n            int firstDigit = -1;\n            int lastDigit = -1;\n            for (int i = 0; i < w.length(); i++) {\n                char c = w.charAt(i);\n                if (Character.isLetter(c)) {\n                    if (firstLetter == -1) {\n                        firstLetter = i;\n                    }\n                    lastLetter = i;\n                } else if (Character.isDigit(c)) {\n                    if (firstDigit == -1) {\n                        firstDigit = i;\n                    }\n                    lastDigit = i;\n                }\n            }\n            if (firstLetter != -1 && firstDigit != -1\n                    && firstLetter < firstDigit && lastLetter > lastDigit) {\n                count++;\n            }\n        }\n        return count;\n    }\n\n    @Override\n    public String f2(String str) {\n        if (str == null) {\n            return \"\";\n        }\n        String trimmed = str.trim();\n        if (trimmed.isEmpty()) {\n            return \"\";\n        }\n        String[] words = trimmed.split(\"\\\\s+\");\n        StringBuilder out = new StringBuilder();\n        for (int i = 0; i < words.length; i++) {\n            String w = words[i];\n            int letters = 0;\n            int firstDigit = -1;\n            for (int j = 0; j < w.length(); j++) {\n                char c = w.charAt(j);\n                if (Character.isLetter(c)) {\n                    letters++;\n                } else if (Character.isDigit(c) && firstDigit == -1) {\n                    firstDigit = j;\n                }\n            }\n            String replaced = (firstDigit == -1)\n                    ? w\n                    : w.substring(0, firstDigit) + letters + w.substring(firstDigit + 1);\n            if (i > 0) {\n                out.append(' ');\n            }\n            out.append(replaced);\n        }\n        return out.toString();\n    }\n}"
+    },
+    {
+      "id": 5,
+      "code": "PE2-Q1",
+      "paper": "PE2",
+      "questionNo": "Q1",
+      "marks": 2,
+      "cat": "oop",
+      "title": "Camel — Encapsulation & Chuẩn hóa Uppercase",
+      "meta": "PE2 · Q1 · 2 điểm · 10 phút",
+      "relatedSlots": [
+        9,
+        12,
+        13
+      ],
+      "desc": "Viết lớp Camel (-desert: String, -step: int) trong default package: getDesert() trả về desert viết in hoa (uppercase), getStep() trả về step, setStep(int) cập nhật step.",
+      "checklist": [
+        "Đủ 2 constructor Camel() và Camel(String, int)",
+        "getDesert() xử lý an toàn null và chuyển thành IN HOA (alan -> ALAN)",
+        "setStep() & getStep() cập nhật chính xác giá trị step"
+      ],
+      "entityFileName": "",
+      "entityCode": "",
+      "starterCode": "public class Camel {\n    private String desert;\n    private int step;\n\n    public Camel() {\n    }\n\n    public Camel(String desert, int step) {\n        this.desert = desert;\n        this.step = step;\n    }\n\n    public String getDesert() {\n        // TODO: return desert in uppercase\n        return desert;\n    }\n\n    public int getStep() {\n        return step;\n    }\n\n    public void setStep(int step) {\n        this.step = step;\n    }\n}",
+      "cleanCode": "public class Camel {\n    private String desert;\n    private int step;\n\n    public Camel() {\n    }\n\n    public Camel(String desert, int step) {\n        this.desert = desert;\n        this.step = step;\n    }\n\n    public String getDesert() {\n        return (desert == null) ? \"\" : desert.toUpperCase();\n    }\n\n    public int getStep() {\n        return step;\n    }\n\n    public void setStep(int step) {\n        this.step = step;\n    }\n}"
+    },
+    {
+      "id": 6,
+      "code": "PE2-Q2",
+      "paper": "PE2",
+      "questionNo": "Q2",
+      "marks": 3,
+      "cat": "oop",
+      "title": "SpecCala — Kế thừa & Bẫy Thứ tự Tham số",
+      "meta": "PE2 · Q2 · 3 điểm · 20 phút",
+      "relatedSlots": [
+        14,
+        15,
+        16
+      ],
+      "desc": "Tạo SpecCala extends Cala với constructor SpecCala(int color, String owner, int price) (color đứng đầu!), toString() -> \"owner, price, color\", setData() thay ký tự thứ 2 của owner bằng \"XX\", getValue() trả price+3 nếu color lẻ hoặc price+7 nếu chẵn.",
+      "checklist": [
+        "Đúng thứ tự constructor SpecCala(int color, String owner, int price) và super(owner, price)",
+        "setData() thay đúng ký tự index 1 thành \"XX\" (alan -> aXXan)",
+        "getValue() kiểm tra đúng chẵn/lẻ (color=5 -> price+3, color=4 -> price+7)"
+      ],
+      "entityFileName": "Cala.java",
+      "entityCode": "public class Cala {\n    private String owner;\n    private int price;\n\n    public Cala() {\n    }\n\n    public Cala(String owner, int price) {\n        this.owner = owner;\n        this.price = price;\n    }\n\n    public String getOwner() {\n        return owner;\n    }\n\n    public int getPrice() {\n        return price;\n    }\n\n    public void setOwner(String owner) {\n        this.owner = owner;\n    }\n\n    @Override\n    public String toString() {\n        return owner + \", \" + price;\n    }\n}",
+      "starterCode": "public class SpecCala extends Cala {\n    private int color;\n\n    public SpecCala() {\n    }\n\n    public SpecCala(int color, String owner, int price) {\n        // TODO: initialize super and color\n    }\n\n    public void setData() {\n        // TODO: replace 2nd character in owner with XX\n    }\n\n    public int getValue() {\n        // TODO: odd -> price + 3, even -> price + 7\n        return 0;\n    }\n}",
+      "cleanCode": "public class SpecCala extends Cala {\n    private int color;\n\n    public SpecCala() {\n    }\n\n    public SpecCala(int color, String owner, int price) {\n        super(owner, price);\n        this.color = color;\n    }\n\n    @Override\n    public String toString() {\n        return getOwner() + \", \" + getPrice() + \", \" + color;\n    }\n\n    public void setData() {\n        String s = getOwner();\n        if (s != null && s.length() >= 2) {\n            setOwner(s.substring(0, 1) + \"XX\" + s.substring(2));\n        }\n    }\n\n    public int getValue() {\n        if (color % 2 != 0) {\n            return getPrice() + 3;\n        }\n        return getPrice() + 7;\n    }\n}"
+    },
+    {
+      "id": 7,
+      "code": "PE2-Q3",
+      "paper": "PE2",
+      "questionNo": "Q3",
+      "marks": 2,
+      "cat": "collections",
+      "title": "TicketList — Kế thừa ArrayList & Lọc Giá vé",
+      "meta": "PE2 · Q3 · 2 điểm · 20 phút",
+      "relatedSlots": [
+        17,
+        25
+      ],
+      "desc": "Xây dựng lớp Ticket (-code, -type, -price; toString() -> \"code,type,%.2f\" không dấu cách) và TicketList extends ArrayList<Ticket> với addTicket(), getCheapestTicket(), countTicketsByType(value) không phân biệt hoa/thường.",
+      "checklist": [
+        "Ticket.toString() định dạng %.2f và không có dấu cách sau dấu phẩy",
+        "TicketList kế thừa ArrayList<Ticket>, addTicket & getCheapestTicket an toàn",
+        "countTicketsByType() so sánh bằng equalsIgnoreCase()"
+      ],
+      "entityFileName": "Ticket.java",
+      "entityCode": "public class Ticket {\n    private String code;\n    private String type;\n    private double price;\n\n    public Ticket(String code, String type, double price) {\n        this.code = code;\n        this.type = type;\n        this.price = price;\n    }\n\n    public String getCode() {\n        return code;\n    }\n\n    public String getType() {\n        return type;\n    }\n\n    public double getPrice() {\n        return price;\n    }\n\n    @Override\n    public String toString() {\n        return String.format(\"%s,%s,%.2f\", code, type, price);\n    }\n}",
+      "starterCode": "import java.util.ArrayList;\n\npublic class TicketList extends ArrayList<Ticket> {\n\n    public void addTicket(Ticket ticket) {\n        // TODO: add ticket to list\n    }\n\n    public Ticket getCheapestTicket() {\n        // TODO: return ticket with lowest price\n        return null;\n    }\n\n    public int countTicketsByType(String value) {\n        // TODO: case-insensitive count by type\n        return 0;\n    }\n}",
+      "cleanCode": "import java.util.ArrayList;\n\npublic class TicketList extends ArrayList<Ticket> {\n\n    public void addTicket(Ticket ticket) {\n        if (ticket != null) {\n            this.add(ticket);\n        }\n    }\n\n    public Ticket getCheapestTicket() {\n        if (this.isEmpty()) {\n            return null;\n        }\n        Ticket cheapest = this.get(0);\n        for (int i = 1; i < this.size(); i++) {\n            Ticket current = this.get(i);\n            if (current.getPrice() < cheapest.getPrice()) {\n                cheapest = current;\n            }\n        }\n        return cheapest;\n    }\n\n    public int countTicketsByType(String value) {\n        if (value == null) {\n            return 0;\n        }\n        int count = 0;\n        for (Ticket t : this) {\n            if (t.getType() != null && t.getType().equalsIgnoreCase(value)) {\n                count++;\n            }\n        }\n        return count;\n    }\n}"
+    },
+    {
+      "id": 8,
+      "code": "PE3-Q1",
+      "paper": "PE3",
+      "questionNo": "Q1",
+      "marks": 2,
+      "cat": "oop",
+      "title": "CoffeeShop — Encapsulation & Doanh thu Quán Cà phê",
+      "meta": "PE3 · Q1 · 2 điểm · 20 phút",
+      "relatedSlots": [
+        4,
+        9,
+        12,
+        13
+      ],
+      "desc": "Viết lớp CoffeeShop (-id, -storeName, -pricePerCup, -numberOfCups): getStoreName() viết hoa ký tự đầu còn lại viết thường; getTotalRevenue() nhân 1.2 nếu >= 100 ly; getProfitRevenue(costPerCup); toString() -> \"STORE_UPPER:%.2f\".",
+      "checklist": [
+        "getStoreName() viết hoa chữ đầu, chữ thường phần sau (passio Coffee -> Passio coffee)",
+        "getTotalRevenue() xử lý đúng ngưỡng >= 100 ly và công thức getProfitRevenue()",
+        "toString() xuất STORE_NAME_UPPER:TOTAL_2DEC (BREW HAVEN:1440.00)"
+      ],
+      "entityFileName": "",
+      "entityCode": "",
+      "starterCode": "public class CoffeeShop {\n    private int id;\n    private String storeName;\n    private double pricePerCup;\n    private int numberOfCups;\n\n    public CoffeeShop() {\n    }\n\n    public CoffeeShop(int id, String storeName, double pricePerCup, int numberOfCups) {\n        this.id = id;\n        this.storeName = storeName;\n        this.pricePerCup = pricePerCup;\n        this.numberOfCups = numberOfCups;\n    }\n\n    public String getStoreName() {\n        // TODO: capitalize first letter only\n        return storeName;\n    }\n\n    public double getTotalRevenue() {\n        // TODO: x1.2 bonus when numberOfCups >= 100\n        return 0.0;\n    }\n\n    public double getProfitRevenue(double costPerCup) {\n        // TODO: totalRevenue - costPerCup * numberOfCups\n        return 0.0;\n    }\n\n    @Override\n    public String toString() {\n        return \"\";\n    }\n}",
+      "cleanCode": "public class CoffeeShop {\n    private int id;\n    private String storeName;\n    private double pricePerCup;\n    private int numberOfCups;\n\n    public CoffeeShop() {\n    }\n\n    public CoffeeShop(int id, String storeName, double pricePerCup, int numberOfCups) {\n        this.id = id;\n        this.storeName = storeName;\n        this.pricePerCup = pricePerCup;\n        this.numberOfCups = numberOfCups;\n    }\n\n    public String getStoreName() {\n        if (storeName == null || storeName.isEmpty()) {\n            return \"\";\n        }\n        return Character.toUpperCase(storeName.charAt(0)) + storeName.substring(1).toLowerCase();\n    }\n\n    public double getTotalRevenue() {\n        double base = pricePerCup * numberOfCups;\n        if (numberOfCups >= 100) {\n            return base * 1.2;\n        }\n        return base;\n    }\n\n    public double getProfitRevenue(double costPerCup) {\n        return getTotalRevenue() - (costPerCup * numberOfCups);\n    }\n\n    @Override\n    public String toString() {\n        String upper = (storeName == null) ? \"\" : storeName.toUpperCase();\n        return String.format(\"%s:%.2f\", upper, getTotalRevenue());\n    }\n}"
+    },
+    {
+      "id": 9,
+      "code": "PE3-Q2",
+      "paper": "PE3",
+      "questionNo": "Q2",
+      "marks": 3,
+      "cat": "oop",
+      "title": "OLEDScreen — Kế thừa & Định dạng 2 Chữ số Thập phân",
+      "meta": "PE3 · Q2 · 3 điểm · 25 phút",
       "relatedSlots": [
         14,
         15,
         16,
         18
       ],
-      "desc": "Tạo lớp cha Book và lớp con EBook kế thừa qua super(), ghi đè @Override tính giá bán sau giảm giá và định dạng toString().",
+      "desc": "Viết OLEDScreen extends Screen (-refresh: double, clamp < 0 -> 0): calculatePrice() = qualityIndex * 20 + (refresh >= 120 ? 120 : 60); estimateBurnInRisk() = (brightness / 100.0) * (refresh / 60.0); toString() -> \"%.2f,%d,%.2f\" không dấu cách.",
       "checklist": [
-        "Dùng từ khóa extends và super(title, price) chuẩn (3đ)",
-        "Ghi đè @Override getFinalPrice() đúng chữ ký (4đ)",
-        "Định dạng toString() chuẩn Test Case (3đ)"
+        "Clamp refresh < 0 về 0 trong cả constructor và setRefresh()",
+        "Tránh chia nguyên bằng 100.0 và 60.0 trong công thức tính giá và burn-in risk",
+        "toString() định dạng \"%.2f,%d,%.2f\" không dấu cách (6.50,750,120.00)"
       ],
-      "entityFileName": "Book.java",
-      "entityCode": "public class Book {\n    protected String title;\n    protected double price;\n\n    public Book(String title, double price) {\n        this.title = (title == null) ? \"\" : title.trim();\n        this.price = Math.max(0.0, price);\n    }\n\n    public double getFinalPrice() {\n        return price;\n    }\n}",
-      "starterCode": "public class EBook extends Book {\n    private double discountRate;\n\n    public EBook(String title, double price, double discountRate) {\n        super(title, price);\n        this.discountRate = discountRate;\n    }\n\n    // TODO: Ghi đè getFinalPrice() và toString() -> EBook[title, finalPrice]\n}",
-      "cleanCode": "public class EBook extends Book {\n    private double discountRate;\n\n    public EBook(String title, double price, double discountRate) {\n        super(title, price);\n        this.discountRate = (discountRate >= 0.0 && discountRate <= 1.0) ? discountRate : 0.0;\n    }\n\n    @Override\n    public double getFinalPrice() {\n        return price * (1.0 - discountRate);\n    }\n\n    @Override\n    public String toString() {\n        return String.format(\"EBook[%s, %.1f]\", title, getFinalPrice());\n    }\n}"
+      "entityFileName": "Screen.java",
+      "entityCode": "public class Screen {\n    private double diagonal;\n    private int brightness;\n\n    public Screen() {\n        this.diagonal = 0;\n        this.brightness = 0;\n    }\n\n    public Screen(double diagonal, int brightness) {\n        this.diagonal = diagonal;\n        this.brightness = brightness;\n    }\n\n    public double getDiagonal() {\n        return diagonal;\n    }\n\n    public void setDiagonal(double diagonal) {\n        this.diagonal = diagonal;\n    }\n\n    public int getBrightness() {\n        return brightness;\n    }\n\n    public void setBrightness(int brightness) {\n        this.brightness = brightness;\n    }\n\n    public double getQualityIndex() {\n        return diagonal * (brightness / 100.0);\n    }\n\n    @Override\n    public String toString() {\n        return diagonal + \", \" + brightness;\n    }\n}",
+      "starterCode": "public class OLEDScreen extends Screen {\n    private double refresh;\n\n    public OLEDScreen() {\n    }\n\n    public OLEDScreen(double diagonal, int brightness, double refresh) {\n        // TODO: initialize super and clamp refresh < 0 to 0\n    }\n\n    public double getRefresh() {\n        return refresh;\n    }\n\n    public void setRefresh(double refresh) {\n        this.refresh = refresh;\n    }\n\n    public double calculatePrice() {\n        return 0.0;\n    }\n\n    public double estimateBurnInRisk() {\n        return 0.0;\n    }\n\n    @Override\n    public String toString() {\n        return \"\";\n    }\n}",
+      "cleanCode": "public class OLEDScreen extends Screen {\n    private double refresh;\n\n    public OLEDScreen() {\n    }\n\n    public OLEDScreen(double diagonal, int brightness, double refresh) {\n        super(diagonal, brightness);\n        this.refresh = (refresh < 0) ? 0 : refresh;\n    }\n\n    public double getRefresh() {\n        return refresh;\n    }\n\n    public void setRefresh(double refresh) {\n        this.refresh = (refresh < 0) ? 0 : refresh;\n    }\n\n    public double calculatePrice() {\n        return getQualityIndex() * 20.0 + (refresh >= 120 ? 120.0 : 60.0);\n    }\n\n    public double estimateBurnInRisk() {\n        return (getBrightness() / 100.0) * (refresh / 60.0);\n    }\n\n    @Override\n    public String toString() {\n        return String.format(\"%.2f,%d,%.2f\", getDiagonal(), getBrightness(), refresh);\n    }\n}"
     },
     {
-      "id": 3,
-      "code": "PE 03",
-      "cat": "oop",
-      "title": "AntiqueShop & ItemList Đa hình (ArrayOfObjects)",
-      "meta": "Case Study Trường (Đã vá lỗi HTML) • 50 phút",
-      "relatedSlots": [
-        14,
-        17,
-        18
-      ],
-      "desc": "Quản lý mảng đối tượng Item[] đa hình trong ItemList: thêm, tìm theo creator, xóa phần tử không tràn mảng MAX và sắp xếp tăng dần theo value.",
-      "checklist": [
-        "Kiểm tra null & ngưỡng MAX khi thêm (2đ)",
-        "Xóa đúng chỉ số không dính ArrayIndexOutOfBounds khi mảng đầy (4đ)",
-        "Sắp xếp & tìm kiếm dùng equalsIgnoreCase chuẩn (4đ)"
-      ],
-      "entityFileName": "Item.java",
-      "entityCode": "public class Item {\n    protected int value;\n    protected String creator;\n\n    public Item(int value, String creator) {\n        this.value = Math.max(0, value);\n        this.creator = (creator == null) ? \"\" : creator.trim();\n    }\n\n    public int getValue() { return value; }\n    public String getCreator() { return creator; }\n}",
-      "starterCode": "public class ItemList {\n    private final Item[] list;\n    private int numOfItem;\n    public static final int MAX = 100;\n\n    public ItemList() {\n        this.list = new Item[MAX];\n    }\n\n    public boolean addItem(Item item) {\n        // Bẫy HTML cũ: không kiểm tra item == null và numOfItem >= MAX\n        list[numOfItem++] = item;\n        return true;\n    }\n}",
-      "cleanCode": "public class ItemList {\n    private final Item[] list;\n    private int numOfItem;\n    public static final int MAX = 100;\n\n    public ItemList() {\n        this.list = new Item[MAX];\n        this.numOfItem = 0;\n    }\n\n    public boolean addItem(Item item) {\n        if (item == null || numOfItem >= MAX) return false;\n        list[numOfItem++] = item;\n        return true;\n    }\n\n    public int findItemIndex(String creator) {\n        if (creator == null) return -1;\n        for (int i = 0; i < numOfItem; i++) {\n            if (list[i].getCreator().equalsIgnoreCase(creator.trim())) return i;\n        }\n        return -1;\n    }\n\n    public boolean removeItem(int index) {\n        if (index < 0 || index >= numOfItem) return false;\n        for (int i = index; i < numOfItem - 1; i++) {\n            list[i] = list[i + 1];\n        }\n        list[--numOfItem] = null;\n        return true;\n    }\n\n    public void sortByValueAsc() {\n        for (int i = 0; i < numOfItem - 1; i++) {\n            for (int j = i + 1; j < numOfItem; j++) {\n                if (list[i].getValue() > list[j].getValue()) {\n                    Item tmp = list[i]; list[i] = list[j]; list[j] = tmp;\n                }\n            }\n        }\n    }\n}"
-    },
-    {
-      "id": 4,
-      "code": "PE 04",
+      "id": 10,
+      "code": "PE3-Q3",
+      "paper": "PE3",
+      "questionNo": "Q3",
+      "marks": 2,
       "cat": "collections",
-      "title": "Đếm từ HashMap, Sắp xếp Comparator & Đọc CSV an toàn",
-      "meta": "Full Q1–Q4 • Collections + File I/O • 85 phút",
+      "title": "EmployeeList — Kế thừa ArrayList & Tra cứu Nhân sự",
+      "meta": "PE3 · Q3 · 2 điểm · 20 phút",
+      "relatedSlots": [
+        17,
+        25
+      ],
+      "desc": "Tạo Employee (-employeeId, -fullName, -department, -salary; toString() -> \"id,fullName,dept,salary\") và EmployeeList extends ArrayList<Employee> với getEmployeeById(String id) và countEmployeesBySalary(double salary).",
+      "checklist": [
+        "Employee() khởi tạo chuỗi rỗng \"\" và salary 0.0; toString() không có dấu cách",
+        "getEmployeeById() so sánh bằng equals() và trả về null khi không thấy",
+        "countEmployeesBySalary() đếm nhân viên có salary >= value"
+      ],
+      "entityFileName": "Employee.java",
+      "entityCode": "public class Employee {\n    private String employeeId;\n    private String fullName;\n    private String department;\n    private double salary;\n\n    public Employee() {\n        this.employeeId = \"\";\n        this.fullName = \"\";\n        this.department = \"\";\n        this.salary = 0.0;\n    }\n\n    public Employee(String employeeId, String fullName, String department, double salary) {\n        this.employeeId = employeeId;\n        this.fullName = fullName;\n        this.department = department;\n        this.salary = salary;\n    }\n\n    public String getEmployeeId() {\n        return employeeId;\n    }\n\n    public void setEmployeeId(String employeeId) {\n        this.employeeId = employeeId;\n    }\n\n    public String getFullName() {\n        return fullName;\n    }\n\n    public void setFullName(String fullName) {\n        this.fullName = fullName;\n    }\n\n    public String getDepartment() {\n        return department;\n    }\n\n    public void setDepartment(String department) {\n        this.department = department;\n    }\n\n    public double getSalary() {\n        return salary;\n    }\n\n    public void setSalary(double salary) {\n        this.salary = salary;\n    }\n\n    @Override\n    public String toString() {\n        return employeeId + \",\" + fullName + \",\" + department + \",\" + salary;\n    }\n}",
+      "starterCode": "import java.util.ArrayList;\n\npublic class EmployeeList extends ArrayList<Employee> {\n\n    public Employee getEmployeeById(String id) {\n        // TODO: find employee with matching employeeId\n        return null;\n    }\n\n    public int countEmployeesBySalary(double salary) {\n        // TODO: count employees with salary >= given value\n        return 0;\n    }\n}",
+      "cleanCode": "import java.util.ArrayList;\n\npublic class EmployeeList extends ArrayList<Employee> {\n\n    public Employee getEmployeeById(String id) {\n        if (id == null) {\n            return null;\n        }\n        for (Employee e : this) {\n            if (e != null && id.equals(e.getEmployeeId())) {\n                return e;\n            }\n        }\n        return null;\n    }\n\n    public int countEmployeesBySalary(double salary) {\n        int count = 0;\n        for (Employee e : this) {\n            if (e != null && e.getSalary() >= salary) {\n                count++;\n            }\n        }\n        return count;\n    }\n}"
+    },
+    {
+      "id": 11,
+      "code": "PE3-Q4",
+      "paper": "PE3",
+      "questionNo": "Q4",
+      "marks": 3,
+      "cat": "string",
+      "title": "MyStringNumberTool — Từ Viết tắt & Đổi Nhị phân Thủ công",
+      "meta": "PE3 · Q4 · 3 điểm · 20 phút",
+      "relatedSlots": [
+        4,
+        5,
+        9,
+        20
+      ],
+      "desc": "Viết MyStringNumberTool implements IStringNumberTool: buildAcronym() lấy chữ cái đầu viết hoa từng từ (\"123 data structure\" -> \"DS\"); decimalToBinary(n) tự chia lấy dư % 2 / 2 (cấm dùng Integer.toBinaryString).",
+      "checklist": [
+        "Không tạo IStringNumberTool.java, xử lý null/rỗng cho buildAcronym()",
+        "Chỉ trích ký tự đầu nếu là chữ cái A-Za-z rồi viết hoa (\"123 data structure\" -> \"DS\")",
+        "Đổi nhị phân thủ công (n=0 -> \"0\", n=10 -> \"1010\"), không gọi Integer.toBinaryString()"
+      ],
+      "entityFileName": "",
+      "entityCode": "",
+      "interfaceFileName": "IStringNumberTool.java",
+      "interfaceCode": "public interface IStringNumberTool {\n    public String buildAcronym(String string);\n    public String decimalToBinary(int n);\n}",
+      "starterCode": "public class MyStringNumberTool implements IStringNumberTool {\n\n    @Override\n    public String buildAcronym(String string) {\n        // TODO: build uppercase acronym from alphabetic word starts\n        return \"\";\n    }\n\n    @Override\n    public String decimalToBinary(int n) {\n        // TODO: convert n to binary manually (do not use built-in binary helpers)\n        return \"\";\n    }\n}",
+      "cleanCode": "public class MyStringNumberTool implements IStringNumberTool {\n\n    @Override\n    public String buildAcronym(String string) {\n        if (string == null || string.isEmpty()) {\n            return \"\";\n        }\n        String[] words = string.split(\" \");\n        StringBuilder sb = new StringBuilder();\n        for (String w : words) {\n            if (!w.isEmpty()) {\n                char first = w.charAt(0);\n                if ((first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z')) {\n                    sb.append(Character.toUpperCase(first));\n                }\n            }\n        }\n        return sb.toString();\n    }\n\n    @Override\n    public String decimalToBinary(int n) {\n        if (n == 0) {\n            return \"0\";\n        }\n        StringBuilder sb = new StringBuilder();\n        int val = n;\n        while (val > 0) {\n            sb.append(val % 2);\n            val /= 2;\n        }\n        return sb.reverse().toString();\n    }\n}"
+    },
+    {
+      "id": 12,
+      "code": "PE4-Q1",
+      "paper": "PE4",
+      "questionNo": "Q1",
+      "marks": 2,
+      "cat": "oop",
+      "title": "Person — Encapsulation & Nối chuỗi và toString",
+      "meta": "PE4 · Q1 · 2 điểm · 10 phút",
       "relatedSlots": [
         9,
-        23,
-        26,
-        27,
-        29
+        12,
+        13
       ],
-      "desc": "Chuẩn hóa chuỗi & đếm tần suất bằng HashMap, đồng thời đọc tệp CSV với try-with-resources UTF-8, bắt NumberFormatException từng dòng và sắp xếp 2 tiêu chí.",
+      "desc": "Viết lớp Person (-name: String, -sickLeave: double): setName(newname) nối thêm newname vào sau name cũ (\"ly hung\" + \"anh\" -> \"ly hung anh\"); toString() trả về \"name,sickLeave\" không có dấu cách sau dấu phẩy.",
       "checklist": [
-        "Chuẩn hóa khoảng trắng & chữ thường trong countWords (3đ)",
-        "Đọc CSV bằng try-with-resources UTF-8 an toàn (4đ)",
-        "Sắp xếp Comparator 2 tiêu chí không lỗi (3đ)"
+        "Đủ 2 constructor Person() và Person(String, double) cùng getSickLeave()",
+        "setName(newname) nối chuỗi name + \" \" + newname",
+        "toString() không có dấu cách sau dấu phẩy (ly hung anh,5.5)"
       ],
-      "entityFileName": "Product.java",
-      "entityCode": "public class Product {\n    private final String id;\n    private final String name;\n    private final double price;\n\n    public Product(String id, String name, double price) {\n        this.id = id;\n        this.name = name;\n        this.price = price;\n    }\n\n    public String getId() { return id; }\n    public String getName() { return name; }\n    public double getPrice() { return price; }\n}",
-      "starterCode": "import java.util.*;\n\npublic class Main {\n    public static Map<String, Integer> countWords(String text) {\n        Map<String, Integer> map = new HashMap<>();\n        for (String w : text.split(\" \")) {\n            map.put(w, map.getOrDefault(w, 0) + 1);\n        }\n        return map;\n    }\n}",
-      "cleanCode": "import java.io.*;\nimport java.nio.charset.StandardCharsets;\nimport java.util.*;\n\npublic class Main {\n    public static Map<String, Integer> countWords(String text) {\n        if (text == null || text.isBlank()) return Collections.emptyMap();\n        Map<String, Integer> freq = new HashMap<>();\n        for (String token : text.trim().toLowerCase().split(\"\\\\s+\")) {\n            freq.put(token, freq.getOrDefault(token, 0) + 1);\n        }\n        return freq;\n    }\n\n    public static List<Product> loadProducts(String filePath) {\n        List<Product> list = new ArrayList<>();\n        File f = new File(filePath);\n        if (!f.exists()) return list;\n\n        try (BufferedReader br = new BufferedReader(\n                new InputStreamReader(new FileInputStream(f), StandardCharsets.UTF_8))) {\n            String line;\n            while ((line = br.readLine()) != null) {\n                if (line.isBlank()) continue;\n                String[] parts = line.split(\",\");\n                if (parts.length < 3) continue;\n                try {\n                    list.add(new Product(parts[0].trim(), parts[1].trim(), Double.parseDouble(parts[2].trim())));\n                } catch (NumberFormatException ignored) {}\n            }\n        } catch (IOException e) {\n            System.err.println(\"Read error: \" + e.getMessage());\n        }\n        list.sort(Comparator.comparingDouble(Product::getPrice).reversed().thenComparing(Product::getId));\n        return list;\n    }\n}"
+      "entityFileName": "",
+      "entityCode": "",
+      "starterCode": "public class Person {\n    private String name;\n    private double sickLeave;\n\n    public Person() {\n    }\n\n    public Person(String name, double sickLeave) {\n        this.name = name;\n        this.sickLeave = sickLeave;\n    }\n\n    public double getSickLeave() {\n        return sickLeave;\n    }\n\n    public void setName(String newname) {\n        // TODO: concatenate newname after existing name\n        this.name = newname;\n    }\n\n    @Override\n    public String toString() {\n        return name + \", \" + sickLeave;\n    }\n}",
+      "cleanCode": "public class Person {\n    private String name;\n    private double sickLeave;\n\n    public Person() {\n    }\n\n    public Person(String name, double sickLeave) {\n        this.name = name;\n        this.sickLeave = sickLeave;\n    }\n\n    public double getSickLeave() {\n        return sickLeave;\n    }\n\n    public void setName(String newname) {\n        if (newname == null) {\n            return;\n        }\n        if (this.name == null || this.name.isEmpty()) {\n            this.name = newname;\n        } else {\n            this.name = this.name + \" \" + newname;\n        }\n    }\n\n    @Override\n    public String toString() {\n        return name + \",\" + sickLeave;\n    }\n}"
+    },
+    {
+      "id": 13,
+      "code": "PE4-Q2",
+      "paper": "PE4",
+      "questionNo": "Q2",
+      "marks": 3,
+      "cat": "oop",
+      "title": "SpecChair — Kế thừa & Cắt Ký tự và Flash Sale",
+      "meta": "PE4 · Q2 · 3 điểm · 15 phút",
+      "relatedSlots": [
+        14,
+        15,
+        16
+      ],
+      "desc": "Viết SpecChair extends Chair (-type: String): toString() -> \"color,quantity,type\" không dấu cách; getType() xóa ký tự đầu tiên (\"normal\" -> \"ormal\"); setType() gán \"flash sale\" nếu quantity > 15, else \"no sale\".",
+      "checklist": [
+        "Gọi super(color, quantity) và ghi đè toString() không dấu cách",
+        "getType() xóa ký tự đầu tiên an toàn với chuỗi rỗng/null",
+        "setType() đặt đúng \"flash sale\" (> 15) và \"no sale\" (<= 15)"
+      ],
+      "entityFileName": "Chair.java",
+      "entityCode": "public class Chair {\n    private String color;\n    private int quantity;\n\n    public Chair() {\n    }\n\n    public Chair(String color, int quantity) {\n        this.color = color;\n        this.quantity = quantity;\n    }\n\n    public String getColor() {\n        return color;\n    }\n\n    public int getQuantity() {\n        return quantity;\n    }\n\n    public void setColor(String color) {\n        this.color = color;\n    }\n\n    @Override\n    public String toString() {\n        return color + \",\" + quantity;\n    }\n}",
+      "starterCode": "public class SpecChair extends Chair {\n    private String type;\n\n    public SpecChair() {\n    }\n\n    public SpecChair(String color, int quantity, String type) {\n        // TODO: call super and set type\n    }\n\n    public String getType() {\n        // TODO: return type without first character\n        return type;\n    }\n\n    public void setType() {\n        // TODO: set flash sale or no sale based on quantity\n    }\n\n    @Override\n    public String toString() {\n        return \"\";\n    }\n}",
+      "cleanCode": "public class SpecChair extends Chair {\n    private String type;\n\n    public SpecChair() {\n    }\n\n    public SpecChair(String color, int quantity, String type) {\n        super(color, quantity);\n        this.type = type;\n    }\n\n    public String getType() {\n        if (type == null || type.isEmpty()) {\n            return \"\";\n        }\n        return type.substring(1);\n    }\n\n    public void setType() {\n        if (getQuantity() > 15) {\n            this.type = \"flash sale\";\n        } else {\n            this.type = \"no sale\";\n        }\n    }\n\n    @Override\n    public String toString() {\n        return getColor() + \",\" + getQuantity() + \",\" + type;\n    }\n}"
+    },
+    {
+      "id": 14,
+      "code": "PE4-Q3",
+      "paper": "PE4",
+      "questionNo": "Q3",
+      "marks": 3,
+      "cat": "collections",
+      "title": "MyShoes — Sắp xếp Giảm dần & Xóa bằng Iterator",
+      "meta": "PE4 · Q3 · 3 điểm · 20 phút",
+      "relatedSlots": [
+        20,
+        21,
+        25,
+        27
+      ],
+      "desc": "Viết MyShoes implements IShoes (kèm phương thức display): f1 trả về Shoes có price lớn nhất; f2 sắp xếp price giảm dần; f3 xóa các Shoes có name bắt đầu bằng \"s\" bằng Iterator an toàn.",
+      "checklist": [
+        "Không tạo IShoes.java, thêm hàm public void display(List<Shoes> t)",
+        "f2 sắp xếp giảm dần theo price bằng Collections.sort + Comparator JDK 8",
+        "f3 xóa an toàn bằng Iterator (không dính ConcurrentModificationException)"
+      ],
+      "entityFileName": "Shoes.java",
+      "entityCode": "public class Shoes {\n    private String name;\n    private int price;\n\n    public Shoes() {\n    }\n\n    public Shoes(String name, int price) {\n        this.name = name;\n        this.price = price;\n    }\n\n    public String getName() {\n        return name;\n    }\n\n    public void setName(String name) {\n        this.name = name;\n    }\n\n    public int getPrice() {\n        return price;\n    }\n\n    public void setPrice(int price) {\n        this.price = price;\n    }\n\n    @Override\n    public String toString() {\n        return \"(\" + name + \", \" + price + \")\";\n    }\n}",
+      "interfaceFileName": "IShoes.java",
+      "interfaceCode": "import java.util.List;\n\npublic interface IShoes {\n    public Shoes f1(List<Shoes> t);\n    public void f2(List<Shoes> t);\n    public void f3(List<Shoes> t);\n}",
+      "starterCode": "import java.util.List;\n\npublic class MyShoes implements IShoes {\n\n    @Override\n    public Shoes f1(List<Shoes> t) {\n        // TODO: find Shoes with max price\n        return null;\n    }\n\n    @Override\n    public void f2(List<Shoes> t) {\n        // TODO: sort descending by price\n    }\n\n    @Override\n    public void f3(List<Shoes> t) {\n        // TODO: remove items whose name starts with s\n    }\n\n    public void display(List<Shoes> t) {\n        // TODO: print elements\n    }\n}",
+      "cleanCode": "import java.util.Collections;\nimport java.util.Comparator;\nimport java.util.Iterator;\nimport java.util.List;\n\npublic class MyShoes implements IShoes {\n\n    @Override\n    public Shoes f1(List<Shoes> t) {\n        if (t == null || t.isEmpty()) {\n            return null;\n        }\n        Shoes max = t.get(0);\n        for (int i = 1; i < t.size(); i++) {\n            if (t.get(i).getPrice() > max.getPrice()) {\n                max = t.get(i);\n            }\n        }\n        return max;\n    }\n\n    @Override\n    public void f2(List<Shoes> t) {\n        if (t == null || t.size() <= 1) {\n            return;\n        }\n        Collections.sort(t, new Comparator<Shoes>() {\n            @Override\n            public int compare(Shoes a, Shoes b) {\n                return Integer.compare(b.getPrice(), a.getPrice());\n            }\n        });\n    }\n\n    @Override\n    public void f3(List<Shoes> t) {\n        if (t == null) {\n            return;\n        }\n        Iterator<Shoes> it = t.iterator();\n        while (it.hasNext()) {\n            Shoes s = it.next();\n            if (s != null && s.getName() != null && s.getName().toLowerCase().startsWith(\"s\")) {\n                it.remove();\n            }\n        }\n    }\n\n    public void display(List<Shoes> t) {\n        if (t == null) {\n            return;\n        }\n        for (Shoes s : t) {\n            System.out.println(s);\n        }\n    }\n}"
+    },
+    {
+      "id": 15,
+      "code": "PE4-Q4",
+      "paper": "PE4",
+      "questionNo": "Q4",
+      "marks": 2,
+      "cat": "string",
+      "title": "MyLink — Xử lý URL & Bẫy Regex Dấu chấm",
+      "meta": "PE4 · Q4 · 2 điểm · 15 phút",
+      "relatedSlots": [
+        9,
+        20
+      ],
+      "desc": "Viết MyLink implements ILink: f1 thay toàn bộ dấu \".\" thành \":\" (tránh bẫy replaceAll(\".\", \":\")); f2 viết hoa toàn bộ phần chuỗi đứng sau dấu \".\" đầu tiên (\"https://fap.fpt.edu.vn\" -> \"https://fap.FPT.EDU.VN\").",
+      "checklist": [
+        "Không tạo ILink.java và dùng str.replace(\".\", \":\") thay vì replaceAll(\".\", \":\")",
+        "f2 tìm indexOf(\".\") an toàn (nếu không có \".\" thì giữ nguyên)",
+        "Chuyển đúng substring(idx + 1).toUpperCase() mà không đụng phần trước dấu chấm"
+      ],
+      "entityFileName": "",
+      "entityCode": "",
+      "interfaceFileName": "ILink.java",
+      "interfaceCode": "public interface ILink {\n    public String f1(String str);\n    public String f2(String str);\n}",
+      "starterCode": "public class MyLink implements ILink {\n\n    @Override\n    public String f1(String str) {\n        // TODO: replace dots with colons safely\n        return str;\n    }\n\n    @Override\n    public String f2(String str) {\n        // TODO: uppercase substring after first dot\n        return str;\n    }\n}",
+      "cleanCode": "public class MyLink implements ILink {\n\n    @Override\n    public String f1(String str) {\n        if (str == null) {\n            return \"\";\n        }\n        return str.replace(\".\", \":\");\n    }\n\n    @Override\n    public String f2(String str) {\n        if (str == null) {\n            return \"\";\n        }\n        int idx = str.indexOf('.');\n        if (idx == -1 || idx + 1 >= str.length()) {\n            return str;\n        }\n        return str.substring(0, idx + 1) + str.substring(idx + 1).toUpperCase();\n    }\n}"
+    },
+    {
+      "id": 16,
+      "code": "PE5-Q1",
+      "paper": "PE5",
+      "questionNo": "Q1",
+      "marks": 2,
+      "cat": "oop",
+      "title": "Coral — Encapsulation & Cắt Ký tự Cuối",
+      "meta": "PE5 · Q1 · 2 điểm · 10 phút",
+      "relatedSlots": [
+        9,
+        12,
+        13
+      ],
+      "desc": "Viết lớp Coral (-name: String, -price: int): getName() trả về chuỗi sau khi xóa ký tự cuối cùng của name (\"vietnam\" -> \"vietna\"); getPrice(); setPrice(int). Do not format the result.",
+      "checklist": [
+        "Đủ 2 constructor Coral() và Coral(String, int)",
+        "getName() xóa đúng ký tự cuối và kiểm tra null/isEmpty() trước substring",
+        "setPrice(int) và getPrice() hoạt động chính xác"
+      ],
+      "entityFileName": "",
+      "entityCode": "",
+      "starterCode": "public class Coral {\n    private String name;\n    private int price;\n\n    public Coral() {\n    }\n\n    public Coral(String name, int price) {\n        this.name = name;\n        this.price = price;\n    }\n\n    public String getName() {\n        // TODO: remove last character of name\n        return name;\n    }\n\n    public int getPrice() {\n        return price;\n    }\n\n    public void setPrice(int price) {\n        this.price = price;\n    }\n}",
+      "cleanCode": "public class Coral {\n    private String name;\n    private int price;\n\n    public Coral() {\n    }\n\n    public Coral(String name, int price) {\n        this.name = name;\n        this.price = price;\n    }\n\n    public String getName() {\n        if (name == null || name.isEmpty()) {\n            return \"\";\n        }\n        return name.substring(0, name.length() - 1);\n    }\n\n    public int getPrice() {\n        return price;\n    }\n\n    public void setPrice(int price) {\n        this.price = price;\n    }\n}"
+    },
+    {
+      "id": 17,
+      "code": "PE5-Q2",
+      "paper": "PE5",
+      "questionNo": "Q2",
+      "marks": 3,
+      "cat": "oop",
+      "title": "SpecLadder — Kế thừa & Đếm Chữ số Chẵn",
+      "meta": "PE5 · Q2 · 3 điểm · 20 phút",
+      "relatedSlots": [
+        8,
+        14,
+        15,
+        16,
+        18
+      ],
+      "desc": "Tạo SpecLadder extends Ladder (-weight: int): toString() -> \"type, price, weight\"; setData() thay chữ cái cuối trong type bằng chữ số cuối của price (\"standard\", 21 -> \"standar1\"); getValue() ghép type với số chữ số chẵn nếu >= 2, else tổng số chữ số.",
+      "checklist": [
+        "Gọi super(type, price) và ghi đè toString() -> \"type, price, weight\"",
+        "setData() tìm đúng chữ cái cuối (isLetter) thay bằng Math.abs(price) % 10",
+        "getValue() đếm chữ số chẵn (>= 2 -> +evenCount; < 2 -> +totalDigits)"
+      ],
+      "entityFileName": "Ladder.java",
+      "entityCode": "public class Ladder {\n    private String type;\n    private int price;\n\n    public Ladder() {\n    }\n\n    public Ladder(String type, int price) {\n        this.type = type;\n        this.price = price;\n    }\n\n    public String getType() {\n        return type;\n    }\n\n    public int getPrice() {\n        return price;\n    }\n\n    public void setType(String type) {\n        this.type = type;\n    }\n\n    @Override\n    public String toString() {\n        return type + \", \" + price;\n    }\n}",
+      "starterCode": "public class SpecLadder extends Ladder {\n    private int weight;\n\n    public SpecLadder() {\n    }\n\n    public SpecLadder(String type, int price, int weight) {\n        // TODO: initialize super and weight\n    }\n\n    public int getWeight() {\n        return weight;\n    }\n\n    public void setData() {\n        // TODO: replace last letter in type with last digit of price\n    }\n\n    public String getValue() {\n        // TODO: even digits >= 2 -> type + evenCount else type + totalDigits\n        return \"\";\n    }\n}",
+      "cleanCode": "public class SpecLadder extends Ladder {\n    private int weight;\n\n    public SpecLadder() {\n    }\n\n    public SpecLadder(String type, int price, int weight) {\n        super(type, price);\n        this.weight = weight;\n    }\n\n    public int getWeight() {\n        return weight;\n    }\n\n    @Override\n    public String toString() {\n        return getType() + \", \" + getPrice() + \", \" + weight;\n    }\n\n    public void setData() {\n        String s = getType();\n        if (s == null || s.isEmpty()) {\n            return;\n        }\n        int lastDigit = Math.abs(getPrice()) % 10;\n        for (int i = s.length() - 1; i >= 0; i--) {\n            if (Character.isLetter(s.charAt(i))) {\n                setType(s.substring(0, i) + lastDigit + s.substring(i + 1));\n                return;\n            }\n        }\n    }\n\n    public String getValue() {\n        String wStr = String.valueOf(Math.abs(weight));\n        int evenDigits = 0;\n        for (int i = 0; i < wStr.length(); i++) {\n            int d = wStr.charAt(i) - '0';\n            if (d % 2 == 0) {\n                evenDigits++;\n            }\n        }\n        String prefix = (getType() == null) ? \"\" : getType();\n        if (evenDigits >= 2) {\n            return prefix + evenDigits;\n        }\n        return prefix + wStr.length();\n    }\n}"
+    },
+    {
+      "id": 18,
+      "code": "PE5-Q3",
+      "paper": "PE5",
+      "questionNo": "Q3",
+      "marks": 3,
+      "cat": "collections",
+      "title": "MyLadder — Cập nhật theo Độ dài & Xóa Max Letters",
+      "meta": "PE5 · Q3 · 3 điểm · 25 phút",
+      "relatedSlots": [
+        20,
+        25
+      ],
+      "desc": "Viết MyLadder implements ILadder: f1 tính tổng price các phần tử có nhiều chữ hoa hơn chữ thường; f2 đặt price = 0 cho mọi phần tử có type dài nhất; f3 xóa tất cả phần tử có nhiều chữ cái (isLetter) nhất.",
+      "checklist": [
+        "Không tạo ILadder.java, cài đủ f1, f2, f3 chuẩn JDK 8",
+        "f2 gán price = 0 cho TẤT CẢ phần tử có length == maxLength",
+        "f3 đếm theo Character.isLetter() và xóa bằng Iterator"
+      ],
+      "entityFileName": "Ladder.java",
+      "entityCode": "public class Ladder {\n    private String type;\n    private int price;\n\n    public Ladder() {\n    }\n\n    public Ladder(String type, int price) {\n        this.type = type;\n        this.price = price;\n    }\n\n    public String getType() {\n        return type;\n    }\n\n    public int getPrice() {\n        return price;\n    }\n\n    public void setType(String type) {\n        this.type = type;\n    }\n\n    public void setPrice(int price) {\n        this.price = price;\n    }\n}",
+      "interfaceFileName": "ILadder.java",
+      "interfaceCode": "import java.util.List;\n\npublic interface ILadder {\n    public int f1(List<Ladder> t);\n    public void f2(List<Ladder> t);\n    public void f3(List<Ladder> t);\n}",
+      "starterCode": "import java.util.List;\n\npublic class MyLadder implements ILadder {\n\n    @Override\n    public int f1(List<Ladder> t) {\n        // TODO: sum price where uppercase letters > lowercase letters\n        return 0;\n    }\n\n    @Override\n    public void f2(List<Ladder> t) {\n        // TODO: set price = 0 for all longest types\n    }\n\n    @Override\n    public void f3(List<Ladder> t) {\n        // TODO: remove all items with max letter count\n    }\n}",
+      "cleanCode": "import java.util.Iterator;\nimport java.util.List;\n\npublic class MyLadder implements ILadder {\n\n    private int countLetters(String s) {\n        if (s == null) {\n            return 0;\n        }\n        int cnt = 0;\n        for (int i = 0; i < s.length(); i++) {\n            if (Character.isLetter(s.charAt(i))) {\n                cnt++;\n            }\n        }\n        return cnt;\n    }\n\n    @Override\n    public int f1(List<Ladder> t) {\n        if (t == null) {\n            return 0;\n        }\n        int sum = 0;\n        for (Ladder l : t) {\n            if (l == null || l.getType() == null) {\n                continue;\n            }\n            int upper = 0;\n            int lower = 0;\n            String s = l.getType();\n            for (int i = 0; i < s.length(); i++) {\n                char c = s.charAt(i);\n                if (c >= 'A' && c <= 'Z') {\n                    upper++;\n                } else if (c >= 'a' && c <= 'z') {\n                    lower++;\n                }\n            }\n            if (upper > lower) {\n                sum += l.getPrice();\n            }\n        }\n        return sum;\n    }\n\n    @Override\n    public void f2(List<Ladder> t) {\n        if (t == null || t.isEmpty()) {\n            return;\n        }\n        int maxLen = 0;\n        for (Ladder l : t) {\n            if (l != null && l.getType() != null && l.getType().length() > maxLen) {\n                maxLen = l.getType().length();\n            }\n        }\n        for (Ladder l : t) {\n            if (l != null && l.getType() != null && l.getType().length() == maxLen) {\n                l.setPrice(0);\n            }\n        }\n    }\n\n    @Override\n    public void f3(List<Ladder> t) {\n        if (t == null || t.isEmpty()) {\n            return;\n        }\n        int maxLetters = -1;\n        for (Ladder l : t) {\n            if (l != null) {\n                int cnt = countLetters(l.getType());\n                if (cnt > maxLetters) {\n                    maxLetters = cnt;\n                }\n            }\n        }\n        Iterator<Ladder> it = t.iterator();\n        while (it.hasNext()) {\n            Ladder l = it.next();\n            if (l != null && countLetters(l.getType()) == maxLetters) {\n                it.remove();\n            }\n        }\n    }\n}"
+    },
+    {
+      "id": 19,
+      "code": "PE5-Q4",
+      "paper": "PE5",
+      "questionNo": "Q4",
+      "marks": 2,
+      "cat": "string",
+      "title": "MyString — Chữ số Khác nhau & Cân bằng Ký tự",
+      "meta": "PE5 · Q4 · 2 điểm · 20 phút",
+      "relatedSlots": [
+        5,
+        8,
+        9,
+        20,
+        26
+      ],
+      "desc": "Viết MyString implements IString: f1 đếm từ chứa đúng 2 chữ số khác nhau (HashSet) VÀ >= 1 chữ thường; f2 giữ lại các từ có số chữ cái KHÁC số ký tự không phải chữ cái, cách nhau 1 dấu cách.",
+      "checklist": [
+        "Không tạo IString.java, tách từ an toàn với trim().split(\"\\\\s+\")",
+        "f1 dùng HashSet<Character> kiểm tra đúng 2 chữ số khác nhau (B121 đạt)",
+        "f2 so sánh letterCount != nonLetterCount và trả về \"\" nếu rỗng"
+      ],
+      "entityFileName": "",
+      "entityCode": "",
+      "interfaceFileName": "IString.java",
+      "interfaceCode": "public interface IString {\n    public int f1(String str);\n    public String f2(String str);\n}",
+      "starterCode": "public class MyString implements IString {\n\n    @Override\n    public int f1(String str) {\n        // TODO: count words with exactly 2 distinct digits and >= 1 lowercase\n        return 0;\n    }\n\n    @Override\n    public String f2(String str) {\n        // TODO: keep words where letter count != non-letter count\n        return \"\";\n    }\n}",
+      "cleanCode": "import java.util.HashSet;\nimport java.util.Set;\n\npublic class MyString implements IString {\n\n    @Override\n    public int f1(String str) {\n        if (str == null) {\n            return 0;\n        }\n        String trimmed = str.trim();\n        if (trimmed.isEmpty()) {\n            return 0;\n        }\n        String[] words = trimmed.split(\"\\\\s+\");\n        int count = 0;\n        for (String w : words) {\n            Set<Character> digits = new HashSet<Character>();\n            boolean hasLower = false;\n            for (int i = 0; i < w.length(); i++) {\n                char c = w.charAt(i);\n                if (Character.isDigit(c)) {\n                    digits.add(c);\n                } else if (c >= 'a' && c <= 'z') {\n                    hasLower = true;\n                }\n            }\n            if (digits.size() == 2 && hasLower) {\n                count++;\n            }\n        }\n        return count;\n    }\n\n    @Override\n    public String f2(String str) {\n        if (str == null) {\n            return \"\";\n        }\n        String trimmed = str.trim();\n        if (trimmed.isEmpty()) {\n            return \"\";\n        }\n        String[] words = trimmed.split(\"\\\\s+\");\n        StringBuilder sb = new StringBuilder();\n        for (String w : words) {\n            int alpha = 0;\n            int nonAlpha = 0;\n            for (int i = 0; i < w.length(); i++) {\n                if (Character.isLetter(w.charAt(i))) {\n                    alpha++;\n                } else {\n                    nonAlpha++;\n                }\n            }\n            if (alpha != nonAlpha) {\n                if (sb.length() > 0) {\n                    sb.append(' ');\n                }\n                sb.append(w);\n            }\n        }\n        return sb.toString();\n    }\n}"
     }
   ],
   "assets": {

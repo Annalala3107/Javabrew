@@ -90,7 +90,8 @@ Kho giáo trình **PRO192 (Object-Oriented Programming with Java)** đã đượ
 
 ### Thực chiến Practical Exam (`M5 & M7`)
 
-- [Kho Đề Practical Exam (PE)](./pe-challenges.md) — Ôn luyện dạng bài Q1–Q4 thực tế trước giờ thi.
+- [Bí kíp & 7 Khuôn mẫu Giải Đề PE PRO192 (Chuẩn JDK 8)](./pe-patterns.md) — Checklist 9 quy tắc chống 0 điểm PEA/EOS, 7 mẫu code Q1–Q4 và ma trận tra nhanh đề thi.
+- [Kho Đề Practical Exam (PE1–PE5 · 19 câu)](./pe-challenges.md) — Trọn bộ đề thi thực hành Q1–Q4 chính thức chuẩn Java JDK 1.8.
 
 ---
 
