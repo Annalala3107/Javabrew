@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Pause, Play, RotateCcw, Timer } from 'lucide-react';
+import { JavaCodeEditor, type JumpTarget } from '../components/JavaCodeEditor';
 import { CopyCodeButton } from '../components/lucian/CopyCodeButton';
 import { LucianChecklistItem } from '../components/lucian/LucianChecklistItem';
 import { MorphActionButton } from '../components/lucian/MorphActionButton';
 import { SlidingPillTabs } from '../components/lucian/SlidingPillTabs';
 import { StreamingAiBubble } from '../components/lucian/StreamingAiBubble';
 import { useApp } from '../context/AppContext';
-import { evaluatePeCode, type PeDiagnosisCard } from '../utils/peEvaluator';
+import {
+  checkJavaSandboxHealth,
+  runJavaInCloud,
+  type JavaDiagnostic,
+  type JavaTestCaseResult,
+} from '../services/javaCompilerService';
+import { inferJavaFileName } from '../utils/javaFiles';
+import { evaluatePeCode, type PeDiagnosisCard, type PeEvaluationResult } from '../utils/peEvaluator';
 import { clearPeDraft, readPeDraft, savePeDraft } from '../utils/studioDrafts';
 import { stageFileToSlug } from '../utils/text';
 
@@ -28,10 +36,15 @@ const LEFT_TAB_OPTIONS = [
   { id: 'theory' as const, label: 'Lý thuyết nhanh' },
 ];
 
+const ENGINE_MODE_OPTIONS = [
+  { id: 'cloud' as const, label: 'OpenJDK 21 + Clean Code' },
+  { id: 'static' as const, label: 'Chỉ Static (Tức thì)' },
+];
+
 export function CodeStudioPage() {
   const { peId } = useParams<{ peId?: string }>();
   const navigate = useNavigate();
-  const { pro192, byokKey, markPeStatus, addMistake, recordVisit, pushToast } = useApp();
+  const { pro192, theme, byokKey, markPeStatus, addMistake, recordVisit, pushToast } = useApp();
 
   const challenges = useMemo(() => pro192?.peChallenges ?? [], [pro192]);
   const numericId = Number(peId) || 1;
@@ -45,17 +58,32 @@ export function CodeStudioPage() {
   const [showAiPane, setShowAiPane] = useState(true);
   const [showDiff, setShowDiff] = useState(false);
 
+  const [engineMode, setEngineMode] = useState<'cloud' | 'static'>('cloud');
+  const [sandboxHealth, setSandboxHealth] = useState<'checking' | 'ready' | 'offline'>('checking');
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [showStdin, setShowStdin] = useState(false);
+  const [stdinInput, setStdinInput] = useState('');
+
   const [loadedPeId, setLoadedPeId] = useState<number | null>(null);
   const [mainCode, setMainCode] = useState('');
   const [entityCode, setEntityCode] = useState('');
   const [draftState, setDraftState] = useState<'clean' | 'saving' | 'saved'>('clean');
   const [checkedCriteria, setCheckedCriteria] = useState<Record<string, boolean>>({});
 
-  const [consoleStatus, setConsoleStatus] = useState('Sẵn sàng biên dịch (Static Sandbox)');
+  const [consoleStatus, setConsoleStatus] = useState('Sẵn sàng biên dịch OpenJDK 21');
   const [consoleTone, setConsoleTone] = useState<'muted' | 'amber' | 'green' | 'red'>('muted');
   const [consoleOutput, setConsoleOutput] = useState(
-    'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để kiểm tra lỗi.'
+    'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để biên dịch & chấm bài thật.'
   );
+  const [diagnostics, setDiagnostics] = useState<JavaDiagnostic[]>([]);
+  const [jumpTarget, setJumpTarget] = useState<JumpTarget | null>(null);
+  const [cloudTestResults, setCloudTestResults] = useState<JavaTestCaseResult[]>([]);
+  const [lastTiming, setLastTiming] = useState<{
+    compileMs: number;
+    runMs: number;
+    engineLabel: string;
+  } | null>(null);
+
   const [diagnosisCards, setDiagnosisCards] = useState<PeDiagnosisCard[]>([]);
   const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
   const [chatInput, setChatInput] = useState('');
@@ -63,13 +91,12 @@ export function CodeStudioPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
 
-  const gutterRef = useRef<HTMLDivElement>(null);
   const draftTimerRef = useRef<number>(0);
+  const runAbortRef = useRef<AbortController | null>(null);
   const latestDraftRef = useRef<{ peId: number; main: string; entity: string; dirty: boolean } | null>(
     null
   );
 
-  // Compact PE Timer matching real exam pacing
   const suggestedMinutes = useMemo(() => {
     if (!activePe) return 25;
     const m = activePe.meta.match(/(\d+)\s*phút/i);
@@ -79,7 +106,7 @@ export function CodeStudioPage() {
   const [secondsLeft, setSecondsLeft] = useState(suggestedMinutes * 60);
   const [timerRunning, setTimerRunning] = useState(false);
 
-  // Sync starter/draft immediately when activePe changes to prevent 1-frame empty textarea flash
+  // Sync starter/draft immediately when activePe changes to prevent 1-frame empty flash
   if (activePe && loadedPeId !== activePe.id) {
     const draft = readPeDraft(activePe.id);
     const initMain = draft ? draft.mainCode : activePe.starterCode;
@@ -95,10 +122,14 @@ export function CodeStudioPage() {
     setCheckedCriteria({});
     setActiveFile('main');
     setShowDiff(false);
-    setConsoleStatus('Sẵn sàng biên dịch (Static Sandbox)');
+    setDiagnostics([]);
+    setJumpTarget(null);
+    setCloudTestResults([]);
+    setLastTiming(null);
+    setConsoleStatus('Sẵn sàng biên dịch OpenJDK 21');
     setConsoleTone('muted');
     setConsoleOutput(
-      'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để kiểm tra lỗi.'
+      'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để biên dịch & chấm bài thật.'
     );
     setRevealedHints({});
     setChatHistory([]);
@@ -107,7 +138,17 @@ export function CodeStudioPage() {
     setSecondsLeft(suggestedMinutes * 60);
   }
 
-  // Flush unsaved draft helper
+  // Probe sandbox health on mount
+  useEffect(() => {
+    const controller = new AbortController();
+    void checkJavaSandboxHealth(controller.signal).then((health) => {
+      if (!controller.signal.aborted) {
+        setSandboxHealth(health.available ? 'ready' : 'offline');
+      }
+    });
+    return () => controller.abort();
+  }, []);
+
   const flushLatestDraft = () => {
     window.clearTimeout(draftTimerRef.current);
     const snap = latestDraftRef.current;
@@ -117,9 +158,10 @@ export function CodeStudioPage() {
     }
   };
 
-  // Sync refs, initial diagnosis & visit history when active PE changes
   useEffect(() => {
     if (!activePe) return;
+    runAbortRef.current?.abort();
+
     if (latestDraftRef.current && latestDraftRef.current.peId !== activePe.id) {
       flushLatestDraft();
     }
@@ -150,6 +192,7 @@ export function CodeStudioPage() {
 
   useEffect(() => {
     return () => {
+      runAbortRef.current?.abort();
       flushLatestDraft();
     };
   }, []);
@@ -162,6 +205,7 @@ export function CodeStudioPage() {
     if (target === 'main') setMainCode(nextValue);
     else setEntityCode(nextValue);
 
+    setDiagnostics([]);
     setDraftState('saving');
     latestDraftRef.current = {
       peId: activePe.id,
@@ -197,56 +241,268 @@ export function CodeStudioPage() {
     return pro192.slots.find((s) => s.slot === activePe.relatedSlots[0]) || null;
   }, [activePe, pro192]);
 
+  const mainFileName = useMemo(() => {
+    if (!activePe) return 'Main.java';
+    const fallback = inferJavaFileName(activePe.starterCode, 'Main.java');
+    return inferJavaFileName(mainCode, fallback);
+  }, [activePe, mainCode]);
+
+  const entityFileName = useMemo(() => {
+    if (!activePe) return 'Student.java';
+    return inferJavaFileName(entityCode, activePe.entityFileName);
+  }, [activePe, entityCode]);
+
   const fileTabs = useMemo(
-    () =>
-      activePe
-        ? [
-            { id: 'main' as const, label: 'Main.java' },
-            { id: 'entity' as const, label: activePe.entityFileName },
-          ]
-        : [],
-    [activePe]
+    () => [
+      { id: 'main' as const, label: mainFileName },
+      { id: 'entity' as const, label: entityFileName },
+    ],
+    [mainFileName, entityFileName]
   );
 
-  const handleRunCode = (): boolean => {
-    if (!activePe) return false;
-    flushLatestDraft();
-    const res = evaluatePeCode(activePe.id, mainCode, entityCode);
-    setDiagnosisCards(res.diagnosisCards);
-    setConsoleOutput(res.consoleRunOutput);
-    if (res.allPassed) {
-      setConsoleStatus('✔ Biên dịch & Chạy thành công (0.8s)');
-      setConsoleTone('green');
-      return true;
-    }
-    setConsoleStatus('✕ Cảnh báo Runtime / Thiếu điều kiện');
-    setConsoleTone('red');
-    if (res.detectedMistake) addMistake(res.detectedMistake);
-    return false;
+  const activeFileName = activeFile === 'main' ? mainFileName : entityFileName;
+  const activeFileDiagnostics = useMemo(
+    () => diagnostics.filter((d) => d.file === activeFileName),
+    [diagnostics, activeFileName]
+  );
+
+  const handleJumpToDiagnostic = (diag: JavaDiagnostic) => {
+    const targetTab: 'main' | 'entity' = diag.file === entityFileName ? 'entity' : 'main';
+    setActiveFile(targetTab);
+    setShowDiff(false);
+    setJumpTarget((prev) => ({
+      line: diag.line,
+      column: diag.column,
+      nonce: (prev?.nonce ?? 0) + 1,
+    }));
   };
 
-  const handleSubmitTests = (): boolean => {
+  const applyStaticFallback = (
+    mode: 'run' | 'grade',
+    staticRes: PeEvaluationResult,
+    prefixNote?: string
+  ): boolean => {
     if (!activePe) return false;
-    flushLatestDraft();
-    const res = evaluatePeCode(activePe.id, mainCode, entityCode);
-    setDiagnosisCards(res.diagnosisCards);
-    setConsoleStatus(res.statusText);
-    setConsoleOutput(res.consoleTestOutput);
-    if (res.allPassed) {
+    setDiagnostics([]);
+    setCloudTestResults([]);
+    setLastTiming(null);
+
+    const rawOut = mode === 'run' ? staticRes.consoleRunOutput : staticRes.consoleTestOutput;
+    setConsoleOutput(prefixNote ? `${prefixNote}\n\n${rawOut}` : rawOut);
+
+    if (mode === 'run') {
+      if (staticRes.allPassed) {
+        setConsoleStatus('✔ Static Check đạt tiêu chí');
+        setConsoleTone('green');
+        return true;
+      }
+      setConsoleStatus('✕ Cảnh báo Runtime / Thiếu điều kiện (Static)');
+      setConsoleTone('red');
+      if (staticRes.detectedMistake) addMistake(staticRes.detectedMistake);
+      return false;
+    }
+
+    setConsoleStatus(staticRes.statusText);
+    if (staticRes.allPassed) {
       setConsoleTone('green');
       markPeStatus(activePe.id, 'pass');
       pushToast({
         title: `Chúc mừng! Đã Pass ${activePe.code}`,
-        description: `${res.passedCount}/${res.totalCount} test cases đạt chuẩn Clean Code`,
+        description: `${staticRes.passedCount}/${staticRes.totalCount} tiêu chí Clean Code`,
         tone: 'success',
       });
       return true;
     }
+
     setConsoleTone('amber');
     markPeStatus(activePe.id, 'in-progress');
-    if (res.detectedMistake) addMistake(res.detectedMistake);
+    if (staticRes.detectedMistake) addMistake(staticRes.detectedMistake);
     return false;
   };
+
+  const executeJava = async (mode: 'run' | 'grade'): Promise<boolean> => {
+    if (!activePe || isExecuting) return false;
+    flushLatestDraft();
+
+    // Layer 1 (0ms): Instant Clean Code + AI Mentor analysis
+    const staticRes = evaluatePeCode(activePe.id, mainCode, entityCode);
+    setDiagnosisCards(staticRes.diagnosisCards);
+
+    if (engineMode === 'static') {
+      return applyStaticFallback(mode, staticRes);
+    }
+
+    runAbortRef.current?.abort();
+    const controller = new AbortController();
+    runAbortRef.current = controller;
+
+    setIsExecuting(true);
+    setDiagnostics([]);
+    setCloudTestResults([]);
+    setLastTiming(null);
+    setConsoleStatus('☕ Đang biên dịch trên OpenJDK 21 Sandbox...');
+    setConsoleTone('amber');
+    setConsoleOutput('Đang khởi chạy Firecracker microVM OpenJDK 21 và biên dịch mã nguồn...');
+
+    try {
+      const filesToSend =
+        mainFileName === entityFileName
+          ? [{ name: mainFileName, content: mainCode }]
+          : [
+              { name: mainFileName, content: mainCode },
+              { name: entityFileName, content: entityCode },
+            ];
+
+      const res = await runJavaInCloud(
+        {
+          mode,
+          peId: activePe.id,
+          files: filesToSend,
+          stdin: mode === 'run' ? stdinInput : '',
+        },
+        controller.signal
+      );
+
+      if (controller.signal.aborted) return false;
+
+      if (res.unavailable) {
+        setSandboxHealth('offline');
+        return applyStaticFallback(mode, staticRes, `⚡ ${res.unavailableReason}`);
+      }
+
+      setSandboxHealth('ready');
+      setLastTiming({
+        compileMs: res.compileMs,
+        runMs: res.runMs,
+        engineLabel: res.jdkVersion || 'OpenJDK 21',
+      });
+
+      if (res.phase === 'compile') {
+        setDiagnostics(res.diagnostics);
+        setCloudTestResults([]);
+        setConsoleStatus(`✕ Lỗi biên dịch javac (${res.compileMs}ms)`);
+        setConsoleTone('red');
+        setConsoleOutput(res.stderr || res.stdout || 'Biên dịch javac thất bại.');
+        if (mode === 'grade') {
+          markPeStatus(activePe.id, 'in-progress');
+        }
+        addMistake({
+          type: 'runtime',
+          title: `Lỗi biên dịch javac (${activePe.code})`,
+          detail:
+            res.diagnostics[0]?.message || 'Kiểm tra cú pháp Java, dấu chấm phẩy và tên class.',
+          peId: activePe.id,
+        });
+        return false;
+      }
+
+      setDiagnostics(res.diagnostics);
+
+      if (mode === 'grade') {
+        const tests = res.testResults ?? [];
+        setCloudTestResults(tests);
+
+        const passedCount = tests.filter((t) => t.passed).length;
+        const totalCount = tests.length;
+        const allPassed = totalCount > 0 && passedCount === totalCount && res.ok;
+
+        const outputChunks: string[] = [];
+        if (res.stdout.trim()) outputChunks.push(res.stdout.trim());
+        if (res.stderr.trim()) outputChunks.push(`[stderr]\n${res.stderr.trim()}`);
+        if (outputChunks.length === 0) {
+          outputChunks.push(
+            allPassed
+              ? `Biên dịch javac (${res.compileMs}ms) & chạy JVM (${res.runMs}ms) hoàn tất.`
+              : `Hoàn tất chạy kiểm thử (${passedCount}/${totalCount} đạt).`
+          );
+        }
+        setConsoleOutput(outputChunks.join('\n\n'));
+
+        if (res.timedOut) {
+          setConsoleStatus('⏱ Quá thời gian thực thi JVM (8s)');
+          setConsoleTone('red');
+          markPeStatus(activePe.id, 'in-progress');
+          return false;
+        }
+
+        if (allPassed) {
+          setConsoleStatus(`✔ ${passedCount}/${totalCount} Test Cases PASSED! (OpenJDK 21)`);
+          setConsoleTone('green');
+          markPeStatus(activePe.id, 'pass');
+          pushToast({
+            title: `Chúc mừng! Đã Pass ${activePe.code}`,
+            description: `${passedCount}/${totalCount} test cases thật trên OpenJDK 21`,
+            tone: 'success',
+          });
+          return true;
+        }
+
+        setConsoleStatus(`${passedCount}/${totalCount || 3} Test Cases Passed (OpenJDK 21)`);
+        setConsoleTone('amber');
+        markPeStatus(activePe.id, 'in-progress');
+        const firstFail = tests.find((t) => !t.passed);
+        if (firstFail) {
+          addMistake({
+            type: 'runtime',
+            title: `${firstFail.id} chưa đạt (${activePe.code})`,
+            detail: firstFail.error || firstFail.actual || firstFail.name,
+            peId: activePe.id,
+          });
+        } else if (staticRes.detectedMistake) {
+          addMistake(staticRes.detectedMistake);
+        }
+        return false;
+      }
+
+      // Free / smoke run mode
+      setCloudTestResults([]);
+      const runText =
+        [res.stdout.trim(), res.stderr.trim() ? `[stderr]\n${res.stderr.trim()}` : '']
+          .filter(Boolean)
+          .join('\n\n') || '(Chương trình chạy xong với đầu ra trống)';
+      setConsoleOutput(runText);
+
+      if (res.timedOut) {
+        setConsoleStatus('⏱ Quá thời gian thực thi JVM (8s)');
+        setConsoleTone('red');
+        return false;
+      }
+
+      if (res.exitCode === 0) {
+        setConsoleStatus(`✔ Biên dịch & Chạy thật thành công (${res.compileMs + res.runMs}ms)`);
+        setConsoleTone('green');
+        return true;
+      }
+
+      setConsoleStatus(`✕ Lỗi Runtime JVM (exit ${res.exitCode})`);
+      setConsoleTone('red');
+      addMistake({
+        type: 'runtime',
+        title: `Lỗi Runtime JVM (${activePe.code})`,
+        detail: res.stderr.split(/\r?\n/)[0] || `JVM thoát với mã ${res.exitCode}`,
+        peId: activePe.id,
+      });
+      return false;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return false;
+      }
+      setSandboxHealth('offline');
+      return applyStaticFallback(
+        mode,
+        staticRes,
+        '⚡ Gặp sự cố kết nối OpenJDK Sandbox — đã tự động chấm bằng Static Evaluator.'
+      );
+    } finally {
+      if (runAbortRef.current === controller) {
+        runAbortRef.current = null;
+      }
+      setIsExecuting(false);
+    }
+  };
+
+  const handleRunCode = () => executeJava('run');
+  const handleSubmitTests = () => executeJava('grade');
 
   const handleApplyCleanCode = () => {
     if (!activePe) return;
@@ -263,12 +519,14 @@ export function CodeStudioPage() {
     }
     setActiveFile('main');
     setShowDiff(false);
+    setDiagnostics([]);
+    setCloudTestResults([]);
     const res = evaluatePeCode(activePe.id, activePe.cleanCode, entityCode);
     setDiagnosisCards(res.diagnosisCards);
     setConsoleStatus('Đã áp dụng bản tối ưu ✨');
     setConsoleTone('green');
     setConsoleOutput(
-      'Code đã gọn hơn! Hãy bấm "✔ Chấm Test Case PE" để xác nhận Pass toàn bộ test.'
+      'Code đã gọn hơn! Hãy bấm "✔ Chấm Test Case PE" để xác nhận Pass trên OpenJDK 21.'
     );
     pushToast({
       title: 'Đã áp dụng Clean Code',
@@ -279,6 +537,7 @@ export function CodeStudioPage() {
 
   const handleReset = () => {
     if (!activePe) return;
+    runAbortRef.current?.abort();
     const prevMain = mainCode;
     const prevEntity = entityCode;
     const hadChanges = prevMain !== activePe.starterCode || prevEntity !== activePe.entityCode;
@@ -297,10 +556,14 @@ export function CodeStudioPage() {
 
     setActiveFile('main');
     setShowDiff(false);
-    setConsoleStatus('Sẵn sàng biên dịch (Static Sandbox)');
+    setDiagnostics([]);
+    setJumpTarget(null);
+    setCloudTestResults([]);
+    setLastTiming(null);
+    setConsoleStatus('Sẵn sàng biên dịch OpenJDK 21');
     setConsoleTone('muted');
     setConsoleOutput(
-      'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để kiểm tra lỗi.'
+      'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để biên dịch & chấm bài thật.'
     );
     setDiagnosisCards(
       evaluatePeCode(activePe.id, activePe.starterCode, activePe.entityCode).diagnosisCards
@@ -326,7 +589,6 @@ export function CodeStudioPage() {
     if (!cleanPrompt || !activePe) return;
     setChatInput('');
 
-    // If BYOK Gemini key is configured, query Gemini; otherwise answer intelligently offline
     if (byokKey) {
       setPendingPrompt(cleanPrompt);
       setAiBusy(true);
@@ -392,7 +654,6 @@ export function CodeStudioPage() {
           : 'text-[var(--text-muted)]';
 
   const activeCode = activeFile === 'main' ? mainCode : entityCode;
-  const activeLinesCount = Math.max(14, activeCode.split(/\r?\n/).length);
   const currentLineCount = mainCode.split(/\r?\n/).length;
   const cleanLineCount = activePe ? activePe.cleanCode.split(/\r?\n/).length : 0;
 
@@ -404,7 +665,17 @@ export function CodeStudioPage() {
     );
   }
 
-  const javacCommand = `javac ${activePe.entityFileName} Main.java && java Main`;
+  const entryMainClass = mainFileName.replace(/\.java$/, '');
+  const javacCommand = `javac ${entityFileName} ${mainFileName} && java ${entryMainClass}`;
+
+  const engineBadgeLabel =
+    engineMode === 'static'
+      ? '⚡ Static Pattern Evaluator'
+      : sandboxHealth === 'ready'
+        ? '☕ OpenJDK 21 Sandbox'
+        : sandboxHealth === 'checking'
+          ? '☕ Đang kiểm tra Sandbox'
+          : '⚡ Static Pattern Evaluator (Fallback)';
 
   return (
     <div className="flex flex-1 flex-col">
@@ -485,11 +756,13 @@ export function CodeStudioPage() {
             <MorphActionButton
               label="▶ Run Code"
               variant="secondary"
+              disabled={isExecuting}
               onClick={handleRunCode}
             />
             <MorphActionButton
               label="✔ Chấm Test Case PE"
               variant="primary"
+              disabled={isExecuting}
               onClick={handleSubmitTests}
             />
             <button
@@ -586,7 +859,7 @@ export function CodeStudioPage() {
           )}
         </aside>
 
-        {/* Center Pane: Code Editor with Line Gutter / Diff View + Bottom Console */}
+        {/* Center Pane: CodeMirror 6 Editor / Diff View + Bottom Console */}
         <div
           className={[
             'flex flex-col border-b border-[var(--border-default)] bg-[var(--bg-code)] lg:border-b-0',
@@ -604,58 +877,32 @@ export function CodeStudioPage() {
               className="font-mono"
             />
 
-            <button
-              type="button"
-              onClick={() => setShowDiff((d) => !d)}
-              className="min-h-[36px] rounded-md border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-2.5 py-1 font-medium text-[var(--accent-text)] hover:opacity-90"
-            >
-              ⚡ {showDiff ? 'Quay lại Code Editor' : 'So sánh Bản Tối ưu (Diff)'}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="hidden font-mono text-xs text-[var(--text-dim)] sm:inline">
+                Ctrl+Enter để chạy
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowDiff((d) => !d)}
+                className="min-h-[36px] rounded-md border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-2.5 py-1 font-medium text-[var(--accent-text)] hover:opacity-90"
+              >
+                ⚡ {showDiff ? 'Quay lại Code Editor' : 'So sánh Bản Tối ưu (Diff)'}
+              </button>
+            </div>
           </div>
 
           {!showDiff ? (
-            <div className="flex min-h-[270px] flex-1 overflow-hidden bg-[var(--bg-code)]">
-              <div
-                ref={gutterRef}
-                aria-hidden="true"
-                data-testid="code-line-gutter"
-                className="select-none overflow-hidden border-r border-[var(--border-default)] bg-[var(--bg-surface-muted)]/60 px-3 py-4 text-right font-mono text-xs leading-relaxed text-[var(--text-dim)] tabular-nums"
-              >
-                {Array.from({ length: activeLinesCount }, (_, idx) => (
-                  <div key={idx + 1}>{idx + 1}</div>
-                ))}
-              </div>
-              <textarea
-                aria-label="Trình soạn thảo mã nguồn Java"
-                spellCheck={false}
-                rows={14}
-                value={activeCode}
-                onChange={(e) => updateCodeAndScheduleDraft(activeFile, e.target.value)}
-                onBlur={flushLatestDraft}
-                onScroll={(e) => {
-                  if (gutterRef.current) {
-                    gutterRef.current.scrollTop = e.currentTarget.scrollTop;
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Tab') {
-                    e.preventDefault();
-                    const el = e.currentTarget;
-                    const start = el.selectionStart;
-                    const end = el.selectionEnd;
-                    const nextVal =
-                      el.value.substring(0, start) + '    ' + el.value.substring(end);
-                    updateCodeAndScheduleDraft(activeFile, nextVal);
-                    window.requestAnimationFrame(() => {
-                      el.selectionStart = el.selectionEnd = start + 4;
-                    });
-                  }
-                }}
-                className="h-full min-h-[270px] w-full flex-1 resize-none overflow-auto bg-transparent p-4 font-mono text-xs leading-relaxed text-[var(--text-primary)] focus:outline-none"
-              />
-            </div>
+            <JavaCodeEditor
+              value={activeCode}
+              onChange={(val) => updateCodeAndScheduleDraft(activeFile, val)}
+              onBlur={flushLatestDraft}
+              onRunShortcut={() => void handleRunCode()}
+              theme={theme}
+              diagnostics={activeFileDiagnostics}
+              jumpTarget={jumpTarget}
+            />
           ) : (
-            <div className="grid min-h-[270px] flex-1 grid-cols-1 gap-3 overflow-auto p-4 text-xs md:grid-cols-2">
+            <div className="grid min-h-[290px] flex-1 grid-cols-1 gap-3 overflow-auto p-4 text-xs md:grid-cols-2">
               <div className="space-y-2 rounded-lg border border-[var(--danger)]/40 bg-[var(--bg-surface)] p-3">
                 <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-1.5">
                   <span className="font-semibold text-[var(--danger-text)]">
@@ -695,23 +942,29 @@ export function CodeStudioPage() {
             </div>
           )}
 
-          {/* Bottom Console + Static Pattern Evaluator Clarity */}
-          <div className="space-y-2 border-t border-[var(--border-default)] bg-[var(--bg-canvas)] p-3.5 text-xs">
+          {/* Bottom Console + Engine Switcher + Diagnostics + Test Results */}
+          <div className="space-y-2.5 border-t border-[var(--border-default)] bg-[var(--bg-canvas)] p-3.5 text-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold text-[var(--text-primary)]">
                   Console &amp; Kết quả Test PE
                 </span>
                 <span
-                  title="Sandbox trình duyệt chấm bằng Static Pattern Evaluator (phân tích cú pháp & trường hợp biên). Hãy chạy thêm bằng JDK/NetBeans trên máy để biên dịch JVM thật."
+                  title="Hybrid 2 lớp: biên dịch thật trên OpenJDK 21 Sandbox kết hợp Static Pattern Evaluator cho Clean Code."
                   className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-xs text-[var(--text-muted)]"
                 >
-                  Static Pattern Evaluator
+                  {engineBadgeLabel}
                 </span>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`font-mono ${statusColorCls}`}>{consoleStatus}</span>
+                <SlidingPillTabs
+                  options={ENGINE_MODE_OPTIONS}
+                  value={engineMode}
+                  onChange={setEngineMode}
+                  ariaLabel="Chọn chế độ biên dịch"
+                  tone="neutral"
+                />
                 <CopyCodeButton
                   code={javacCommand}
                   label="Copy lệnh javac"
@@ -727,11 +980,109 @@ export function CodeStudioPage() {
                 />
               </div>
             </div>
-            <pre className="min-h-[76px] whitespace-pre-wrap rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)] p-3 font-mono text-xs text-[var(--text-muted)]">
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className={`font-mono font-medium ${statusColorCls}`}>{consoleStatus}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                {lastTiming && (
+                  <span className="font-mono text-xs text-[var(--text-dim)]">
+                    {lastTiming.engineLabel} · javac {lastTiming.compileMs}ms · jvm {lastTiming.runMs}ms
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowStdin((s) => !s)}
+                  className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                >
+                  {showStdin ? 'Ẩn stdin' : '+ Nhập stdin'}
+                </button>
+              </div>
+            </div>
+
+            {showStdin && (
+              <div className="space-y-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-2.5">
+                <label htmlFor="studio-stdin-box" className="block font-medium text-[var(--text-secondary)]">
+                  Dữ liệu đầu vào chuẩn (stdin) cho hàm <code className="font-mono">main()</code> tự viết:
+                </label>
+                <textarea
+                  id="studio-stdin-box"
+                  rows={2}
+                  value={stdinInput}
+                  onChange={(e) => setStdinInput(e.target.value)}
+                  placeholder="Ví dụ: An&#10;8.5"
+                  className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-code)] p-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+                />
+              </div>
+            )}
+
+            {/* Clickable javac compiler diagnostics */}
+            {diagnostics.length > 0 && (
+              <div
+                aria-label="Danh sách lỗi biên dịch javac"
+                className="space-y-1.5 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-2.5"
+              >
+                <div className="font-semibold text-[var(--danger-text)]">
+                  Lỗi biên dịch javac ({diagnostics.length}) — bấm để nhảy tới dòng:
+                </div>
+                <div className="space-y-1">
+                  {diagnostics.map((diag, idx) => (
+                    <button
+                      key={`${diag.file}-${diag.line}-${idx}`}
+                      type="button"
+                      onClick={() => handleJumpToDiagnostic(diag)}
+                      className="flex w-full items-start gap-2 rounded px-2 py-1 text-left font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/70"
+                    >
+                      <span className="shrink-0 font-semibold text-[var(--danger-text)]">
+                        {diag.file}:{diag.line}:{diag.column}
+                      </span>
+                      <span className="break-words text-[var(--text-secondary)]">{diag.message}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Structured OpenJDK test case results */}
+            {cloudTestResults.length > 0 && (
+              <div
+                aria-label="Kết quả từng Test Case OpenJDK 21"
+                className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+              >
+                {cloudTestResults.map((tc) => (
+                  <div
+                    key={tc.id}
+                    className={[
+                      'space-y-1 rounded-lg border p-2.5',
+                      tc.passed
+                        ? 'border-[var(--success)]/40 bg-[var(--success-soft)]'
+                        : 'border-[var(--danger)]/40 bg-[var(--danger-soft)]',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-center justify-between font-mono font-semibold">
+                      <span className={tc.passed ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'}>
+                        {tc.passed ? '✔' : '✕'} {tc.id}
+                      </span>
+                      <span className="text-[var(--text-dim)]">{tc.durationMs}ms</span>
+                    </div>
+                    <div className="font-medium text-[var(--text-primary)]">{tc.name}</div>
+                    {!tc.passed && (
+                      <div className="space-y-0.5 font-mono text-xs text-[var(--text-muted)]">
+                        {tc.expected && <div>Kỳ vọng: {tc.expected}</div>}
+                        {tc.actual && <div>Thực tế: {tc.actual}</div>}
+                        {tc.error && <div className="text-[var(--danger-text)]">{tc.error}</div>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <pre className="min-h-[72px] whitespace-pre-wrap rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)] p-3 font-mono text-xs text-[var(--text-muted)]">
               {consoleOutput}
             </pre>
+
             <p className="text-xs text-[var(--text-dim)]">
-              Lưu ý: Sandbox dùng <strong>Static Pattern Evaluator</strong> để kiểm tra lỗi biên &amp; Clean Code; dùng nút <code className="text-[var(--text-muted)]">Copy lệnh javac</code> khi muốn biên dịch bằng JDK thật trên NetBeans/Terminal.
+              Hybrid 2 lớp: biên dịch &amp; chấm Test Case thật trên <strong>OpenJDK 21 Sandbox</strong> + phân tích Clean Code tức thì bởi <strong>Static Pattern Evaluator</strong>. Lệnh máy local: <code className="text-[var(--text-muted)]">{javacCommand}</code>
             </p>
           </div>
         </div>

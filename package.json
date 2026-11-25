@@ -14,7 +14,17 @@
     "build:index": "node scripts/build-search-index.mjs"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-java": "^6.0.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/lint": "^6.9.8",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
     "@gsap/react": "^2.1.2",
+    "@lezer/highlight": "^1.2.5",
+    "@vercel/functions": "^3.11.3",
+    "@vercel/sandbox": "^4.1.0",
     "gsap": "^3.15.1",
     "highlight.js": "^11.11.1",
     "js-yaml": "^4.1.0",

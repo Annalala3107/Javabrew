@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { EditorView } from '@codemirror/view';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '../App';
@@ -104,6 +105,20 @@ const MOCK_PRO192: Pro192Data = {
       cleanCode:
         'import java.util.*;\npublic class Main {\n  public static List<Student> filterHonor(List<Student> list) {\n    if (list == null || list.isEmpty()) return Collections.emptyList();\n    List<Student> res = new ArrayList<>();\n    for (Student s : list) { if (s != null && s.getGpa() >= 8.0) res.add(s); }\n    res.sort(Comparator.comparingDouble(Student::getGpa).reversed());\n    return res;\n  }\n}',
     },
+    {
+      id: 2,
+      code: 'PE 02',
+      cat: 'oop',
+      title: 'Hệ thống Thư viện Sách',
+      meta: 'Dạng Q2–Q3 • Trung bình • 35 phút',
+      relatedSlots: [1],
+      desc: 'Kế thừa Book qua super().',
+      checklist: ['Dùng extends Book & super()'],
+      entityFileName: 'Book.java',
+      entityCode: 'public class Book { protected String title; }',
+      starterCode: 'public class EBook extends Book {\n  public EBook() {}\n}',
+      cleanCode: 'public class EBook extends Book {\n  public EBook() { super(); }\n}',
+    },
   ],
   assets: {
     images: ['/media/pro192/images/JVM.png'],
@@ -164,11 +179,34 @@ const MOCK_SEARCH: SearchIndexData = {
   ],
 };
 
-function installFetchMock() {
+function installFetchMock(
+  sandboxHandler?: (method: string, bodyText?: string) => Promise<Response> | Response
+) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (input: RequestInfo | URL) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/api/java-run')) {
+        if (sandboxHandler) {
+          return sandboxHandler(
+            (init?.method || 'GET').toUpperCase(),
+            typeof init?.body === 'string' ? init.body : undefined
+          );
+        }
+        if ((init?.method || 'GET').toUpperCase() === 'POST') {
+          return new Response(
+            JSON.stringify({
+              unavailable: true,
+              unavailableReason: 'Local SPA — chuyển sang Static Evaluator.',
+            }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        return new Response(
+          JSON.stringify({ available: false, runtime: 'OpenJDK 21 (Vercel Sandbox)' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
       if (url.endsWith('/metadata/navigation.json')) {
         return new Response(JSON.stringify(MOCK_NAV), { status: 200 });
       }
@@ -297,7 +335,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     });
   });
 
-  it('runs Code Studio starter vs Diff Clean Code and passes 3/3 test cases', async () => {
+  it('runs Code Studio starter vs Diff Clean Code and passes 3/3 test cases (offline fallback)', async () => {
     render(
       <MemoryRouter initialEntries={['/studio/1']}>
         <AppProvider>
@@ -311,16 +349,95 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
-    expect(screen.getByText('0/3 Test Cases Passed')).toBeInTheDocument();
+    expect(await screen.findByText('0/3 Test Cases Passed')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /So sánh Bản Tối ưu \(Diff\)/i }));
     fireEvent.click(screen.getByRole('button', { name: /Áp dụng đoạn code tối ưu này/i }));
     fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
 
-    expect(screen.getByText('✔ 3/3 Test Cases PASSED!')).toBeInTheDocument();
+    expect(await screen.findByText('✔ 3/3 Test Cases PASSED!')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cách tối ưu?' }));
     expect(screen.getByText(/Bạn hỏi: “Làm sao tối ưu ngắn hơn nữa\?”/)).toBeInTheDocument();
+  });
+
+  it('infers PE 02 class filenames (EBook.java) and renders cloud OpenJDK 21 compile diagnostics and passing test cases', async () => {
+    let callCount = 0;
+    installFetchMock((method) => {
+      if (method === 'GET') {
+        return new Response(
+          JSON.stringify({ available: true, runtime: 'OpenJDK 21 (Vercel Sandbox)', region: 'sin1' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      callCount += 1;
+      if (callCount === 1) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            phase: 'compile',
+            jdkVersion: 'javac 21.0.5',
+            compileMs: 310,
+            runMs: 0,
+            exitCode: 1,
+            stdout: '',
+            stderr: "Book.java:1: error: ';' expected\npublic class Book { protected String title }\n                                            ^",
+            diagnostics: [
+              {
+                file: 'Book.java',
+                line: 1,
+                column: 45,
+                severity: 'error',
+                message: "';' expected",
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          phase: 'run',
+          jdkVersion: 'javac 21.0.5',
+          compileMs: 280,
+          runMs: 145,
+          exitCode: 0,
+          timedOut: false,
+          stdout: 'EBook[Java Core, 85.0]',
+          stderr: '',
+          diagnostics: [],
+          testResults: [
+            { id: 'TC1', name: 'Ke thua Book', passed: true, durationMs: 2 },
+            { id: 'TC2', name: '@Override getFinalPrice()', passed: true, durationMs: 3 },
+            { id: 'TC3', name: 'toString() EBook[...]', passed: true, durationMs: 1 },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/studio/2']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const ebookTab = await screen.findByRole('tab', { name: 'EBook.java' });
+    const bookTab = screen.getByRole('tab', { name: 'Book.java' });
+    expect(ebookTab).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByText(/☕ OpenJDK 21 Sandbox/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
+    const diagBtn = await screen.findByRole('button', { name: /Book\.java:1:45/i });
+    fireEvent.click(diagBtn);
+    expect(bookTab).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
+    expect(await screen.findByText('✔ 3/3 Test Cases PASSED! (OpenJDK 21)')).toBeInTheDocument();
+    expect(screen.getByText('@Override getFinalPrice()')).toBeInTheDocument();
   });
 
   it('opens SearchModal with Ctrl+K and SettingsModal BYOK config', async () => {
@@ -424,7 +541,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     expect(menuBtn).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('persists Code Studio drafts in localStorage, updates line gutter, and supports Reset Undo toast', async () => {
+  it('persists Code Studio drafts in localStorage via CodeMirror 6, updates gutter, and supports Reset Undo toast', async () => {
     const { unmount } = render(
       <MemoryRouter initialEntries={['/studio/1']}>
         <AppProvider>
@@ -433,18 +550,22 @@ describe('JavaBrew Night Coffee Lab UI', () => {
       </MemoryRouter>
     );
 
-    const editor = (await screen.findByLabelText(/Trình soạn thảo mã nguồn Java/i)) as HTMLTextAreaElement;
+    const editorDom = await screen.findByLabelText(/Trình soạn thảo mã nguồn Java/i);
     expect(screen.getAllByText(/Static Pattern Evaluator/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole('button', { name: /Sao chép lệnh biên dịch javac local/i })).toBeInTheDocument();
 
     const gutter = screen.getByTestId('code-line-gutter');
-    const initialGutterCount = gutter.children.length;
+    expect(gutter).toBeInTheDocument();
 
-    const customCode = `${editor.value}\n// draft-saved-line\n// line-extra`;
-    fireEvent.change(editor, { target: { value: customCode } });
-    fireEvent.blur(editor);
+    const view = EditorView.findFromDOM(editorDom)!;
+    expect(view).not.toBeNull();
+    act(() => {
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: '\n// draft-saved-line\n// line-extra' },
+      });
+    });
+    fireEvent.blur(editorDom);
 
-    expect(gutter.children.length).toBeGreaterThanOrEqual(initialGutterCount);
     expect(localStorage.getItem('javabrew:pe_draft:1')).toContain('draft-saved-line');
 
     unmount();
@@ -457,19 +578,18 @@ describe('JavaBrew Night Coffee Lab UI', () => {
       </MemoryRouter>
     );
 
-    const reloadedEditor = (await screen.findByLabelText(
-      /Trình soạn thảo mã nguồn Java/i
-    )) as HTMLTextAreaElement;
-    expect(reloadedEditor.value).toContain('draft-saved-line');
+    const reloadedDom = await screen.findByLabelText(/Trình soạn thảo mã nguồn Java/i);
+    const reloadedView = EditorView.findFromDOM(reloadedDom)!;
+    expect(reloadedView.state.doc.toString()).toContain('draft-saved-line');
     expect(screen.getByText(/✓ Đã lưu nháp/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Khôi phục gốc/i }));
-    expect(reloadedEditor.value).not.toContain('draft-saved-line');
+    expect(reloadedView.state.doc.toString()).not.toContain('draft-saved-line');
     expect(localStorage.getItem('javabrew:pe_draft:1')).toBeNull();
 
     const undoBtn = await screen.findByRole('button', { name: 'Hoàn tác' });
     fireEvent.click(undoBtn);
-    expect(reloadedEditor.value).toContain('draft-saved-line');
+    expect(reloadedView.state.doc.toString()).toContain('draft-saved-line');
     expect(localStorage.getItem('javabrew:pe_draft:1')).toContain('draft-saved-line');
   });
 

@@ -3,9 +3,14 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/*.ts": {
+      "maxDuration": 300
+    }
+  },
   "rewrites": [
     {
-      "source": "/((?!assets/|content/|metadata/|data/|media/).*)",
+      "source": "/((?!api/|assets/|content/|metadata/|data/|media/).*)",
       "destination": "/index.html"
     }
   ],
