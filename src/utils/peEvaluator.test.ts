@@ -18,11 +18,15 @@ describe('evaluatePeCode against real metadata/pro192.json PE challenges', () =>
     expect(challenges).toHaveLength(4);
   });
 
-  it('fails starterCode edge cases and passes 3/3 with cleanCode for every real PE challenge', () => {
+  it('fails starterCode edge cases (without comment false-positives) and passes 3/3 with cleanCode for every real PE challenge', () => {
     for (const ch of challenges) {
       const starterResult = evaluatePeCode(ch.id, ch.starterCode, ch.entityCode);
       expect(starterResult.allPassed).toBe(false);
       expect(starterResult.passedCount).toBeLessThan(3);
+      if (ch.id === 1) {
+        // Ensures comment `// ... list == null` does not trick TC2 into passing
+        expect(starterResult.passedCount).toBe(0);
+      }
 
       const cleanResult = evaluatePeCode(ch.id, ch.cleanCode, ch.entityCode);
       expect(cleanResult.allPassed).toBe(true);

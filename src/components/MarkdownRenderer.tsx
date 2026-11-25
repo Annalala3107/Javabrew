@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
@@ -17,12 +17,14 @@ import {
   FileText,
   Info,
   Lightbulb,
+  Play,
   ShieldAlert,
   X,
   ZoomIn,
 } from 'lucide-react';
 import { CopyCodeButton } from './lucian/CopyCodeButton';
 import { useApp } from '../context/AppContext';
+import { prepareJavaPlaygroundFiles, savePlaygroundWorkspace } from '../utils/javaPlayground';
 import { resolveMarkdownHref } from '../utils/markdown';
 
 interface MarkdownRendererProps {
@@ -39,8 +41,15 @@ function extractNodeText(node: ReactNode): string {
   return '';
 }
 
-function CodeBlock({ children }: { children?: ReactNode }) {
+function CodeBlock({
+  children,
+  currentRel,
+}: {
+  children?: ReactNode;
+  currentRel: string;
+}) {
   const { pushToast } = useApp();
+  const navigate = useNavigate();
 
   let language = 'text';
   const childArray = Children.toArray(children);
@@ -52,25 +61,58 @@ function CodeBlock({ children }: { children?: ReactNode }) {
   }
 
   const rawCode = extractNodeText(children).replace(/\n$/, '');
+  const isRunnableJava = language.toLowerCase() === 'java' && rawCode.trim().length >= 8;
+
+  const handleTryInPlayground = () => {
+    const prepared = prepareJavaPlaygroundFiles(rawCode, currentRel);
+    const nextState = {
+      files: prepared.files,
+      activeFileId: prepared.files[0].id,
+      stdin: '',
+      sourceLabel: currentRel,
+    };
+    savePlaygroundWorkspace(nextState);
+    pushToast({
+      title: 'Đã nạp code vào Java Playground',
+      description: prepared.note,
+      tone: 'info',
+    });
+    navigate('/studio/playground', {
+      state: { playgroundImport: nextState, note: prepared.note },
+    });
+  };
 
   return (
     <div className="my-5 overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-code)]">
-      <div className="flex items-center justify-between border-b border-[var(--border-default)] bg-[var(--bg-surface-muted)] px-3.5 py-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface-muted)] px-3.5 py-1.5">
         <span className="font-mono text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
           {language}
         </span>
-        <CopyCodeButton
-          code={rawCode}
-          label="Sao chép"
-          copiedLabel="Đã chép"
-          ariaLabel="Sao chép đoạn mã"
-          onCopied={() =>
-            pushToast({
-              title: 'Đã sao chép đoạn mã',
-              tone: 'success',
-            })
-          }
-        />
+        <div className="flex items-center gap-2">
+          {isRunnableJava && (
+            <button
+              type="button"
+              onClick={handleTryInPlayground}
+              aria-label="Chạy thử đoạn mã Java trong Code Studio Playground"
+              className="inline-flex min-h-[28px] items-center gap-1 rounded-md border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--accent-text)] transition-opacity hover:opacity-90"
+            >
+              <Play className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span>Chạy thử</span>
+            </button>
+          )}
+          <CopyCodeButton
+            code={rawCode}
+            label="Sao chép"
+            copiedLabel="Đã chép"
+            ariaLabel="Sao chép đoạn mã"
+            onCopied={() =>
+              pushToast({
+                title: 'Đã sao chép đoạn mã',
+                tone: 'success',
+              })
+            }
+          />
+        </div>
       </div>
       <pre className="overflow-x-auto p-4 text-[13.5px] leading-relaxed">{children}</pre>
     </div>
@@ -134,7 +176,7 @@ export function MarkdownRenderer({ content, currentRel }: MarkdownRendererProps)
           rehypePlugins={[rehypeSlug, [rehypeHighlight, { detect: false, ignoreMissing: true }]]}
           components={{
             pre({ children }) {
-              return <CodeBlock>{children}</CodeBlock>;
+              return <CodeBlock currentRel={currentRel}>{children}</CodeBlock>;
             },
             table({ children }) {
               return (

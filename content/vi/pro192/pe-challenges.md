@@ -32,7 +32,7 @@ public class Student {
 
     public Student(String name, double gpa) {
         this.name = (name == null) ? "" : name.trim();
-        setGpa(gpa);
+        this.gpa = (gpa >= 0.0 && gpa <= 10.0) ? gpa : 0.0;
     }
 
     public String getName() {

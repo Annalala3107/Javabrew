@@ -1,4 +1,5 @@
 import type { MistakeItem } from '../types/content';
+import { stripJavaComments } from './javaFiles';
 
 export interface PeDiagnosisCard {
   id: string;
@@ -24,7 +25,8 @@ export function evaluatePeCode(
   mainCode: string,
   entityCode: string
 ): PeEvaluationResult {
-  const combined = `${mainCode}\n${entityCode}`;
+  const cleanMainCode = stripJavaComments(mainCode);
+  const combined = stripJavaComments(`${mainCode}\n${entityCode}`);
 
   if (peId === 1) {
     const hasNullListCheck =
@@ -52,7 +54,7 @@ export function evaluatePeCode(
         hintCode: 'if (list == null || list.isEmpty()) return Collections.emptyList();',
       });
     }
-    if (!hasSort || /for\s*\([^)]+\)\s*\{[\s\S]*for\s*\(/.test(mainCode)) {
+    if (!hasSort || /for\s*\([^)]+\)\s*\{[\s\S]*for\s*\(/.test(cleanMainCode)) {
       diagnosisCards.push({
         id: 'pe1-clean',
         tone: 'amber',

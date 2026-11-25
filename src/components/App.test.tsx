@@ -218,7 +218,7 @@ function installFetchMock(
       }
       if (url.endsWith('/content/vi/pro192/giai-doan-1-slot-01-05.md')) {
         return new Response(
-          '# Giai đoạn 1\n## Slot 1: Tổng quan Java\nLý thuyết Slot 1.\n#### Bài tập 1.1: Vai trò Bytecode\n* **Đề bài:** `javac` tạo ra gì?\n* **Lời giải chi tiết:** Tạo file `.class`.',
+          '# Giai đoạn 1\n## Slot 1: Tổng quan Java\nLý thuyết Slot 1.\n\n```java\nSystem.out.println("Hello Slot 1");\n```\n\n#### Bài tập 1.1: Vai trò Bytecode\n* **Đề bài:** `javac` tạo ra gì?\n* **Lời giải chi tiết:** Tạo file `.class`.',
           { status: 200 }
         );
       }
@@ -644,5 +644,66 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     } finally {
       vi.stubGlobal('matchMedia', origMatchMedia);
     }
+  });
+
+  it('launches Free Java Playground from lesson Chạy thử button, supports multi-file add, and executes cloud run', async () => {
+    const payloads: Array<{ mode?: string; peId?: number; files?: Array<{ name: string; content: string }> }> = [];
+
+    installFetchMock((method, bodyText) => {
+      if (method === 'GET') {
+        return new Response(
+          JSON.stringify({ available: true, runtime: 'OpenJDK 21 (Vercel Sandbox)', region: 'sin1' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      payloads.push(JSON.parse(bodyText || '{}'));
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          phase: 'run',
+          jdkVersion: 'javac 21.0.13.1',
+          compileMs: 1120,
+          runMs: 640,
+          exitCode: 0,
+          timedOut: false,
+          stdout: 'Hello Slot 1\nHelper Ready',
+          stderr: '',
+          diagnostics: [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/pro192/giai-doan-1-slot-01-05']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const tryBtn = await screen.findByRole('button', {
+      name: /Chạy thử đoạn mã Java trong Code Studio Playground/i,
+    });
+    fireEvent.click(tryBtn);
+
+    const editorDom = await screen.findByLabelText(/Trình soạn thảo mã nguồn Java/i);
+    const view = EditorView.findFromDOM(editorDom)!;
+    expect(view.state.doc.toString()).toContain('Hello Slot 1');
+    expect(screen.getByText(/Đang chạy thử từ bài học/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /\+ Thêm tệp/i }));
+    const fileInput = screen.getByLabelText(/Tên lớp mới/i);
+    fireEvent.change(fileInput, { target: { value: 'Helper' } });
+    fireEvent.click(screen.getByRole('button', { name: /Tạo tệp/i }));
+
+    expect(screen.getByRole('tab', { name: 'Helper.java' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /▶ Run Code/i }));
+    expect(await screen.findByText(/Helper Ready/i)).toBeInTheDocument();
+    const lastPayload = payloads.at(-1);
+    expect(lastPayload?.mode).toBe('run');
+    expect(lastPayload?.peId).toBeUndefined();
+    expect(lastPayload?.files?.map((f) => f.name)).toEqual(['Main.java', 'Helper.java']);
   });
 });

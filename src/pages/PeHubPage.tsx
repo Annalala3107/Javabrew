@@ -111,12 +111,20 @@ export function PeHubPage() {
           </p>
         </div>
 
-        <SlidingPillTabs
-          options={tabOptionsWithCounts}
-          value={activeTab}
-          onChange={switchTab}
-          ariaLabel="Chuyển mục Kho Đề PE hoặc Lỗi AI nhắc"
-        />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            to="/studio/playground"
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-text)] transition-opacity hover:opacity-90"
+          >
+            ☕ Java Playground (Tự do)
+          </Link>
+          <SlidingPillTabs
+            options={tabOptionsWithCounts}
+            value={activeTab}
+            onChange={switchTab}
+            ariaLabel="Chuyển mục Kho Đề PE hoặc Lỗi AI nhắc"
+          />
+        </div>
       </div>
 
       {activeTab === 'challenges' ? (

@@ -54,6 +54,7 @@ export function AppRoutes() {
           <Route path="/resources" element={<LearnPage mode="resources" />} />
           <Route path="/pe" element={<PeHubPage />} />
           <Route path="/studio" element={<CodeStudioPage />} />
+          <Route path="/studio/playground" element={<CodeStudioPage isPlayground />} />
           <Route path="/studio/:peId" element={<CodeStudioPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
