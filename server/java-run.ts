@@ -1,5 +1,4 @@
-import { APIError, Sandbox } from '@vercel/sandbox';
-import { metric } from '@vercel/functions';
+import type { Sandbox as SandboxType } from '@vercel/sandbox';
 import {
   hasMainMethod,
   parseJavacDiagnostics,
@@ -7,8 +6,8 @@ import {
   validateCompilePayload,
   type JavaDiagnostic,
   type JavaTestCaseResult,
-} from './_lib/javaValidation.js';
-import { buildPeHarness } from './_lib/peHarnesses.js';
+} from './javaValidation';
+import { buildPeHarness } from './peHarnesses';
 
 const BASE_SANDBOX_NAME = 'javabrew-openjdk21-base';
 const SANDBOX_REGION = 'sin1' as const;
@@ -83,6 +82,27 @@ function truncateOutput(text: string): string {
   return `${sliced}\n... [đầu ra bị cắt bớt do vượt quá 32 KB]`;
 }
 
+function sanitizeErrorSummary(raw: string): string {
+  return raw
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160);
+}
+
+async function emitMetric(
+  name: string,
+  value: number,
+  tags?: Record<string, string>
+): Promise<void> {
+  try {
+    const fnPkg = await import('@vercel/functions');
+    fnPkg.metric(name, value, tags);
+  } catch {
+    // Metrics are best-effort and no-op outside supported Vercel runtimes
+  }
+}
+
 function extractTestMarkerBlock(rawStdout: string): {
   cleanedStdout: string;
   testResults?: JavaTestCaseResult[];
@@ -110,6 +130,7 @@ async function ensureOpenJdkBaseSandbox(): Promise<void> {
     return bootstrapPromise;
   }
   bootstrapPromise = (async () => {
+    const { Sandbox } = await import('@vercel/sandbox');
     const creds = getExplicitCredentials();
     const base = await Sandbox.getOrCreate({
       ...creds,
@@ -141,7 +162,6 @@ async function ensureOpenJdkBaseSandbox(): Promise<void> {
         await sbx.stop();
       },
     });
-    // Ensure stopped & snapshotted if retrieved while still running
     try {
       await base.stop();
     } catch {
@@ -155,9 +175,10 @@ async function ensureOpenJdkBaseSandbox(): Promise<void> {
 }
 
 async function acquireForkedSandbox(): Promise<{
-  sandbox: Sandbox;
+  sandbox: SandboxType;
   jdkVersion: string;
 }> {
+  const { APIError, Sandbox } = await import('@vercel/sandbox');
   const creds = getExplicitCredentials();
 
   const forkOnce = () =>
@@ -170,7 +191,7 @@ async function acquireForkedSandbox(): Promise<{
       resources: { vcpus: 2 },
     });
 
-  let sandbox: Sandbox;
+  let sandbox: SandboxType;
   try {
     sandbox = await forkOnce();
   } catch (err) {
@@ -184,7 +205,6 @@ async function acquireForkedSandbox(): Promise<{
 
   const verCmd = await sandbox.runCommand('javac', ['-version']);
   if (verCmd.exitCode !== 0) {
-    // Stale/incomplete base snapshot: rebuild base cleanly
     await sandbox.stop().catch(() => {});
     await sandbox.delete().catch(() => {});
     try {
@@ -210,6 +230,7 @@ export async function GET(request: Request): Promise<Response> {
       available: hasSandboxCredentials(request),
       runtime: 'OpenJDK 21 (Vercel Sandbox)',
       region: SANDBOX_REGION,
+      nodeVersion: process.version,
     },
     {
       status: 200,
@@ -222,7 +243,7 @@ export async function POST(request: Request): Promise<Response> {
   const startedAt = performance.now();
 
   if (!hasSandboxCredentials(request)) {
-    metric('java_sandbox.run', 1, { mode: 'unknown', outcome: 'no_credentials' });
+    await emitMetric('java_sandbox.run', 1, { mode: 'unknown', outcome: 'no_credentials' });
     return Response.json(
       {
         unavailable: true,
@@ -234,10 +255,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const clientIp = getClientIp(request);
   if (!checkRateLimit(clientIp)) {
-    metric('java_sandbox.run', 1, { mode: 'unknown', outcome: 'rate_limited' });
+    await emitMetric('java_sandbox.run', 1, { mode: 'unknown', outcome: 'rate_limited' });
     return Response.json(
       {
-        error: 'Bạn gửi yêu cầu biên dịch quá nhanh. Vui lòng đợi tối đa 1 phút hoặc dùng Static Evaluator.',
+        error:
+          'Bạn gửi yêu cầu biên dịch quá nhanh. Vui lòng đợi tối đa 1 phút hoặc dùng Static Evaluator.',
       },
       { status: 429, headers: { 'Cache-Control': 'no-store' } }
     );
@@ -257,7 +279,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const payload = validated.data;
   const primaryFileName = payload.files[0].name;
-  let sandbox: Sandbox | null = null;
+  let sandbox: SandboxType | null = null;
 
   try {
     const acquired = await acquireForkedSandbox();
@@ -357,8 +379,8 @@ export async function POST(request: Request): Promise<Response> {
 
     if (compileRes.exitCode !== 0) {
       const durationMs = Math.round(performance.now() - startedAt);
-      metric('java_sandbox.run', 1, { mode: payload.mode, outcome: 'compile_error' });
-      metric('java_sandbox.duration_ms', durationMs, { mode: payload.mode });
+      await emitMetric('java_sandbox.run', 1, { mode: payload.mode, outcome: 'compile_error' });
+      await emitMetric('java_sandbox.duration_ms', durationMs, { mode: payload.mode });
 
       return Response.json(
         {
@@ -424,7 +446,8 @@ export async function POST(request: Request): Promise<Response> {
       if (controller.signal.aborted) {
         timedOut = true;
         runExitCode = 124;
-        runStderr = 'Chương trình vượt quá giới hạn thời gian thực thi (8s). Hãy kiểm tra vòng lặp vô hạn.';
+        runStderr =
+          'Chương trình vượt quá giới hạn thời gian thực thi (8s). Hãy kiểm tra vòng lặp vô hạn.';
       } else {
         throw err;
       }
@@ -451,8 +474,8 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const durationMs = Math.round(performance.now() - startedAt);
-    metric('java_sandbox.run', 1, { mode: payload.mode, outcome });
-    metric('java_sandbox.duration_ms', durationMs, { mode: payload.mode });
+    await emitMetric('java_sandbox.run', 1, { mode: payload.mode, outcome });
+    await emitMetric('java_sandbox.duration_ms', durationMs, { mode: payload.mode });
 
     return Response.json(
       {
@@ -473,18 +496,26 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     console.error('[api/java-run]', error);
     const durationMs = Math.round(performance.now() - startedAt);
-    metric('java_sandbox.run', 1, { mode: payload.mode, outcome: 'error' });
-    metric('java_sandbox.duration_ms', durationMs, { mode: payload.mode });
+    await emitMetric('java_sandbox.run', 1, { mode: payload.mode, outcome: 'error' });
+    await emitMetric('java_sandbox.duration_ms', durationMs, { mode: payload.mode });
 
-    const errorMessage =
-      error instanceof APIError
-        ? `Vercel Sandbox API lỗi (${error.response.status}).`
-        : 'Không thể khởi chạy OpenJDK Sandbox lúc này.';
+    let detail = '';
+    try {
+      const { APIError } = await import('@vercel/sandbox');
+      if (error instanceof APIError) {
+        detail = `Vercel Sandbox API ${error.response.status}: ${sanitizeErrorSummary(error.message)}`;
+      }
+    } catch {
+      // ignore
+    }
+    if (!detail) {
+      detail = sanitizeErrorSummary(error instanceof Error ? error.message : String(error));
+    }
 
     return Response.json(
       {
         unavailable: true,
-        unavailableReason: `${errorMessage} Hệ thống đã chuyển về Static Pattern Evaluator.`,
+        unavailableReason: `${detail || 'Không thể khởi chạy OpenJDK Sandbox lúc này.'} — Hệ thống đã chuyển về Static Pattern Evaluator.`,
       },
       { status: 503, headers: { 'Cache-Control': 'no-store' } }
     );

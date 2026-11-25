@@ -8,8 +8,8 @@ import {
   MAX_TOTAL_SOURCE_BYTES,
   parseJavacDiagnostics,
   validateCompilePayload,
-} from '../../api/_lib/javaValidation';
-import { buildPeHarness } from '../../api/_lib/peHarnesses';
+} from '../../server/javaValidation';
+import { buildPeHarness } from '../../server/peHarnesses';
 import type { Pro192Data } from '../types/content';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');

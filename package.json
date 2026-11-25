@@ -3,10 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "description": "JavaBrew — PRO192 × JavaGuide Bilingual Learning Platform (EN / VI)",
   "scripts": {
     "dev": "node scripts/build-search-index.mjs && vite",
-    "build": "node scripts/build-search-index.mjs && tsc -b && vite build",
+    "build": "node scripts/build-search-index.mjs && tsc -b && node scripts/build-api.mjs && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
