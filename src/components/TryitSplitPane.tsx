@@ -79,8 +79,8 @@ export function TryitSplitPane({
         className={[
           'flex min-w-0 flex-col bg-[var(--bg-code)]',
           isHorizontal
-            ? 'min-h-[340px] lg:min-h-[500px] lg:w-[var(--tryit-split)] lg:shrink-0'
-            : 'min-h-[320px] lg:h-[var(--tryit-split)] lg:shrink-0',
+            ? 'min-h-[260px] sm:min-h-[340px] lg:min-h-[500px] lg:w-[var(--tryit-split)] lg:shrink-0'
+            : 'min-h-[260px] sm:min-h-[320px] lg:h-[var(--tryit-split)] lg:shrink-0',
         ].join(' ')}
       >
         {primaryPane}
@@ -97,6 +97,7 @@ export function TryitSplitPane({
         title="Kéo để chia lại tỷ lệ Code / Output (nhấp đúp đặt về 50%)"
         onPointerDown={(e) => {
           e.preventDefault();
+          e.currentTarget.setPointerCapture?.(e.pointerId);
           setDragging(true);
         }}
         onDoubleClick={() => onSplitChange(50)}
@@ -112,11 +113,12 @@ export function TryitSplitPane({
             onSplitChange(50);
           }
         }}
+        style={{ touchAction: 'none' }}
         className={[
           'group flex shrink-0 items-center justify-center border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-dim)] transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--accent-text)] focus-visible:outline-2',
           isHorizontal
-            ? 'h-2.5 w-full cursor-row-resize border-y lg:h-auto lg:w-2.5 lg:cursor-col-resize lg:border-x lg:border-y-0'
-            : 'h-2.5 w-full cursor-row-resize border-y',
+            ? 'h-3.5 w-full cursor-row-resize border-y lg:h-auto lg:w-2.5 lg:cursor-col-resize lg:border-x lg:border-y-0'
+            : 'h-3.5 w-full cursor-row-resize border-y',
           dragging ? 'bg-[var(--accent-soft)] text-[var(--accent-text)]' : '',
         ].join(' ')}
       >
@@ -130,7 +132,7 @@ export function TryitSplitPane({
         )}
       </div>
 
-      <div className="flex min-h-[280px] min-w-0 flex-1 flex-col bg-[var(--bg-canvas)] lg:min-h-[300px]">
+      <div className="flex min-h-[240px] min-w-0 flex-1 flex-col bg-[var(--bg-canvas)] sm:min-h-[280px] lg:min-h-[300px]">
         {secondaryPane}
       </div>
     </div>

@@ -1,0 +1,145 @@
+/* Lucian UX/UI Prompt #412 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#412 */
+.u412-bg {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--ux-line-2);
+  border-radius: 11px;
+  background: var(--ux-page);
+  color: var(--ux-ink);
+  transition:
+    background-color 0.2s var(--ux-ease),
+    transform 0.3s var(--ux-spring);
+}
+
+.u412-bg:hover {
+  background: var(--ux-surface-2);
+}
+
+.u412-bg:active {
+  transform: scale(0.92);
+}
+
+.u412-bg i {
+  position: absolute;
+  left: 13px;
+  width: 16px;
+  height: 1.75px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.u412-bg i:first-child {
+  transform: translateY(-3.5px);
+}
+
+.u412-bg i:last-child {
+  transform: translateY(3.5px);
+}
+
+.u412-bg[aria-expanded='true'] i:first-child {
+  transform: rotate(45deg);
+}
+
+.u412-bg[aria-expanded='true'] i:last-child {
+  transform: rotate(-45deg);
+}
+
+.u412-bg:focus-visible,
+.u412-sh a:focus-visible {
+  outline: 2px solid var(--ux-accent);
+  outline-offset: 2px;
+}
+
+.u412-sh {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s cubic-bezier(0.25, 1, 0.35, 1);
+  overscroll-behavior: contain;
+}
+
+.u412-sh.is-open {
+  grid-template-rows: 1fr;
+}
+
+.u412-sh > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.u412-ln {
+  margin: 0;
+  padding: 6px 12px 10px;
+  list-style: none;
+  border-top: 1px solid var(--ux-line);
+}
+
+.u412-ln li {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition:
+    opacity 0.15s,
+    transform 0.2s;
+}
+
+.u412-sh.is-open .u412-ln li {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.32s var(--ux-ease) calc(60ms + var(--i) * 45ms),
+    transform 0.52s cubic-bezier(0.3, 1.5, 0.5, 1) calc(60ms + var(--i) * 45ms);
+}
+
+.u412-ln a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 11px;
+  color: var(--ux-ink);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  transition: background-color 0.2s var(--ux-ease);
+}
+
+.u412-ln a:hover {
+  background: var(--ux-surface-2);
+}
+
+.u412-ln a.is-active {
+  background: var(--ux-accent-soft);
+  color: var(--ux-accent);
+}
+
+.u412-ln svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--ux-ink-3);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    transform 0.35s var(--ux-spring),
+    stroke 0.2s;
+}
+
+.u412-ln a:hover svg {
+  transform: translateX(3px);
+  stroke: var(--ux-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u412-sh,
+  .u412-ln li,
+  .u412-bg i,
+  .u412-ln svg {
+    transition: none !important;
+  }
+}

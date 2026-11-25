@@ -30,7 +30,7 @@ export function AppLayout() {
         >
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
             <span className="inline-flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0" />
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{metaError}</span>
             </span>
             <button
@@ -38,7 +38,7 @@ export function AppLayout() {
               onClick={retryMeta}
               className="inline-flex items-center gap-1.5 rounded-md border border-current px-2.5 py-1 text-xs font-semibold hover:opacity-80"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Thử lại</span>
             </button>
           </div>

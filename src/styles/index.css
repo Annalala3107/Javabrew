@@ -79,8 +79,39 @@
     margin: 0;
     background-color: var(--bg-canvas);
     color: var(--text-primary);
+    overflow-x: clip;
+    padding-bottom: env(safe-area-inset-bottom);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  button,
+  a,
+  select,
+  input,
+  textarea,
+  summary,
+  [role='tab'],
+  [role='switch'] {
+    touch-action: manipulation;
+  }
+
+  select,
+  option {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+  }
+
+  @media (pointer: fine) {
+    html {
+      overscroll-behavior: none;
+    }
   }
 
   ::selection {
@@ -133,6 +164,13 @@
 
 .jb-prose > *:first-child {
   margin-top: 0;
+}
+
+.jb-prose h1,
+.jb-prose h2,
+.jb-prose h3,
+.jb-prose h4 {
+  scroll-margin-top: 84px;
 }
 
 .jb-prose h1 {

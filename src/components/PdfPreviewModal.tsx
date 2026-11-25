@@ -26,7 +26,7 @@ export function PdfPreviewModal() {
         if (e.target === e.currentTarget) closePdfPreview();
       }}
     >
-      <div className="flex h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-[var(--shadow-overlay)]">
+      <div className="flex h-[88vh] w-full max-w-5xl flex-col overflow-hidden overscroll-contain rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-[var(--shadow-overlay)]">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <FileText className="h-4 w-4 shrink-0 text-[var(--accent)]" />

@@ -71,19 +71,19 @@ export function SettingsModal() {
         if (e.target === e.currentTarget) setIsSettingsOpen(false);
       }}
     >
-      <div className="w-full max-w-md space-y-4 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] p-5 text-xs shadow-[var(--shadow-overlay)]">
+      <div className="max-h-[90vh] w-full max-w-md space-y-4 overflow-y-auto overscroll-contain rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] p-5 text-xs shadow-[var(--shadow-overlay)]">
         <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-2.5">
           <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
-            <Settings className="h-4 w-4 text-[var(--accent)]" />
+            <Settings className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
             <span>Cài đặt AI Key &amp; Sandbox</span>
           </h3>
           <button
             type="button"
             onClick={() => setIsSettingsOpen(false)}
             aria-label="Đóng cài đặt"
-            className="rounded-md p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-md p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -105,8 +105,10 @@ export function SettingsModal() {
             type="password"
             value={draftKey}
             onChange={(e) => setDraftKey(e.target.value)}
-            placeholder="AIzaSy... (Lưu cục bộ trên máy)"
-            className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus:outline-none"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="AIzaSy… (Lưu cục bộ trên máy)"
+            className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           />
         </div>
 

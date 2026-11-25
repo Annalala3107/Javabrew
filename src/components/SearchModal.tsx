@@ -202,15 +202,17 @@ export function SearchModal() {
     >
       <div className="w-full max-w-xl overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-[var(--shadow-overlay)]">
         <div className="flex items-center gap-2.5 border-b border-[var(--border-default)] p-3.5">
-          <Search className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+          <Search className="h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden="true" />
           <input
             ref={inputRef}
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm bài học PRO192, JavaGuide hoặc Đề PE (VD: HashMap, da hinh, Student)..."
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Tìm bài học PRO192, JavaGuide hoặc Đề PE (VD: HashMap, da hinh, Student)…"
             aria-label="Nhập từ khóa tìm kiếm"
-            className="flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:outline-none"
+            className="flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           />
           <button
             type="button"
@@ -242,7 +244,7 @@ export function SearchModal() {
           })}
         </div>
 
-        <div className="max-h-80 overflow-y-auto p-3">
+        <div className="max-h-80 overflow-y-auto overscroll-contain p-3">
           {loading ? (
             <SkeletonCard variant="list" />
           ) : results.length === 0 ? (

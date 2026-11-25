@@ -68,6 +68,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   // M3/M4 UI states matching prototype-buoc-5.html
   const [savedFilterOnly, setSavedFilterOnly] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [bilingualMode, setBilingualMode] = useState(false);
   const [companionMd, setCompanionMd] = useState('');
   const [dualLoading, setDualLoading] = useState(false);
@@ -553,10 +554,21 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
               />
             )}
 
+            {!focusMode && (
+              <button
+                type="button"
+                onClick={() => setMobileSidebarOpen((v) => !v)}
+                aria-expanded={mobileSidebarOpen}
+                className="min-h-[40px] rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] md:hidden"
+              >
+                {mobileSidebarOpen ? '✕ Ẩn mục lục' : '☰ Mục lục'}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setFocusMode((f) => !f)}
-              className="min-h-[32px] rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
+              className="min-h-[40px] sm:min-h-[32px] rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
             >
               {focusMode ? '✕ Thoát Focus' : '⛶ Focus Mode'}
             </button>
@@ -565,9 +577,14 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
 
         {/* Split Sidebar + Reader Content */}
         <div className="grid min-h-[560px] grid-cols-1 md:grid-cols-12">
-          {/* M3 Left Sidebar (hidden in Focus Mode) */}
+          {/* M3 Left Sidebar (hidden in Focus Mode; collapsible on phone) */}
           {!focusMode && (
-            <aside className="space-y-3 border-b border-[var(--border-default)] bg-[var(--bg-canvas)]/50 p-4 text-xs md:col-span-3 md:border-b-0 md:border-r">
+            <aside
+              className={[
+                mobileSidebarOpen ? 'block' : 'hidden',
+                'md:block space-y-3 border-b border-[var(--border-default)] bg-[var(--bg-canvas)]/50 p-4 text-xs overscroll-contain md:col-span-3 md:border-b-0 md:border-r',
+              ].join(' ')}
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold uppercase text-[var(--text-muted)]">
                   Lộ trình học
@@ -590,17 +607,20 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
               {mode === 'docs' ? (
                 <div className="space-y-2.5">
                   <div className="relative">
-                    <Search className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-[var(--text-dim)]" />
+                    <Search className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-[var(--text-dim)]" aria-hidden="true" />
                     <input
                       type="search"
                       value={treeFilter}
                       onChange={(e) => setTreeFilter(e.target.value)}
-                      placeholder="Lọc 354 bài..."
-                      className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] py-1.5 pl-8 pr-2.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus:outline-none"
+                      autoComplete="off"
+                      spellCheck={false}
+                      aria-label="Lọc 354 bài JavaGuide"
+                      placeholder="Lọc 354 bài…"
+                      className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] py-1.5 pl-8 pr-2.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                     />
                   </div>
 
-                  <div className="max-h-[600px] space-y-1 overflow-y-auto pr-1">
+                  <div className="max-h-[600px] space-y-1 overflow-y-auto overscroll-contain pr-1">
                     {navigation?.domains.map((domain) => {
                       const matchingGroups = domain.groups
                         .map((grp) => {
@@ -892,13 +912,16 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                 )}
 
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[var(--text-dim)]" />
+                  <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[var(--text-dim)]" aria-hidden="true" />
                   <input
                     type="search"
                     value={resourceQuery}
                     onChange={(e) => setResourceQuery(e.target.value)}
-                    placeholder="Tìm theo tên slide hoặc số Slot (VD: Collections, Inheritance)..."
-                    className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2 pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus:outline-none"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label="Tìm theo tên slide hoặc số Slot"
+                    placeholder="Tìm theo tên slide hoặc số Slot (VD: Collections, Inheritance)…"
+                    className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2 pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                   />
                 </div>
 
@@ -1146,13 +1169,16 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                 <div className="space-y-3">
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <div className="relative flex-1">
-                      <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[var(--text-dim)]" />
+                      <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[var(--text-dim)]" aria-hidden="true" />
                       <input
                         type="search"
                         value={dirQuery}
                         onChange={(e) => setDirQuery(e.target.value)}
-                        placeholder="Tìm theo tên bài Việt/Anh hoặc đường dẫn..."
-                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2 pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus:outline-none"
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-label="Tìm theo tên bài hoặc đường dẫn"
+                        placeholder="Tìm theo tên bài Việt/Anh hoặc đường dẫn…"
+                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2 pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                       />
                     </div>
                     <div className="inline-flex rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-0.5 text-xs">
@@ -1709,8 +1735,8 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                             });
                           }
                         }}
-                        placeholder="Ghi lại ý bạn tự hiểu hoặc chỗ hay quên..."
-                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus:outline-none"
+                        placeholder="Ghi lại ý bạn tự hiểu hoặc chỗ hay quên…"
+                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                       />
                     </div>
                   )}

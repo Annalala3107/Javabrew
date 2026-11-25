@@ -803,6 +803,44 @@ describe('JavaBrew Night Coffee Lab UI', () => {
 
       expect(await screen.findByRole('tab', { name: 'Student.java' })).toBeInTheDocument();
       expect(await screen.findByText(/Student\[SE180001 - An\]/i)).toBeInTheDocument();
+
+      // Lucian #013 Stretchy switch for Auto-Run
+      const autoSwitch = screen.getByRole('switch', { name: /Auto-Run/i });
+      expect(autoSwitch).toHaveAttribute('aria-checked', 'true');
+      fireEvent.click(autoSwitch);
+      expect(autoSwitch).toHaveAttribute('aria-checked', 'false');
+      fireEvent.click(autoSwitch);
+      expect(autoSwitch).toHaveAttribute('aria-checked', 'true');
+
+      // Lucian #467 + CodeMirror 10,000-character limit enforcement
+      const editorDom = screen.getByLabelText(/Trình soạn thảo mã nguồn Java/i);
+      const view = EditorView.findFromDOM(editorDom)!;
+      await act(async () => {
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: 'a'.repeat(10_500) },
+        });
+      });
+      expect(view.state.doc.length).toBe(10_000);
+      await waitFor(() => {
+        expect(screen.getByTestId('code-char-limit-meter')).toHaveAttribute(
+          'aria-valuenow',
+          '10000'
+        );
+      });
+
+      // Lucian #412 mobile header drawer toggle + Escape handling
+      const ham = screen.getByRole('button', { name: 'Mở menu điều hướng' });
+      expect(ham).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(ham);
+      expect(screen.getByRole('button', { name: 'Đóng menu điều hướng' })).toHaveAttribute(
+        'aria-expanded',
+        'true'
+      );
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.getByRole('button', { name: 'Mở menu điều hướng' })).toHaveAttribute(
+        'aria-expanded',
+        'false'
+      );
     } finally {
       vi.stubGlobal('fetch', origFetch);
     }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
@@ -12,15 +12,16 @@ import {
   Share2,
   Timer,
   Trash2,
-  Zap,
 } from 'lucide-react';
-import { JavaCodeEditor, type JumpTarget } from '../components/JavaCodeEditor';
+import { JavaCodeEditor, MAX_CODE_CHARS, type JumpTarget } from '../components/JavaCodeEditor';
 import { TryitSplitPane } from '../components/TryitSplitPane';
+import { CodeCharLimitMeter } from '../components/lucian/CodeCharLimitMeter';
 import { CopyCodeButton } from '../components/lucian/CopyCodeButton';
 import { LucianChecklistItem } from '../components/lucian/LucianChecklistItem';
 import { MorphActionButton } from '../components/lucian/MorphActionButton';
 import { SlidingPillTabs } from '../components/lucian/SlidingPillTabs';
 import { StreamingAiBubble } from '../components/lucian/StreamingAiBubble';
+import { StretchySwitch } from '../components/lucian/StretchySwitch';
 import { useApp } from '../context/AppContext';
 import {
   checkJavaSandboxHealth,
@@ -279,9 +280,11 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const [pendingPrompt, setPendingPrompt] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
+  const [charLimitHitNonce, setCharLimitHitNonce] = useState(0);
 
   const draftTimerRef = useRef<number>(0);
   const pgDraftTimerRef = useRef<number>(0);
+  const charLimitToastAtRef = useRef<number>(0);
   const runAbortRef = useRef<AbortController | null>(null);
   const appliedImportKeyRef = useRef<string | null>(null);
   const appliedQueryKeyRef = useRef<string>(
@@ -586,9 +589,24 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     }, 180);
   };
 
+  const handleCodeLimitReached = useCallback(() => {
+    setCharLimitHitNonce((n) => n + 1);
+    const now = Date.now();
+    if (now - charLimitToastAtRef.current > 3000) {
+      charLimitToastAtRef.current = now;
+      pushToast({
+        title: 'Đã đạt giới hạn 10.000 ký tự',
+        description: 'Mỗi tệp Java giới hạn tối đa 10.000 ký tự để biên dịch nhanh và ổn định.',
+        tone: 'warn',
+      });
+    }
+  }, [pushToast]);
+
   const updatePlaygroundCode = (fileId: string, nextContent: string) => {
+    const safeContent =
+      nextContent.length > MAX_CODE_CHARS ? nextContent.slice(0, MAX_CODE_CHARS) : nextContent;
     const nextFiles = playgroundFiles.map((f) =>
-      f.id === fileId ? { ...f, content: nextContent } : f
+      f.id === fileId ? { ...f, content: safeContent } : f
     );
     setPlaygroundFiles(nextFiles);
     setDiagnostics([]);
@@ -605,8 +623,10 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     nextValue: string
   ) => {
     if (!activePe || target === 'interface') return;
-    const nextMain = target === 'main' ? nextValue : mainCode;
-    const nextEntity = target === 'entity' ? nextValue : entityCode;
+    const safeValue =
+      nextValue.length > MAX_CODE_CHARS ? nextValue.slice(0, MAX_CODE_CHARS) : nextValue;
+    const nextMain = target === 'main' ? safeValue : mainCode;
+    const nextEntity = target === 'entity' ? safeValue : entityCode;
 
     if (target === 'main') setMainCode(nextValue);
     else setEntityCode(nextValue);
@@ -1489,7 +1509,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   if (!playgroundMode && !activePe) {
     return (
       <div className="mx-auto max-w-4xl p-6 text-center text-xs text-[var(--text-muted)]">
-        Đang tải dữ liệu Code Studio...
+        Đang tải dữ liệu Code Studio…
       </div>
     );
   }
@@ -1630,8 +1650,10 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                 setNewFileName(e.target.value);
                 setNewFileError(null);
               }}
-              placeholder="Ví dụ: Student hoặc Student.java"
-              className="min-h-[34px] flex-1 rounded border border-[var(--border-default)] bg-[var(--bg-code)] px-2.5 py-1 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Ví dụ: Student hoặc Student.java…"
+              className="min-h-[38px] sm:min-h-[34px] flex-1 rounded border border-[var(--border-default)] bg-[var(--bg-code)] px-2.5 py-1 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
             />
             <button
               type="submit"
@@ -1678,20 +1700,45 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
           </pre>
         </div>
       ) : playgroundMode || !showDiff ? (
-        <JavaCodeEditor
-          value={activeCode}
-          onChange={(val) =>
-            playgroundMode && activePgFile
-              ? updatePlaygroundCode(activePgFile.id, val)
-              : updateCodeAndScheduleDraft(activeFile, val)
-          }
-          onBlur={playgroundMode ? flushPlaygroundDraft : flushLatestDraft}
-          onRunShortcut={() => void handleRunCode()}
-          theme={theme}
-          diagnostics={activeFileDiagnostics}
-          jumpTarget={jumpTarget}
-          minHeight={playgroundMode ? 430 : 340}
-        />
+        <>
+          <JavaCodeEditor
+            value={activeCode}
+            onChange={(val) =>
+              playgroundMode && activePgFile
+                ? updatePlaygroundCode(activePgFile.id, val)
+                : updateCodeAndScheduleDraft(activeFile, val)
+            }
+            onBlur={playgroundMode ? flushPlaygroundDraft : flushLatestDraft}
+            onRunShortcut={() => void handleRunCode()}
+            onLimitReached={handleCodeLimitReached}
+            maxLength={MAX_CODE_CHARS}
+            theme={theme}
+            diagnostics={activeFileDiagnostics}
+            jumpTarget={jumpTarget}
+            minHeight={playgroundMode ? 320 : 280}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs">
+            <div className="flex min-w-0 items-center gap-2 text-[var(--text-muted)]">
+              <span
+                translate="no"
+                className="truncate font-mono font-semibold text-[var(--text-primary)]"
+              >
+                {activeFileName}
+              </span>
+              <span className="font-mono tabular-nums text-[var(--text-dim)]">
+                {activeCode.split(/\r?\n/).length} dòng
+              </span>
+              <span className="hidden font-mono text-[var(--text-dim)] xl:inline">
+                Ctrl+Enter để chạy
+              </span>
+            </div>
+            <CodeCharLimitMeter
+              current={activeCode.length}
+              max={MAX_CODE_CHARS}
+              limitHitNonce={charLimitHitNonce}
+            />
+          </div>
+        </>
       ) : (
         <div className="grid min-h-[320px] flex-1 grid-cols-1 gap-3 overflow-auto p-4 text-xs md:grid-cols-2">
           <div className="space-y-2 rounded-lg border border-[var(--danger)]/40 bg-[var(--bg-surface)] p-3">
@@ -1835,8 +1882,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
             onBlur={() => {
               if (playgroundMode) flushPlaygroundDraft();
             }}
-            placeholder="Ví dụ: An&#10;9.25"
-            className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-code)] p-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+            spellCheck={false}
+            placeholder="Ví dụ: An&#10;9.25…"
+            className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-code)] p-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           />
         </div>
       )}
@@ -1943,12 +1991,12 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   return (
     <div className="flex flex-1 flex-col">
       {/* Studio Sub-toolbar */}
-      <div className="border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2.5">
+      <div className="border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 sm:px-4">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
             <Link
               to="/pe"
-              className="inline-flex min-h-[36px] items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className="inline-flex min-h-[40px] sm:min-h-[36px] items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               ← Kho đề PE
             </Link>
@@ -1961,7 +2009,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   navigate('/studio/playground?example=demo-intro');
                 }}
                 className={[
-                  'min-h-[32px] rounded-md px-2.5 py-1 font-semibold transition-colors',
+                  'min-h-[36px] sm:min-h-[32px] rounded-md px-2.5 py-1 font-semibold transition-colors',
                   playgroundMode
                     ? 'bg-[var(--success)] font-bold text-[#1C1917]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
@@ -1976,7 +2024,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   navigate(`/studio/${activePe?.id ?? 1}`);
                 }}
                 className={[
-                  'min-h-[32px] rounded-md px-2.5 py-1 font-semibold transition-colors',
+                  'min-h-[36px] sm:min-h-[32px] rounded-md px-2.5 py-1 font-semibold transition-colors',
                   !playgroundMode
                     ? 'bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
@@ -1998,7 +2046,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   navigate(`/studio/${e.target.value}`);
                 }
               }}
-              className="min-h-[36px] max-w-[260px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-bold text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+              className="min-h-[40px] sm:min-h-[36px] min-w-0 w-full sm:w-auto sm:max-w-[260px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-bold text-[var(--text-primary)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
             >
               <option value="playground">
                 ☕ Java Tryit (Tự do · tối đa {MAX_PLAYGROUND_FILES} file)
@@ -2015,8 +2063,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
             </select>
 
             {!playgroundMode && (
-              <div className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 font-mono tabular-nums">
-                <Timer className="h-3.5 w-3.5 text-[var(--accent)]" />
+              <div className="inline-flex min-h-[40px] sm:min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 font-mono tabular-nums">
+                <Timer className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
                 <span
                   className={
                     secondsLeft === 0
@@ -2034,7 +2082,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   aria-label={timerRunning ? 'Tạm dừng đồng hồ' : 'Bắt đầu bấm giờ'}
                   className="ml-1 rounded p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
-                  {timerRunning ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                  {timerRunning ? <Pause className="h-3 w-3" aria-hidden="true" /> : <Play className="h-3 w-3" aria-hidden="true" />}
                 </button>
                 <button
                   type="button"
@@ -2045,25 +2093,25 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   aria-label="Đặt lại đồng hồ"
                   className="rounded p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
-                  <RotateCcw className="h-3 w-3" />
+                  <RotateCcw className="h-3 w-3" aria-hidden="true" />
                 </button>
               </div>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
             <span
               role="status"
               className="rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-muted)]"
             >
               {playgroundMode
                 ? pgDraftState === 'saving'
-                  ? 'Đang lưu...'
+                  ? 'Đang lưu…'
                   : pgDraftState === 'saved'
                     ? '✓ Đã lưu Playground'
                     : 'Mẫu gốc'
                 : draftState === 'saving'
-                  ? 'Đang lưu nháp...'
+                  ? 'Đang lưu nháp…'
                   : draftState === 'saved'
                     ? '✓ Đã lưu nháp'
                     : 'Code gốc'}
@@ -2076,7 +2124,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   onClick={() => setShowExamplesDrawer((s) => !s)}
                   aria-expanded={showExamplesDrawer}
                   className={[
-                    'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-medium transition-colors',
+                    'inline-flex min-h-[40px] sm:min-h-[36px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-medium transition-colors',
                     showExamplesDrawer
                       ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-text)]'
                       : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
@@ -2086,26 +2134,17 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   <span>Mẫu ({PLAYGROUND_TEMPLATES.length})</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setAutoRun((a) => !a)}
-                  aria-pressed={autoRun}
+                <StretchySwitch
+                  checked={autoRun}
+                  onChange={setAutoRun}
+                  label="Auto-Run"
                   title="Tự động chạy khi mở mẫu mới"
-                  className={[
-                    'inline-flex min-h-[36px] items-center gap-1 rounded-lg border px-2.5 py-1.5 font-medium transition-colors',
-                    autoRun
-                      ? 'border-[var(--success)]/40 bg-[var(--success-soft)] text-[var(--success-text)]'
-                      : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                  ].join(' ')}
-                >
-                  <Zap className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Auto-Run</span>
-                </button>
+                />
 
                 <button
                   type="button"
                   onClick={() => void handleSharePlayground()}
-                  className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className="inline-flex min-h-[40px] sm:min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Chia sẻ</span>
@@ -2124,7 +2163,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   ? 'Đang chia Trái / Phải — bấm để xếp Trên / Dưới'
                   : 'Đang xếp Trên / Dưới — bấm để chia Trái / Phải'
               }
-              className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className="inline-flex min-h-[40px] sm:min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               {splitOrientation === 'horizontal' ? (
                 <Columns2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -2200,9 +2239,11 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   type="search"
                   value={exampleSearch}
                   onChange={(e) => setExampleSearch(e.target.value)}
+                  autoComplete="off"
+                  spellCheck={false}
                   aria-label="Tìm mẫu Java theo tên hoặc Slot"
-                  placeholder="Tìm theo Slot (vd: Slot 09) hoặc từ khóa..."
-                  className="min-h-[34px] w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus:outline-none"
+                  placeholder="Tìm theo Slot (vd: Slot 09) hoặc từ khóa…"
+                  className="min-h-[38px] sm:min-h-[34px] w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 />
 
                 <div className="flex flex-wrap gap-1">
@@ -2226,7 +2267,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   })}
                 </div>
 
-                <div className="max-h-[480px] space-y-1.5 overflow-y-auto pr-1">
+                <div className="max-h-[480px] space-y-1.5 overflow-y-auto overscroll-contain pr-1">
                   {filteredTemplates.length === 0 ? (
                     <div className="space-y-2 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-canvas)] p-3 text-center text-[var(--text-muted)]">
                       <div>Không tìm thấy mẫu khớp "{exampleSearch}".</div>
@@ -2377,7 +2418,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         {/* Right Drawer: AI Code Mentor */}
         {showAiPane && (
           <aside className="flex w-full shrink-0 flex-col justify-between gap-3 border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-xs lg:w-80 lg:border-l lg:border-t-0">
-            <div className="max-h-[460px] space-y-3 overflow-y-auto pr-1">
+            <div className="max-h-[460px] space-y-3 overflow-y-auto overscroll-contain pr-1">
               <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-2.5">
                 <span className="flex items-center gap-1.5 font-bold text-[var(--info-text)]">
                   ✨ AI Code Mentor
@@ -2505,15 +2546,18 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Hỏi AI về code của bạn..."
-                  className="min-h-[36px] flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--info)] focus:outline-none"
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label="Hỏi AI Mentor về mã nguồn Java"
+                  placeholder="Hỏi AI về code của bạn…"
+                  className="min-h-[40px] sm:min-h-[36px] flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--info)] focus-visible:outline-2 focus-visible:outline-[var(--info)]"
                 />
                 <button
                   type="submit"
                   disabled={aiBusy}
-                  className="min-h-[36px] rounded-lg bg-[var(--info)] px-3 py-1.5 font-bold text-[#1C1917] disabled:opacity-50"
+                  className="min-h-[40px] sm:min-h-[36px] rounded-lg bg-[var(--info)] px-3 py-1.5 font-bold text-[#1C1917] disabled:opacity-50"
                 >
-                  {aiBusy ? '...' : 'Gửi'}
+                  {aiBusy ? '…' : 'Gửi'}
                 </button>
               </form>
             </div>

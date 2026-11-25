@@ -1,6 +1,12 @@
+import { useCallback, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { ArrowUpRight, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import {
+  AppMobileHeaderDrawer,
+  AppMobileHeaderTrigger,
+  useMobileHeaderMenuId,
+} from './lucian/AppMobileHeaderNav';
 import { CommandKButton } from './lucian/CommandKButton';
 import { Logo } from './Logo';
 
@@ -20,11 +26,21 @@ const NAV_ITEMS = [
 export function TopBar() {
   const location = useLocation();
   const { lang, setLang, setIsSearchOpen, setIsSettingsOpen } = useApp();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const mobilePanelId = useMobileHeaderMenuId();
+
+  const closeMobileMenu = useCallback((restoreFocus = false) => {
+    setMobileMenuOpen(false);
+    if (restoreFocus) {
+      mobileMenuBtnRef.current?.focus({ preventScroll: true });
+    }
+  }, []);
 
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--border-default)] bg-[var(--bg-surface)]/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5">
-        <div className="flex flex-wrap items-center gap-3 md:gap-4">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
+        <div className="flex items-center gap-3 md:gap-4">
           <Link
             to="/"
             title="Về Trang Giới thiệu (M1)"
@@ -33,7 +49,10 @@ export function TopBar() {
             <Logo />
           </Link>
 
-          <nav aria-label="Điều hướng chính" className="flex flex-wrap items-center gap-1.5 text-xs">
+          <nav
+            aria-label="Điều hướng chính"
+            className="hidden md:flex flex-wrap items-center gap-1.5 text-xs"
+          >
             {NAV_ITEMS.map((item) => {
               const active = item.match(location.pathname);
               return (
@@ -65,7 +84,7 @@ export function TopBar() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <CommandKButton onClick={() => setIsSearchOpen(true)} />
 
           <div
@@ -82,7 +101,7 @@ export function TopBar() {
                   onClick={() => setLang(code)}
                   aria-pressed={active}
                   className={[
-                    'min-h-[32px] rounded-md px-2.5 py-1 text-xs font-bold uppercase transition-colors',
+                    'min-h-[36px] rounded-md px-2.5 py-1 text-xs font-bold uppercase transition-colors sm:min-h-[32px]',
                     active
                       ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
                       : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
@@ -99,12 +118,26 @@ export function TopBar() {
             onClick={() => setIsSettingsOpen(true)}
             title="Cài đặt AI Key (BYOK) & Giao diện"
             aria-label="Cài đặt AI Key và Giao diện"
-            className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-2 text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-2 text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] md:min-h-[38px] md:min-w-[38px]"
           >
-            <Settings className="h-4 w-4" />
+            <Settings className="h-4 w-4" aria-hidden="true" />
           </button>
+
+          <AppMobileHeaderTrigger
+            open={mobileMenuOpen}
+            onToggle={() => setMobileMenuOpen((v) => !v)}
+            panelId={mobilePanelId}
+            buttonRef={mobileMenuBtnRef}
+          />
         </div>
       </div>
+
+      <AppMobileHeaderDrawer
+        open={mobileMenuOpen}
+        onClose={closeMobileMenu}
+        panelId={mobilePanelId}
+        items={NAV_ITEMS}
+      />
     </header>
   );
 }

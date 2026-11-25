@@ -262,6 +262,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     root.classList.toggle('dark', theme === 'dark');
     root.classList.toggle('light', theme === 'light');
     root.setAttribute('data-theme', theme);
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', theme === 'light' ? '#faf8f5' : '#121110');
+    }
     try {
       localStorage.setItem(STORAGE_THEME, theme);
     } catch {
