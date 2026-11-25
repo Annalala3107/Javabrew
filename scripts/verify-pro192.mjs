@@ -9,6 +9,7 @@ const IMG_DISK_DIR = path.join(ROOT, 'public', 'media', 'pro192', 'images');
 
 const issues = [];
 let totalExercises = 0;
+let totalCodingDrills = 0;
 let markdownFilesChecked = 0;
 
 // 1. Assert zero legacy giai-doan-*.md files remain
@@ -139,6 +140,20 @@ for (let n = 1; n <= 30; n++) {
   }
   if (openDetails < 5) {
     issues.push({ file: relLabel, issue: `Expected at least 5 <details> blocks for Active Recall, found ${openDetails}` });
+  }
+
+  if (!/^### 💻 Luyện Code Thực hành \(Phong cách W3Schools Tryit\)$/m.test(bodyNoCode)) {
+    issues.push({ file: relLabel, issue: 'Missing W3Schools coding drills section heading' });
+  }
+  const drillMatches = bodyNoCode.match(/^#### (?:🟢|🟡) Thực hành \d+[AB]:/gm) || [];
+  if (drillMatches.length !== 2) {
+    issues.push({ file: relLabel, issue: `Expected 2 coding drills (🟢 A and 🟡 B), found ${drillMatches.length}` });
+  }
+  totalCodingDrills += drillMatches.length;
+
+  const expectedLabUrl = `/studio/playground?example=slot-${n2}-lab`;
+  if (!bodyNoCode.includes(expectedLabUrl)) {
+    issues.push({ file: relLabel, issue: `Missing Tryit link ${expectedLabUrl}` });
   }
 }
 
@@ -292,6 +307,7 @@ console.log(JSON.stringify({
   markdownFilesChecked,
   slotsChecked,
   totalExercisesDetected: totalExercises,
+  totalCodingDrills,
   mappedTeachingImages: mappedImages.size,
   diskImagesTotal: diskImages.length,
   issueCount: issues.length,

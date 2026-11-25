@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { hasMainMethod } from './javaFiles';
 import {
   MAX_PLAYGROUND_FILES,
   PLAYGROUND_TEMPLATES,
@@ -74,15 +75,32 @@ System.out.println(price + " " + tags + " " + LocalDate.now());`;
     expect(validateNewJavaFileName('Extra.java', fullList).ok).toBe(false);
   });
 
-  it('ships 15 curated PRO192 templates starting with demo-intro and unique ids', () => {
-    expect(PLAYGROUND_TEMPLATES).toHaveLength(15);
+  it('ships 45 curated PRO192 + W3Schools slot templates starting with demo-intro and unique JDK 8 compatible ids', () => {
+    expect(PLAYGROUND_TEMPLATES).toHaveLength(45);
     expect(PLAYGROUND_TEMPLATES[0]?.id).toBe('demo-intro');
 
     const ids = PLAYGROUND_TEMPLATES.map((t) => t.id);
-    expect(new Set(ids).size).toBe(15);
+    expect(new Set(ids).size).toBe(45);
     expect(ids).toEqual(
       expect.arrayContaining(['demo-intro', 'hello-scanner', 'oop-multi', 'collections-stream'])
     );
+
+    for (let slot = 1; slot <= 30; slot++) {
+      const slotId = `slot-${String(slot).padStart(2, '0')}-lab`;
+      const found = findPlaygroundTemplate(slotId);
+      expect(found, `Missing playground template ${slotId}`).not.toBeNull();
+      expect(found?.files.length).toBeGreaterThanOrEqual(1);
+    }
+
+    for (const tpl of PLAYGROUND_TEMPLATES) {
+      expect(tpl.files.some((f) => hasMainMethod(f.content))).toBe(true);
+      for (const file of tpl.files) {
+        expect(file.content).not.toMatch(/^\s*package\s+/m);
+        expect(file.content).not.toMatch(
+          /\.isBlank\s*\(|\b(?:List|Set|Map)\.of\s*\(|\.toList\s*\(|\.strip\s*\(|\.repeat\s*\(/
+        );
+      }
+    }
 
     const demo = findPlaygroundTemplate('demo-intro');
     expect(demo?.files.some((f) => f.name === 'Main.java')).toBe(true);

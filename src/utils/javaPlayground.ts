@@ -1,4 +1,5 @@
 import { hasMainMethod, inferJavaFileName, stripJavaComments } from './javaFiles';
+import { W3SCHOOLS_SLOT_TEMPLATES } from './w3schoolsSlotTemplates';
 
 export interface PlaygroundFile {
   id: string;
@@ -6,7 +7,12 @@ export interface PlaygroundFile {
   content: string;
 }
 
-export type PlaygroundTemplateCategory = 'Cơ bản' | 'OOP' | 'Collections' | 'Thực chiến PE';
+export type PlaygroundTemplateCategory =
+  | 'Cơ bản'
+  | 'OOP'
+  | 'Collections'
+  | 'Exception & File I/O'
+  | 'Thực chiến PE';
 
 export interface PlaygroundTemplate {
   id: string;
@@ -409,7 +415,7 @@ public class Main {
     id: 'exception-handling',
     title: 'try-catch-finally & Custom Exception',
     subtitle: 'Bắt ngoại lệ & kiểm tra dữ liệu biên an toàn',
-    category: 'OOP',
+    category: 'Exception & File I/O',
     slotRef: 'Slot 22–24',
     stdin: '',
     files: [
@@ -632,7 +638,7 @@ public class Main {
     id: 'file-io-csv',
     title: 'Phân tích CSV & Bắt NumberFormatException',
     subtitle: 'Đọc BufferedReader từng dòng và bỏ qua dòng lỗi giá trị',
-    category: 'Thực chiến PE',
+    category: 'Exception & File I/O',
     slotRef: 'Slot 28–29',
     stdin: '',
     files: [
@@ -672,6 +678,7 @@ public class Main {
       },
     ],
   },
+  ...W3SCHOOLS_SLOT_TEMPLATES,
 ];
 
 export function findPlaygroundTemplate(id: string): PlaygroundTemplate | null {

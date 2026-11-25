@@ -124,6 +124,7 @@ const EXAMPLE_CATEGORIES: Array<'Tất cả' | PlaygroundTemplateCategory> = [
   'Cơ bản',
   'OOP',
   'Collections',
+  'Exception & File I/O',
   'Thực chiến PE',
 ];
 
@@ -155,6 +156,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     () => playgroundMode && !urlExampleId && !(location.state as PlaygroundRouteState | null)?.playgroundImport?.files?.length
   );
   const [exampleCategory, setExampleCategory] = useState<'Tất cả' | PlaygroundTemplateCategory>('Tất cả');
+  const [exampleSearch, setExampleSearch] = useState('');
   const [showDiff, setShowDiff] = useState(false);
 
   const [splitOrientation, setSplitOrientation] = useState<'horizontal' | 'vertical'>(readStoredOrientation);
@@ -1467,13 +1469,19 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     return Array.from(groups.entries());
   }, [challenges]);
 
-  const filteredTemplates = useMemo(
-    () =>
-      exampleCategory === 'Tất cả'
-        ? PLAYGROUND_TEMPLATES
-        : PLAYGROUND_TEMPLATES.filter((t) => t.category === exampleCategory),
-    [exampleCategory]
-  );
+  const filteredTemplates = useMemo(() => {
+    const q = exampleSearch.trim().toLowerCase();
+    return PLAYGROUND_TEMPLATES.filter((t) => {
+      if (exampleCategory !== 'Tất cả' && t.category !== exampleCategory) return false;
+      if (!q) return true;
+      return (
+        t.title.toLowerCase().includes(q) ||
+        t.subtitle.toLowerCase().includes(q) ||
+        t.slotRef.toLowerCase().includes(q) ||
+        t.id.toLowerCase().includes(q)
+      );
+    });
+  }, [exampleCategory, exampleSearch]);
 
   const currentLineCount = mainCode.split(/\r?\n/).length;
   const cleanLineCount = activePe ? activePe.cleanCode.split(/\r?\n/).length : 0;
@@ -2188,6 +2196,15 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                   </button>
                 </div>
 
+                <input
+                  type="search"
+                  value={exampleSearch}
+                  onChange={(e) => setExampleSearch(e.target.value)}
+                  aria-label="Tìm mẫu Java theo tên hoặc Slot"
+                  placeholder="Tìm theo Slot (vd: Slot 09) hoặc từ khóa..."
+                  className="min-h-[34px] w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus:outline-none"
+                />
+
                 <div className="flex flex-wrap gap-1">
                   {EXAMPLE_CATEGORIES.map((cat) => {
                     const active = exampleCategory === cat;
@@ -2210,34 +2227,50 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                 </div>
 
                 <div className="max-h-[480px] space-y-1.5 overflow-y-auto pr-1">
-                  {filteredTemplates.map((tpl) => {
-                    const isSelected = activeExampleId === tpl.id;
-                    return (
+                  {filteredTemplates.length === 0 ? (
+                    <div className="space-y-2 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-canvas)] p-3 text-center text-[var(--text-muted)]">
+                      <div>Không tìm thấy mẫu khớp "{exampleSearch}".</div>
                       <button
-                        key={tpl.id}
                         type="button"
-                        onClick={() => handleSelectPlaygroundTemplate(tpl.id)}
-                        className={[
-                          'w-full rounded-lg border p-2.5 text-left transition-colors',
-                          isSelected
-                            ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                            : 'border-[var(--border-default)] bg-[var(--bg-canvas)] hover:border-[var(--accent)]',
-                        ].join(' ')}
+                        onClick={() => {
+                          setExampleSearch('');
+                          setExampleCategory('Tất cả');
+                        }}
+                        className="rounded border border-[var(--border-default)] px-2.5 py-1 text-[11px] font-medium text-[var(--accent-text)] hover:border-[var(--accent)]"
                       >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-semibold text-[var(--text-primary)]">
-                            {tpl.title}
-                          </span>
-                          <span className="shrink-0 rounded bg-[var(--bg-surface)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--accent-text)]">
-                            {tpl.slotRef}
-                          </span>
-                        </div>
-                        <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-                          {tpl.subtitle}
-                        </div>
+                        Xóa bộ lọc
                       </button>
-                    );
-                  })}
+                    </div>
+                  ) : (
+                    filteredTemplates.map((tpl) => {
+                      const isSelected = activeExampleId === tpl.id;
+                      return (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => handleSelectPlaygroundTemplate(tpl.id)}
+                          className={[
+                            'w-full rounded-lg border p-2.5 text-left transition-colors',
+                            isSelected
+                              ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                              : 'border-[var(--border-default)] bg-[var(--bg-canvas)] hover:border-[var(--accent)]',
+                          ].join(' ')}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-semibold text-[var(--text-primary)]">
+                              {tpl.title}
+                            </span>
+                            <span className="shrink-0 rounded bg-[var(--bg-surface)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--accent-text)]">
+                              {tpl.slotRef}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                            {tpl.subtitle}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             ) : (

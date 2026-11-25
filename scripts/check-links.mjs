@@ -5,6 +5,19 @@ import path from 'node:path';
 const ROOT = String.raw`e:\JavAncode`;
 const prefix = (process.argv[2] || '').replace(/^\/+|\/+$/g, '');
 
+async function loadPlaygroundTemplateIds() {
+  const ids = new Set();
+  for (const rel of ['src/utils/javaPlayground.ts', 'src/utils/w3schoolsSlotTemplates.ts']) {
+    const abs = path.join(ROOT, rel);
+    if (!fssync.existsSync(abs)) continue;
+    const raw = await fs.readFile(abs, 'utf8');
+    for (const m of raw.matchAll(/\bid:\s*'([a-z0-9-]+)'/g)) {
+      ids.add(m[1]);
+    }
+  }
+  return ids;
+}
+
 async function walkMd(dir, out = []) {
   if (!fssync.existsSync(dir)) return out;
   for (const e of await fs.readdir(dir, { withFileTypes: true })) {
@@ -32,7 +45,7 @@ function stripFences(text) {
   return out.join('\n');
 }
 
-async function checkLang(lang) {
+async function checkLang(lang, validPlaygroundIds) {
   const base = path.join(ROOT, 'content', lang);
   const files = await walkMd(path.join(base, prefix));
   const brokenLinks = [];
@@ -55,6 +68,14 @@ async function checkLang(lang) {
     for (const m of txt.matchAll(/\[[^\]]*\]\((<[^>]+>|[^)\s]+)[^)]*\)/g)) {
       const raw = m[1].trim().replace(/^<|>$/g, '');
       if (/^(https?:|mailto:|#|\/media\/)/i.test(raw)) continue;
+      const pgMatch = raw.match(/^\/studio\/playground\?example=([a-z0-9-]+)$/i);
+      if (pgMatch) {
+        if (!validPlaygroundIds.has(pgMatch[1])) {
+          brokenLinks.push({ rel, link: raw, resolvedRel: `missing-playground-example:${pgMatch[1]}` });
+        }
+        continue;
+      }
+      if (/^\/(?:studio|pe|pro192|dashboard|resources)(?:[/?#]|$)/i.test(raw)) continue;
       const targetNoHash = raw.split('#')[0];
       if (!targetNoHash) continue;
       let resolved = targetNoHash.startsWith('/')
@@ -75,8 +96,9 @@ async function checkLang(lang) {
 }
 
 async function main() {
-  const en = await checkLang('en');
-  const vi = await checkLang('vi');
+  const validPlaygroundIds = await loadPlaygroundTemplateIds();
+  const en = await checkLang('en', validPlaygroundIds);
+  const vi = await checkLang('vi', validPlaygroundIds);
   console.log(JSON.stringify({ prefix, en, vi }, null, 2));
 }
 

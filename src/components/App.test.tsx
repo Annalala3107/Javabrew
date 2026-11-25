@@ -792,7 +792,13 @@ describe('JavaBrew Night Coffee Lab UI', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Xoay bố cục Ngang hoặc Dọc' }));
       expect(screen.getByTestId('tryit-split-pane')).toHaveAttribute('data-orientation', 'vertical');
 
-      fireEvent.click(screen.getByRole('button', { name: /Mẫu \(15\)/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Mẫu \(45\)/i }));
+      const searchBox = screen.getByLabelText('Tìm mẫu Java theo tên hoặc Slot');
+      fireEvent.change(searchBox, { target: { value: 'Slot 09' } });
+      expect(await screen.findByRole('button', { name: /Slot 09 Lab/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /OOP Đa file \(Student \+ Main\)/i })).not.toBeInTheDocument();
+      fireEvent.change(searchBox, { target: { value: '' } });
+
       fireEvent.click(await screen.findByRole('button', { name: /OOP Đa file \(Student \+ Main\)/i }));
 
       expect(await screen.findByRole('tab', { name: 'Student.java' })).toBeInTheDocument();

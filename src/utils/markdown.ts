@@ -199,6 +199,9 @@ export function resolveMarkdownHref(
   if (trimmed.startsWith('/media/')) {
     return { kind: 'media', target: trimmed };
   }
+  if (/^\/(?:studio|pe|pro192|dashboard|resources)(?:[/?#]|$)/.test(trimmed)) {
+    return { kind: 'internal', target: trimmed };
+  }
 
   const [rawPath, hashPart] = trimmed.split('#');
   const hash = hashPart ? `#${hashPart}` : '';
@@ -305,9 +308,7 @@ export function splitPro192StageContent(markdownBody: string): StageSegment[] {
               exHeaderRegex.test(cur) ||
               stopSectionRegex.test(cur) ||
               /^#\s+/.test(cur) ||
-              /^###\s+BỘ\s+\d*\s*BÀI TẬP/i.test(cur) ||
-              /^###\s+\d+\.\d+\.\s+(?:Trọn Bộ|Bộ\s+\d+\s+bài tập)/i.test(cur) ||
-              /^###\s+Bài tập Slot\s+\d+/i.test(cur) ||
+              /^###\s+/.test(cur) ||
               /^---\s*$/.test(cur)
             ) {
               break;

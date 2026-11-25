@@ -95,6 +95,13 @@ describe('resolveMarkdownHref', () => {
       kind: 'external',
       target: 'https://openjdk.org',
     });
+
+    expect(
+      resolveMarkdownHref('pro192/slots/slot-09.md', '/studio/playground?example=slot-09-lab')
+    ).toEqual({
+      kind: 'internal',
+      target: '/studio/playground?example=slot-09-lab',
+    });
   });
 });
 
@@ -127,6 +134,7 @@ describe('Real PRO192 data integrity', () => {
       expect(ex.promptMd.length).toBeGreaterThan(10);
       expect(ex.solutionMd.length).toBeGreaterThan(10);
       expect(ex.solutionMd).not.toContain('</details>');
+      expect(ex.solutionMd).not.toContain('Luyện Code Thực hành');
     }
   });
 
