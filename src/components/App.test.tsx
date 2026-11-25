@@ -397,4 +397,132 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(screen.getByText('drawio-chart')).toBeInTheDocument();
   });
+
+  it('switches Hero Preview tabs, renders 3-level roadmap, and toggles mobile menu on M1', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Mới học từ số 0/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Mới học từ số 0/i })).toHaveAttribute(
+      'href',
+      '/pro192/giai-doan-1-slot-01-05'
+    );
+    expect(screen.getByRole('link', { name: /Ôn nước rút thi PE/i })).toHaveAttribute('href', '/pe');
+
+    fireEvent.click(screen.getByRole('tab', { name: /Cơ bản Slot 01/i }));
+    expect(screen.getByText(/HelloJava\.java · Slot 01/i)).toBeInTheDocument();
+
+    const menuBtn = screen.getByRole('button', { name: /Mở menu điều hướng/i });
+    fireEvent.click(menuBtn);
+    expect(menuBtn).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(menuBtn).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('persists Code Studio drafts in localStorage, updates line gutter, and supports Reset Undo toast', async () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/studio/1']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const editor = (await screen.findByLabelText(/Trình soạn thảo mã nguồn Java/i)) as HTMLTextAreaElement;
+    expect(screen.getAllByText(/Static Pattern Evaluator/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: /Sao chép lệnh biên dịch javac local/i })).toBeInTheDocument();
+
+    const gutter = screen.getByTestId('code-line-gutter');
+    const initialGutterCount = gutter.children.length;
+
+    const customCode = `${editor.value}\n// draft-saved-line\n// line-extra`;
+    fireEvent.change(editor, { target: { value: customCode } });
+    fireEvent.blur(editor);
+
+    expect(gutter.children.length).toBeGreaterThanOrEqual(initialGutterCount);
+    expect(localStorage.getItem('javabrew:pe_draft:1')).toContain('draft-saved-line');
+
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/studio/1']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const reloadedEditor = (await screen.findByLabelText(
+      /Trình soạn thảo mã nguồn Java/i
+    )) as HTMLTextAreaElement;
+    expect(reloadedEditor.value).toContain('draft-saved-line');
+    expect(screen.getByText(/✓ Đã lưu nháp/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Khôi phục gốc/i }));
+    expect(reloadedEditor.value).not.toContain('draft-saved-line');
+    expect(localStorage.getItem('javabrew:pe_draft:1')).toBeNull();
+
+    const undoBtn = await screen.findByRole('button', { name: 'Hoàn tác' });
+    fireEvent.click(undoBtn);
+    expect(reloadedEditor.value).toContain('draft-saved-line');
+    expect(localStorage.getItem('javabrew:pe_draft:1')).toContain('draft-saved-line');
+  });
+
+  it('renders bilingual VI <-> EN side-by-side columns in JavaGuide reader', async () => {
+    render(
+      <MemoryRouter initialEntries={['/docs/java/basis/bigdecimal.md']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Nội dung tiếng Việt.')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Song ngữ VI ↔ EN/i }));
+
+    await waitFor(() => {
+      const dual = screen.getByTestId('bilingual-dual-columns');
+      expect(dual).toHaveTextContent('Nội dung tiếng Việt.');
+      expect(dual).toHaveTextContent('English content body.');
+    });
+  });
+
+  it('respects prefers-reduced-motion: reduce without hiding sections or breaking Hero Preview', async () => {
+    const origMatchMedia = window.matchMedia;
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion: reduce'),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }));
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <AppProvider>
+            <AppRoutes />
+          </AppProvider>
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText(/StudentManager\.java · PE 01/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Java OOP/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/PASS 3\/3/i)).toBeInTheDocument();
+      expect(screen.getByText(/Mới học từ số 0/i)).toBeVisible();
+    } finally {
+      vi.stubGlobal('matchMedia', origMatchMedia);
+    }
+  });
 });

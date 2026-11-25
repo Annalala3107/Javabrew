@@ -207,7 +207,7 @@ export function SettingsModal() {
               <span>Đặt lại</span>
             </button>
           </div>
-          {statusMsg && <p className="text-[11px] text-[var(--success-text)]">{statusMsg}</p>}
+          {statusMsg && <p className="text-xs text-[var(--success-text)]">{statusMsg}</p>}
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

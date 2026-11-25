@@ -1,19 +1,28 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
-  ChevronDown,
-  ChevronRight,
   Code2,
   FolderArchive,
   Sparkles,
 } from 'lucide-react';
+import { LucianAccordion } from '../components/lucian/LucianAccordion';
+import { LucianChecklistItem } from '../components/lucian/LucianChecklistItem';
 import { useApp } from '../context/AppContext';
+import { useRevealSection } from '../hooks/useMotion';
 import { stageFileToSlug } from '../utils/text';
 
 export function DashboardPage() {
-  const { navigation, pro192, lang, progress, toggleSlotCompleted } = useApp();
+  const { navigation, pro192, lang, progress, toggleSlotCompleted, pushToast } = useApp();
   const [expandedStageId, setExpandedStageId] = useState<number>(1);
+  const dashRef = useRef<HTMLDivElement>(null);
+
+  useRevealSection(dashRef, {
+    selector: '[data-reveal]',
+    y: 14,
+    duration: 0.4,
+    stagger: 0.05,
+  });
 
   const totalSlots = pro192?.course.totalSlots ?? 30;
   const doneSlots = progress.completedSlots.length;
@@ -68,9 +77,9 @@ export function DashboardPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
+    <div ref={dashRef} className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
       {/* Hero Action Banner (matches view-m2) */}
-      <section className="flex flex-col justify-between gap-6 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 lg:flex-row lg:items-center">
+      <section data-reveal className="flex flex-col justify-between gap-6 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 lg:flex-row lg:items-center">
         <div className="space-y-2.5">
           <div className="inline-flex items-center gap-2 text-xs text-[var(--accent-text)]">
             <span>☕ Góc Cà Phê Code Đêm</span>
@@ -134,14 +143,14 @@ export function DashboardPage() {
       {/* 2 Balanced Columns */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Left Card: PRO192 Checklist (8 Stages / 30 Slots, no strikethrough!) */}
-        <section className="space-y-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+        <section data-reveal className="space-y-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
           <div className="flex items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-bold text-[var(--text-primary)]">
                 Lộ trình PRO192 (30 Slots)
               </h2>
               <p className="text-xs text-[var(--text-dim)]">
-                Bấm ô vuông để cập nhật tiến độ (không gạch ngang để dễ ôn lại)
+                Bấm ô tròn để cập nhật tiến độ (không gạch ngang để dễ ôn lại)
               </p>
             </div>
             <span className="font-mono text-xs font-semibold tabular-nums text-[var(--accent)]">
@@ -151,12 +160,12 @@ export function DashboardPage() {
 
           <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-default)]">
             <div
-              className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
-              style={{ width: `${proPct}%` }}
+              className="h-full w-full origin-left rounded-full bg-[var(--accent)] transition-transform duration-300"
+              style={{ transform: `scaleX(${Math.max(0, Math.min(1, proPct / 100))})` }}
             />
           </div>
 
-          <div className="max-h-[380px] space-y-2 overflow-y-auto pr-1 text-xs">
+          <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1 text-xs">
             {pro192?.stages.map((stage) => {
               const slug = stageFileToSlug(stage.file);
               const stageSlots = pro192.slots.filter((s) => s.stage === stage.id);
@@ -167,31 +176,21 @@ export function DashboardPage() {
               const stageAllDone = doneInStage === stageSlots.length;
 
               return (
-                <div
+                <LucianAccordion
                   key={stage.id}
-                  className="overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)]"
-                >
-                  <div className="flex items-center justify-between gap-2 p-3">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedStageId(isOpen ? 0 : stage.id)}
-                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                    >
-                      {isOpen ? (
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--text-dim)]" />
-                      )}
-                      <span className="truncate font-semibold text-[var(--text-primary)]">
-                        Slot {stage.slots[0]}–{stage.slots[stage.slots.length - 1]}:{' '}
-                        {stage.title.replace(/^Giai đoạn \d+:\s*/, '')}
-                      </span>
-                    </button>
-
-                    <div className="flex shrink-0 items-center gap-2">
+                  open={isOpen}
+                  onToggle={() => setExpandedStageId(isOpen ? 0 : stage.id)}
+                  title={
+                    <span className="block truncate font-semibold text-[var(--text-primary)]">
+                      Slot {stage.slots[0]}–{stage.slots[stage.slots.length - 1]}:{' '}
+                      {stage.title.replace(/^Giai đoạn \d+:\s*/, '')}
+                    </span>
+                  }
+                  trailing={
+                    <>
                       <span
                         className={[
-                          'rounded-md border px-2 py-0.5 text-[11px] tabular-nums',
+                          'rounded-md border px-2 py-0.5 text-xs tabular-nums',
                           stageAllDone
                             ? 'border-[var(--success)]/30 bg-[var(--success-soft)] text-[var(--success-text)]'
                             : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-muted)]',
@@ -201,52 +200,49 @@ export function DashboardPage() {
                       </span>
                       <Link
                         to={`/pro192/${slug}`}
-                        className="text-[var(--accent-text)] hover:underline"
+                        className="text-xs text-[var(--accent-text)] hover:underline"
                       >
                         Mở →
                       </Link>
-                    </div>
-                  </div>
-
-                  {isOpen && (
-                    <div className="space-y-1.5 border-t border-[var(--border-default)] bg-[var(--bg-surface)]/40 p-2.5">
-                      {stageSlots.map((slot) => {
-                        const done = progress.completedSlots.includes(slot.slot);
-                        return (
-                          <div
-                            key={slot.slot}
-                            className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-2 transition-colors hover:border-[var(--border-strong)]"
-                          >
-                            <div className="flex min-w-0 items-center gap-2.5">
-                              <button
-                                type="button"
-                                onClick={() => toggleSlotCompleted(slot.slot)}
-                                aria-label={`Đánh dấu Slot ${slot.slot}`}
-                                aria-pressed={done}
-                                className={[
-                                  'flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[11px] font-bold transition-colors',
-                                  done
-                                    ? 'border-[var(--success)] bg-[var(--success)] text-[#1C1917]'
-                                    : 'border-[var(--border-strong)] text-transparent hover:border-[var(--accent)]',
-                                ].join(' ')}
-                              >
-                                ✓
-                              </button>
-                              <Link
-                                to={`/pro192/${slug}?slot=${slot.slot}`}
-                                className={[
-                                  'truncate hover:text-[var(--accent-text)]',
-                                  done
-                                    ? 'text-[var(--text-secondary)]'
-                                    : 'font-medium text-[var(--text-primary)]',
-                                ].join(' ')}
-                              >
-                                Slot {String(slot.slot).padStart(2, '0')}: {slot.title}
-                              </Link>
-                            </div>
+                    </>
+                  }
+                >
+                  <div className="space-y-1.5 border-t border-[var(--border-default)] bg-[var(--bg-surface)]/40 p-2.5">
+                    {stageSlots.map((slot) => {
+                      const done = progress.completedSlots.includes(slot.slot);
+                      return (
+                        <LucianChecklistItem
+                          key={slot.slot}
+                          checked={done}
+                          strikethrough={false}
+                          ariaLabel={`Đánh dấu Slot ${slot.slot}`}
+                          onToggle={() => {
+                            toggleSlotCompleted(slot.slot);
+                            pushToast({
+                              title: done
+                                ? `Đã bỏ đánh dấu Slot ${String(slot.slot).padStart(2, '0')}`
+                                : `Hoàn thành Slot ${String(slot.slot).padStart(2, '0')}`,
+                              description: slot.title,
+                              tone: done ? 'info' : 'success',
+                            });
+                          }}
+                          label={
+                            <Link
+                              to={`/pro192/${slug}?slot=${slot.slot}`}
+                              className={[
+                                'block truncate hover:text-[var(--accent-text)]',
+                                done
+                                  ? 'text-[var(--text-secondary)]'
+                                  : 'font-medium text-[var(--text-primary)]',
+                              ].join(' ')}
+                            >
+                              Slot {String(slot.slot).padStart(2, '0')}: {slot.title}
+                            </Link>
+                          }
+                          trailing={
                             <span
                               className={[
-                                'shrink-0 rounded-md px-2 py-0.5 text-[11px]',
+                                'shrink-0 rounded-md px-2 py-0.5 text-xs',
                                 done
                                   ? 'border border-[var(--success)]/30 bg-[var(--success-soft)] text-[var(--success-text)]'
                                   : 'text-[var(--text-dim)]',
@@ -254,19 +250,19 @@ export function DashboardPage() {
                             >
                               {done ? 'Done' : 'Mở →'}
                             </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                </LucianAccordion>
               );
             })}
           </div>
         </section>
 
         {/* Right Card: JavaGuide Core Track */}
-        <section className="flex flex-col justify-between space-y-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+        <section data-reveal className="flex flex-col justify-between space-y-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -284,8 +280,8 @@ export function DashboardPage() {
 
             <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-default)]">
               <div
-                className="h-full rounded-full bg-[var(--info)] transition-all duration-300"
-                style={{ width: `${jgPct}%` }}
+                className="h-full w-full origin-left rounded-full bg-[var(--info)] transition-transform duration-300"
+                style={{ transform: `scaleX(${Math.max(0, Math.min(1, jgPct / 100))})` }}
               />
             </div>
 
@@ -302,7 +298,7 @@ export function DashboardPage() {
               ))}
             </div>
 
-            <div className="flex flex-wrap gap-1.5 text-[11px]">
+            <div className="flex flex-wrap gap-1.5 text-xs">
               {navigation?.domains.slice(1).map((dom) => (
                 <Link
                   key={dom.id}

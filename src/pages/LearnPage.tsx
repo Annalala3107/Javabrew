@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Circle,
   Clock,
+  Columns2,
   Download,
   Eye,
   EyeOff,
@@ -24,6 +25,9 @@ import {
   Search,
 } from 'lucide-react';
 import { ExerciseBlock } from '../components/ExerciseBlock';
+import { BookmarkRibbonButton } from '../components/lucian/BookmarkRibbonButton';
+import { ReadingProgressFab } from '../components/lucian/ReadingProgressFab';
+import { SkeletonCard } from '../components/lucian/SkeletonCard';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { TableOfContents } from '../components/TableOfContents';
 import { useApp } from '../context/AppContext';
@@ -57,11 +61,16 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
     openPdfPreview,
     recordVisit,
     metaLoading,
+    pushToast,
   } = useApp();
 
   // M3/M4 UI states matching prototype-buoc-5.html
   const [savedFilterOnly, setSavedFilterOnly] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [bilingualMode, setBilingualMode] = useState(false);
+  const [companionMd, setCompanionMd] = useState('');
+  const [dualLoading, setDualLoading] = useState(false);
+  const noteDirtyRef = useRef(false);
   const [bridgeExpanded, setBridgeExpanded] = useState(true);
   const [treeFilter, setTreeFilter] = useState('');
   const [expandedStages, setExpandedStages] = useState<Record<number, boolean>>({ 1: true });
@@ -183,6 +192,46 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   }, [isReaderView, mode, slug, docRel, lang, reloadTick]);
 
   const parsed = useMemo(() => (rawMd ? parseMarkdownDocument(rawMd) : null), [rawMd]);
+  const companionParsed = useMemo(
+    () => (companionMd ? parseMarkdownDocument(companionMd) : null),
+    [companionMd]
+  );
+
+  // Bilingual 2-column companion fetch when toggled in JavaGuide docs
+  useEffect(() => {
+    if (mode !== 'docs' || !docRel) {
+      setBilingualMode(false);
+      setCompanionMd('');
+      return;
+    }
+    if (!bilingualMode) {
+      setCompanionMd('');
+      setDualLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const otherLang: 'vi' | 'en' = loadedLang === 'vi' ? 'en' : 'vi';
+    setDualLoading(true);
+    fetch(`/content/${otherLang}/${docRel}`)
+      .then(async (res) => (res.ok ? res.text() : ''))
+      .then((text) => {
+        if (!cancelled) {
+          setCompanionMd(text);
+          setDualLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCompanionMd('');
+          setDualLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, docRel, bilingualMode, loadedLang]);
   const proSegments = useMemo(
     () => (mode === 'pro192' && parsed ? splitPro192StageContent(parsed.body) : []),
     [mode, parsed]
@@ -385,7 +434,10 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   const normTreeFilter = normalizeSearchText(treeFilter);
 
   return (
-    <div className="mx-auto max-w-7xl p-4 md:p-6">
+    <div
+      data-focus-mode={focusMode ? 'true' : 'false'}
+      className="mx-auto max-w-7xl p-4 md:p-6"
+    >
       <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
         {/* Reader Top Toolbar (matches view-m34) */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] px-4 py-2.5 text-xs">
@@ -438,25 +490,23 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
             </div>
 
             {itemKey && (
-              <button
-                type="button"
-                onClick={() => toggleBookmark(itemKey)}
-                aria-pressed={isBookmarked}
-                className={[
-                  'rounded-md border px-2.5 py-1 transition-colors',
-                  isBookmarked
-                    ? 'border-[var(--accent)] bg-[var(--bg-canvas)] text-[var(--accent-text)]'
-                    : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-primary)] hover:border-[var(--accent)]',
-                ].join(' ')}
-              >
-                {isBookmarked ? '★ Đã lưu' : '☆ Lưu bài'}
-              </button>
+              <BookmarkRibbonButton
+                saved={isBookmarked}
+                onToggle={() => {
+                  toggleBookmark(itemKey);
+                  pushToast({
+                    title: isBookmarked ? 'Đã bỏ lưu bài học' : 'Đã lưu bài vào Bookmark',
+                    description: displayTitle,
+                    tone: isBookmarked ? 'info' : 'success',
+                  });
+                }}
+              />
             )}
 
             <button
               type="button"
               onClick={() => setFocusMode((f) => !f)}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
+              className="min-h-[32px] rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]"
             >
               {focusMode ? '✕ Thoát Focus' : '⛶ Focus Mode'}
             </button>
@@ -567,7 +617,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                                           [gk]: !prev[gk],
                                         }))
                                       }
-                                      className="flex w-full items-center justify-between gap-1 rounded px-1.5 py-1 text-left text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                                      className="flex w-full items-center justify-between gap-1 rounded px-1.5 py-1 text-left text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                                     >
                                       <span className="truncate">
                                         {lang === 'vi' ? grp.labelVi : grp.labelEn}
@@ -672,7 +722,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                                 <li key={sl.slot}>
                                   <Link
                                     to={`/pro192/${stSlug}?slot=${sl.slot}`}
-                                    className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11px] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+                                    className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-xs text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
                                   >
                                     <span className="truncate">
                                       <strong className="text-[var(--text-primary)]">
@@ -880,7 +930,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
                           <div>
-                            <div className="font-mono text-[11px] font-semibold text-[var(--accent-text)]">
+                            <div className="font-mono text-xs font-semibold text-[var(--accent-text)]">
                               Giai đoạn {stage.id} · Slot {stage.slots[0]}–
                               {stage.slots[stage.slots.length - 1]}
                             </div>
@@ -933,7 +983,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                                         <Link
                                           key={rel}
                                           to={`/docs/${rel}`}
-                                          className="inline-flex items-center gap-1 rounded border border-[var(--info)]/30 bg-[var(--info-soft)] px-2 py-0.5 text-[11px] text-[var(--info-text)] hover:opacity-90"
+                                          className="inline-flex items-center gap-1 rounded border border-[var(--info)]/30 bg-[var(--info-soft)] px-2 py-0.5 text-xs text-[var(--info-text)] hover:opacity-90"
                                         >
                                           <BookOpen className="h-3 w-3" />
                                           <span className="max-w-[200px] truncate">
@@ -955,7 +1005,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                                         pptxUrl: sl.slidePptx,
                                       })
                                     }
-                                    className="inline-flex items-center gap-1 rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-[11px] text-[var(--text-primary)] hover:border-[var(--accent)]"
+                                    className="inline-flex items-center gap-1 rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)] hover:border-[var(--accent)]"
                                   >
                                     <FileText className="h-3 w-3 text-[var(--accent)]" />
                                     <span>PDF</span>
@@ -1047,7 +1097,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                 </div>
 
                 {metaLoading && !navigation ? (
-                  <div className="h-40 animate-pulse rounded-xl bg-[var(--bg-canvas)]" />
+                  <SkeletonCard variant="article" />
                 ) : (
                   <div className="space-y-5">
                     {(navigation?.domains || [])
@@ -1123,13 +1173,13 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                                             <div className="text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--accent-text)]">
                                               {primary}
                                             </div>
-                                            <div className="truncate text-[11px] text-[var(--text-dim)]">
+                                            <div className="truncate text-xs text-[var(--text-dim)]">
                                               {secondary}
                                             </div>
                                           </Link>
                                         </div>
 
-                                        <div className="hidden shrink-0 items-center gap-3 text-[11px] tabular-nums text-[var(--text-dim)] sm:flex">
+                                        <div className="hidden shrink-0 items-center gap-3 text-xs tabular-nums text-[var(--text-dim)] sm:flex">
                                           {art.images > 0 && (
                                             <span className="inline-flex items-center gap-1">
                                               <ImageIcon className="h-3 w-3" />
@@ -1158,14 +1208,19 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
             {/* 4. Reader View (PRO192 Stage OR JavaGuide Article) */}
             {isReaderView && (
               <div className="flex gap-8">
-                <div className="mx-auto min-w-0 max-w-3xl flex-1 space-y-6">
+                <div
+                  className={[
+                    'mx-auto min-w-0 flex-1 space-y-6',
+                    bilingualMode && mode === 'docs' ? 'max-w-6xl' : 'max-w-3xl',
+                  ].join(' ')}
+                >
                   {/* Top Badge + Title + Controls */}
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="inline-block rounded-md border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-medium text-[var(--accent-text)]">
                         {mode === 'pro192' && activeStage
                           ? `Slot ${activeStage.slots[0]}–${activeStage.slots[activeStage.slots.length - 1]} · PRO192`
-                          : `${currentDocInfo?.domainLabel || 'JavaGuide'} · ${loadedLang.toUpperCase()}`}
+                          : `${currentDocInfo?.domainLabel || 'JavaGuide'} · ${bilingualMode ? 'VI ↔ EN' : loadedLang.toUpperCase()}`}
                       </span>
 
                       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1174,7 +1229,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                             <button
                               type="button"
                               onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
+                              className="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
                             >
                               <Languages className="h-3.5 w-3.5 text-[var(--accent)]" />
                               <span>
@@ -1183,10 +1238,34 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                             </button>
                             <button
                               type="button"
-                              onClick={() => toggleArticleCompleted(docRel)}
+                              onClick={() => setBilingualMode((b) => !b)}
+                              aria-pressed={bilingualMode}
+                              className={[
+                                'inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border px-2.5 py-1 font-medium transition-colors',
+                                bilingualMode
+                                  ? 'border-[var(--info)] bg-[var(--info-soft)] text-[var(--info-text)]'
+                                  : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-primary)] hover:border-[var(--info)]',
+                              ].join(' ')}
+                            >
+                              <Columns2 className="h-3.5 w-3.5 text-[var(--info)]" />
+                              <span>Song ngữ VI ↔ EN</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const wasDone = progress.completedArticles.includes(docRel);
+                                toggleArticleCompleted(docRel);
+                                pushToast({
+                                  title: wasDone
+                                    ? 'Bỏ đánh dấu đã đọc bài'
+                                    : 'Đã hoàn thành bài đọc!',
+                                  description: displayTitle,
+                                  tone: wasDone ? 'info' : 'success',
+                                });
+                              }}
                               aria-pressed={progress.completedArticles.includes(docRel)}
                               className={[
-                                'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-colors',
+                                'inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-colors',
                                 progress.completedArticles.includes(docRel)
                                   ? 'border-[var(--success)]/40 bg-[var(--success-soft)] text-[var(--success-text)]'
                                   : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-muted)] hover:text-[var(--text-primary)]',
@@ -1355,11 +1434,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
 
                   {/* Markdown Body */}
                   {loading ? (
-                    <div className="space-y-3">
-                      <div className="h-6 w-3/4 animate-pulse rounded bg-[var(--bg-canvas)]" />
-                      <div className="h-4 w-full animate-pulse rounded bg-[var(--bg-canvas)]" />
-                      <div className="h-40 animate-pulse rounded-xl bg-[var(--bg-canvas)]" />
-                    </div>
+                    <SkeletonCard variant="article" />
                   ) : error ? (
                     <div
                       role="alert"
@@ -1397,6 +1472,45 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                             />
                           )
                         )
+                      ) : bilingualMode && mode === 'docs' ? (
+                        <div
+                          data-testid="bilingual-dual-columns"
+                          className="grid grid-cols-1 gap-6 lg:grid-cols-2"
+                        >
+                          <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)]/50 p-4">
+                            <div className="mb-3 border-b border-[var(--border-default)] pb-2 font-mono text-xs font-semibold uppercase text-[var(--accent-text)]">
+                              Tiếng Việt (VI)
+                            </div>
+                            {dualLoading && loadedLang !== 'vi' ? (
+                              <SkeletonCard variant="article" />
+                            ) : loadedLang === 'vi' ? (
+                              <MarkdownRenderer content={parsed?.body || ''} currentRel={docRel} />
+                            ) : companionParsed?.body ? (
+                              <MarkdownRenderer content={companionParsed.body} currentRel={docRel} />
+                            ) : (
+                              <p className="text-xs text-[var(--text-muted)]">
+                                Chưa có bản dịch tiếng Việt cho bài này.
+                              </p>
+                            )}
+                          </section>
+
+                          <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)]/50 p-4">
+                            <div className="mb-3 border-b border-[var(--border-default)] pb-2 font-mono text-xs font-semibold uppercase text-[var(--info-text)]">
+                              English (EN)
+                            </div>
+                            {dualLoading && loadedLang !== 'en' ? (
+                              <SkeletonCard variant="article" />
+                            ) : loadedLang === 'en' ? (
+                              <MarkdownRenderer content={parsed?.body || ''} currentRel={docRel} />
+                            ) : companionParsed?.body ? (
+                              <MarkdownRenderer content={companionParsed.body} currentRel={docRel} />
+                            ) : (
+                              <p className="text-xs text-[var(--text-muted)]">
+                                English translation unavailable for this article.
+                              </p>
+                            )}
+                          </section>
+                        </div>
                       ) : (
                         <MarkdownRenderer content={parsed?.body || ''} currentRel={docRel} />
                       )}
@@ -1439,7 +1553,20 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                         id="lesson-personal-note"
                         rows={2}
                         value={currentNote}
-                        onChange={(e) => saveNote(itemKey, e.target.value)}
+                        onChange={(e) => {
+                          noteDirtyRef.current = true;
+                          saveNote(itemKey, e.target.value);
+                        }}
+                        onBlur={() => {
+                          if (noteDirtyRef.current) {
+                            noteDirtyRef.current = false;
+                            pushToast({
+                              title: 'Đã lưu ghi chú cá nhân',
+                              description: displayTitle,
+                              tone: 'success',
+                            });
+                          }
+                        }}
                         placeholder="Ghi lại ý bạn tự hiểu hoặc chỗ hay quên..."
                         className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus:outline-none"
                       />
@@ -1515,12 +1642,15 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                   </footer>
                 </div>
 
-                {!focusMode && <TableOfContents headings={domHeadings} />}
+                {!focusMode && !(bilingualMode && mode === 'docs') && (
+                  <TableOfContents headings={domHeadings} />
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
+      {isReaderView && <ReadingProgressFab focusMode={focusMode} />}
     </div>
   );
 }

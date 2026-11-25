@@ -1,0 +1,88 @@
+/* Lucian UX/UI Prompt #370 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#370 */
+.u370-tl {
+  position: relative;
+  padding-left: 28px;
+}
+
+.u370-ln {
+  position: absolute;
+  left: 9px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--ux-line);
+  overflow: visible;
+}
+
+.u370-ln i {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: linear-gradient(var(--ux-accent), var(--ux-accent-2));
+  transform-origin: 50% 0;
+  transform: scaleY(var(--p, 0));
+  transition: transform 0.25s var(--ux-ease);
+}
+
+.u370-ev {
+  position: relative;
+  padding-bottom: 14px;
+}
+
+.u370-ev:last-child {
+  padding-bottom: 0;
+}
+
+.u370-dot {
+  position: absolute;
+  left: -26px;
+  top: 12px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ux-surface);
+  box-shadow: 0 0 0 3px var(--ux-line-2);
+  transition:
+    box-shadow 0.3s,
+    transform 0.45s var(--ux-spring),
+    background-color 0.3s;
+}
+
+.u370-ev.on .u370-dot {
+  background: var(--ux-accent);
+  box-shadow: 0 0 0 4px var(--ux-accent-soft);
+  transform: scale(1.12);
+}
+
+.u370-cd {
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-canvas);
+  padding: 16px;
+  opacity: 0.78;
+  transform: translateX(8px);
+  transition:
+    opacity 0.35s var(--ux-ease),
+    transform 0.5s var(--ux-spring),
+    border-color 0.3s var(--ux-ease);
+}
+
+.u370-ev.on .u370-cd {
+  opacity: 1;
+  transform: none;
+  border-color: var(--border-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u370-ln i {
+    transform: scaleY(1);
+    transition: none;
+  }
+  .u370-dot,
+  .u370-cd {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

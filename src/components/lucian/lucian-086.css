@@ -1,0 +1,172 @@
+/* Lucian UX/UI Prompt #086 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#086 */
+.u086-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-canvas);
+  padding: 12px;
+}
+
+.u086-q {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+  animation: u086-pop 0.35s var(--ux-spring);
+}
+
+@keyframes u086-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.u086-a {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.u086-av {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 7px;
+  background: var(--ux-grad);
+  display: grid;
+  place-items: center;
+  margin-top: 2px;
+}
+
+.u086-av::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--ux-accent-ink);
+  transform: rotate(45deg);
+}
+
+.u086-card.is-gen .u086-av {
+  animation: u086-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes u086-glow {
+  50% {
+    box-shadow: 0 0 0 4px var(--ux-accent-soft);
+  }
+}
+
+.u086-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.u086-w {
+  animation: u086-w 0.28s var(--ux-ease) backwards;
+}
+
+@keyframes u086-w {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.u086-caret {
+  display: inline-block;
+  width: 6px;
+  height: 13px;
+  margin-left: 3px;
+  border-radius: 2px;
+  vertical-align: -2px;
+  background: var(--ux-accent);
+  animation: u086-c 0.9s steps(1) infinite;
+}
+
+@keyframes u086-c {
+  50% {
+    opacity: 0;
+  }
+}
+
+.u086-dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+}
+
+.u086-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ux-accent-2);
+  animation: u086-b 1s ease-in-out infinite;
+}
+
+.u086-dots i:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.u086-dots i:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+@keyframes u086-b {
+  0%,
+  60%,
+  100% {
+    transform: none;
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.u086-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.u086-ctl:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u086-q,
+  .u086-card.is-gen .u086-av,
+  .u086-w,
+  .u086-caret,
+  .u086-dots i {
+    animation: none;
+  }
+  .u086-caret {
+    display: none;
+  }
+}

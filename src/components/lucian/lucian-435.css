@@ -1,0 +1,207 @@
+/* Lucian UX/UI Prompt #435 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#435 */
+.u435-host {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 55;
+  width: min(340px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.u435-rg {
+  position: relative;
+  width: 100%;
+  transition: height 0.35s var(--ux-ease);
+}
+
+.u435-t {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border-radius: 14px;
+  background: var(--ux-surface);
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    0 14px 30px -14px var(--ux-shadow-strong),
+    0 2px 6px -2px var(--ux-shadow);
+  transform-origin: 50% 100%;
+  transform: translate3d(0, var(--y, 0px), 0) scale(var(--s, 1));
+  opacity: var(--o, 1);
+  transition:
+    transform 0.52s cubic-bezier(0.3, 1.42, 0.52, 1),
+    opacity 0.28s var(--ux-ease);
+  pointer-events: auto;
+  animation: u435-enter 0.42s var(--ux-spring);
+}
+
+@keyframes u435-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0) scale(0.92);
+  }
+}
+
+.u435-t.is-back > * {
+  opacity: 0.35;
+}
+
+.u435-ic {
+  position: relative;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ux-mint);
+  color: var(--accent-contrast);
+}
+
+.u435-ic[data-tone='info'] {
+  background: var(--ux-accent-2);
+}
+
+.u435-ic[data-tone='warn'] {
+  background: var(--ux-accent);
+}
+
+.u435-ic svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.u435-ic path {
+  stroke-dasharray: 18;
+  stroke-dashoffset: 18;
+  animation: u435-draw 0.38s var(--ux-ease) 0.12s forwards;
+}
+
+@keyframes u435-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.u435-tx {
+  flex: 1;
+  min-width: 0;
+}
+
+.u435-tx b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ux-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.u435-tx small {
+  display: block;
+  font-size: 12px;
+  color: var(--ux-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.u435-un {
+  flex: none;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-canvas);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ux-accent);
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.u435-un:hover {
+  border-color: var(--ux-accent);
+}
+
+.u435-x {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--ux-ink-3);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.u435-x:hover {
+  background: var(--ux-surface-2);
+  color: var(--ux-ink);
+}
+
+.u435-x svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.u435-pb {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.u435-pb i {
+  display: block;
+  height: 100%;
+  background: var(--ux-accent);
+  opacity: 0.78;
+  transform-origin: 0 50%;
+  animation: u435-pb 4200ms linear forwards;
+}
+
+@keyframes u435-pb {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.u435-rg.is-paused .u435-pb i {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u435-t,
+  .u435-ic path {
+    animation: none;
+    stroke-dashoffset: 0;
+    transition: none;
+  }
+  .u435-pb {
+    display: none;
+  }
+}

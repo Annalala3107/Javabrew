@@ -24,6 +24,15 @@ export interface PdfPreviewState {
   pptxUrl?: string;
 }
 
+export interface ToastItem {
+  id: string;
+  title: string;
+  description?: string;
+  tone?: 'success' | 'info' | 'warn';
+  undoLabel?: string;
+  onUndo?: () => void;
+}
+
 const STORAGE_LANG = 'javabrew:lang';
 const STORAGE_THEME = 'javabrew:theme';
 const STORAGE_PROGRESS = 'javabrew:progress';
@@ -163,6 +172,9 @@ interface AppContextValue {
   pdfPreview: PdfPreviewState | null;
   openPdfPreview: (preview: PdfPreviewState) => void;
   closePdfPreview: () => void;
+  toasts: ToastItem[];
+  pushToast: (toast: Omit<ToastItem, 'id'>) => string;
+  dismissToast: (id: string) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -185,6 +197,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastSeqRef = useRef(0);
 
   const fetchMetadata = useCallback(async () => {
     setMetaLoading(true);
@@ -247,6 +261,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.classList.toggle('dark', theme === 'dark');
     root.classList.toggle('light', theme === 'light');
+    root.setAttribute('data-theme', theme);
     try {
       localStorage.setItem(STORAGE_THEME, theme);
     } catch {
@@ -418,6 +433,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPdfPreview(null);
   }, []);
 
+  const pushToast = useCallback((toast: Omit<ToastItem, 'id'>): string => {
+    toastSeqRef.current += 1;
+    const id = `toast-${Date.now()}-${toastSeqRef.current}`;
+    const entry: ToastItem = { ...toast, id };
+    setToasts((prev) => [entry, ...prev].slice(0, 3));
+    return id;
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -486,6 +513,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pdfPreview,
       openPdfPreview,
       closePdfPreview,
+      toasts,
+      pushToast,
+      dismissToast,
     }),
     [
       navigation,
@@ -522,6 +552,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pdfPreview,
       openPdfPreview,
       closePdfPreview,
+      toasts,
+      pushToast,
+      dismissToast,
     ]
   );
 

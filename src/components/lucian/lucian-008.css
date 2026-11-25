@@ -1,0 +1,93 @@
+/* Lucian UX/UI Prompt #008 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#008 */
+.u008-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background-color 0.3s var(--ux-ease),
+    border-color 0.3s var(--ux-ease),
+    color 0.3s var(--ux-ease),
+    transform 0.4s var(--ux-spring);
+}
+
+.u008-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.u008-btn:active {
+  transform: scale(0.92);
+}
+
+.u008-btn.is-copied {
+  border-color: color-mix(in srgb, var(--ux-mint) 55%, transparent);
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.u008-ico {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.u008-ico svg {
+  position: absolute;
+  inset: 0;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    opacity 0.24s var(--ux-ease),
+    transform 0.45s var(--ux-spring);
+}
+
+.u008-ok {
+  opacity: 0;
+  transform: scale(0.4) rotate(-30deg);
+}
+
+.u008-ok path {
+  stroke-width: 2.5;
+  stroke-dasharray: 22;
+  stroke-dashoffset: 22;
+  transition: stroke-dashoffset 0.35s var(--ux-ease) 0.08s;
+}
+
+.u008-btn.is-copied .u008-cp {
+  opacity: 0;
+  transform: scale(0.4) rotate(30deg);
+}
+
+.u008-btn.is-copied .u008-ok {
+  opacity: 1;
+  transform: none;
+}
+
+.u008-btn.is-copied .u008-ok path {
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u008-btn,
+  .u008-ico svg,
+  .u008-ok path {
+    transition: none;
+  }
+}

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
+import { SkeletonCard } from './components/lucian/SkeletonCard';
 import { AppProvider } from './context/AppContext';
 import { LandingPage } from './pages/LandingPage';
 
@@ -18,12 +19,7 @@ const CodeStudioPage = lazy(() =>
 );
 
 function RouteLoader() {
-  return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 p-6">
-      <div className="h-24 animate-pulse rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)]" />
-      <div className="h-64 animate-pulse rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)]" />
-    </div>
-  );
+  return <SkeletonCard variant="route" />;
 }
 
 function NotFoundPage() {

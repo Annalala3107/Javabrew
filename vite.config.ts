@@ -17,6 +17,7 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'markdown-vendor': ['react-markdown', 'remark-gfm', 'rehype-slug', 'js-yaml'],
           'highlight-vendor': ['rehype-highlight', 'highlight.js'],
+          'motion-vendor': ['gsap', '@gsap/react'],
         },
       },
     },

@@ -1,0 +1,62 @@
+/* Lucian UX/UI Prompt #307 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#307 */
+.u307-inline {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  --c: var(--ux-accent);
+}
+
+.u307-b {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.u307-w {
+  position: relative;
+  color: var(--c);
+  background: linear-gradient(var(--c), var(--c)) 0 100% / 100% 0.12em no-repeat;
+  padding-bottom: 0.04em;
+  transition: background-size 0.3s var(--ux-ease), color 0.3s var(--ux-ease);
+}
+
+.u307-w:empty {
+  padding: 0;
+}
+
+.u307-caret {
+  display: inline-block;
+  width: 2.5px;
+  height: 0.92em;
+  margin: 0 2px 0 3px;
+  vertical-align: -0.08em;
+  border-radius: 2px;
+  background: var(--c);
+  animation: u307-blink 1s steps(1) infinite;
+  transition: background-color 0.35s var(--ux-ease);
+}
+
+.u307-inline.is-typing .u307-caret {
+  animation: none;
+}
+
+@keyframes u307-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.u307-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u307-caret {
+    display: none;
+  }
+}

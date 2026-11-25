@@ -13,8 +13,6 @@ import rehypeHighlight from 'rehype-highlight';
 import {
   AlertTriangle,
   BookOpen,
-  Check,
-  Copy,
   ExternalLink,
   FileText,
   Info,
@@ -23,6 +21,7 @@ import {
   X,
   ZoomIn,
 } from 'lucide-react';
+import { CopyCodeButton } from './lucian/CopyCodeButton';
 import { useApp } from '../context/AppContext';
 import { resolveMarkdownHref } from '../utils/markdown';
 
@@ -41,7 +40,7 @@ function extractNodeText(node: ReactNode): string {
 }
 
 function CodeBlock({ children }: { children?: ReactNode }) {
-  const [copied, setCopied] = useState(false);
+  const { pushToast } = useApp();
 
   let language = 'text';
   const childArray = Children.toArray(children);
@@ -54,40 +53,24 @@ function CodeBlock({ children }: { children?: ReactNode }) {
 
   const rawCode = extractNodeText(children).replace(/\n$/, '');
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(rawCode);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      // Fallback ignored if clipboard API blocked in non-HTTPS contexts
-    }
-  };
-
   return (
     <div className="my-5 overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-code)]">
       <div className="flex items-center justify-between border-b border-[var(--border-default)] bg-[var(--bg-surface-muted)] px-3.5 py-1.5">
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        <span className="font-mono text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
           {language}
         </span>
-        <button
-          type="button"
-          onClick={handleCopy}
-          aria-label="Sao chép đoạn mã"
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
-        >
-          {copied ? (
-            <>
-              <Check className="h-3.5 w-3.5 text-[var(--success)]" />
-              <span className="text-[var(--success)]">Đã chép</span>
-            </>
-          ) : (
-            <>
-              <Copy className="h-3.5 w-3.5" />
-              <span>Sao chép</span>
-            </>
-          )}
-        </button>
+        <CopyCodeButton
+          code={rawCode}
+          label="Sao chép"
+          copiedLabel="Đã chép"
+          ariaLabel="Sao chép đoạn mã"
+          onCopied={() =>
+            pushToast({
+              title: 'Đã sao chép đoạn mã',
+              tone: 'success',
+            })
+          }
+        />
       </div>
       <pre className="overflow-x-auto p-4 text-[13.5px] leading-relaxed">{children}</pre>
     </div>
@@ -242,7 +225,7 @@ export function MarkdownRenderer({ content, currentRel }: MarkdownRendererProps)
                       loading="lazy"
                       className="max-h-[480px] w-auto max-w-full object-contain"
                     />
-                    <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)]/90 px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)]/90 px-2 py-1 text-xs font-medium text-[var(--text-secondary)] opacity-0 transition-opacity group-hover:opacity-100">
                       <ZoomIn className="h-3 w-3" />
                       <span>Phóng to</span>
                     </span>

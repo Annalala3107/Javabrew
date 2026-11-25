@@ -1,15 +1,30 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
+import { SlidingPillTabs } from '../components/lucian/SlidingPillTabs';
 import { useApp } from '../context/AppContext';
+import { useRevealSection } from '../hooks/useMotion';
 import { stageFileToSlug } from '../utils/text';
 
 type PeFilter = 'all' | 'oop' | 'collections' | 'file';
 
+const PE_TAB_OPTIONS = [
+  { id: 'challenges' as const, label: 'Kho Đề PE' },
+  { id: 'mistakes' as const, label: 'Lỗi AI nhắc' },
+];
+
+const PE_FILTER_OPTIONS = [
+  { id: 'all' as const, label: 'Tất cả' },
+  { id: 'oop' as const, label: 'OOP & Encapsulation' },
+  { id: 'collections' as const, label: 'Collections & Sort' },
+  { id: 'file' as const, label: 'File I/O & String' },
+];
+
 export function PeHubPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { pro192, progress, toggleMistakeResolved } = useApp();
+  const { pro192, progress, toggleMistakeResolved, pushToast } = useApp();
+  const listScopeRef = useRef<HTMLDivElement>(null);
 
   const initialTab = searchParams.get('tab') === 'mistakes' ? 'mistakes' : 'challenges';
   const [activeTab, setActiveTab] = useState<'challenges' | 'mistakes'>(initialTab);
@@ -29,6 +44,14 @@ export function PeHubPage() {
       return c.cat === filter;
     });
   }, [challenges, filter]);
+
+  useRevealSection(listScopeRef, {
+    selector: '[data-reveal]',
+    y: 12,
+    duration: 0.35,
+    stagger: 0.04,
+    dependencies: [activeTab, filter],
+  });
 
   const selected = useMemo(
     () => filtered.find((c) => c.id === selectedId) || filtered[0] || challenges[0] || null,
@@ -67,9 +90,17 @@ export function PeHubPage() {
     setSearchParams(tab === 'mistakes' ? { tab: 'mistakes' } : {});
   };
 
+  const tabOptionsWithCounts = useMemo(
+    () => [
+      { id: 'challenges' as const, label: `${PE_TAB_OPTIONS[0].label} (${challenges.length})` },
+      { id: 'mistakes' as const, label: `${PE_TAB_OPTIONS[1].label} (${progress.mistakes.length})` },
+    ],
+    [challenges.length, progress.mistakes.length]
+  );
+
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
-      {/* Header & Sub-tabs (matches view-m5) */}
+    <div ref={listScopeRef} className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      {/* Header & Sliding Pill Sub-tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-[var(--text-primary)]">
@@ -80,65 +111,25 @@ export function PeHubPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-1 text-xs">
-          <button
-            type="button"
-            onClick={() => switchTab('challenges')}
-            className={[
-              'rounded-lg px-3.5 py-1.5 transition-colors',
-              activeTab === 'challenges'
-                ? 'bg-[var(--accent)] font-semibold text-[var(--accent-contrast)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-            ].join(' ')}
-          >
-            Kho Đề PE ({challenges.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => switchTab('mistakes')}
-            className={[
-              'rounded-lg px-3.5 py-1.5 transition-colors',
-              activeTab === 'mistakes'
-                ? 'bg-[var(--accent)] font-semibold text-[var(--accent-contrast)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-            ].join(' ')}
-          >
-            Lỗi AI nhắc ({progress.mistakes.length})
-          </button>
-        </div>
+        <SlidingPillTabs
+          options={tabOptionsWithCounts}
+          value={activeTab}
+          onChange={switchTab}
+          ariaLabel="Chuyển mục Kho Đề PE hoặc Lỗi AI nhắc"
+        />
       </div>
 
       {activeTab === 'challenges' ? (
         <div className="space-y-4">
           {/* Topic Filter */}
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex flex-wrap gap-1.5">
-              {(
-                [
-                  { id: 'all', label: 'Tất cả' },
-                  { id: 'oop', label: 'OOP & Encapsulation' },
-                  { id: 'collections', label: 'Collections & Sort' },
-                  { id: 'file', label: 'File I/O & String' },
-                ] as const
-              ).map((item) => {
-                const active = filter === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setFilter(item.id)}
-                    className={[
-                      'rounded-lg px-3 py-1.5 transition-colors',
-                      active
-                        ? 'bg-[var(--text-primary)] font-semibold text-[var(--bg-canvas)]'
-                        : 'border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                    ].join(' ')}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
+            <SlidingPillTabs
+              options={PE_FILTER_OPTIONS}
+              value={filter}
+              onChange={setFilter}
+              ariaLabel="Lọc đề PE theo chủ đề"
+              tone="neutral"
+            />
 
             <span className="font-mono text-[var(--text-muted)] tabular-nums">
               Tiến độ:{' '}
@@ -159,6 +150,7 @@ export function PeHubPage() {
                   <button
                     key={p.id}
                     type="button"
+                    data-reveal
                     onClick={() => setSelectedId(p.id)}
                     className={[
                       'flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left transition-colors',
@@ -192,7 +184,7 @@ export function PeHubPage() {
                       {selected.code}
                     </span>
                     <span
-                      className={`rounded-md border px-2 py-0.5 ${getStatusMeta(selected.id).cls}`}
+                      className={`rounded-md border px-2 py-0.5 text-xs ${getStatusMeta(selected.id).cls}`}
                     >
                       {getStatusMeta(selected.id).label}
                     </span>
@@ -221,7 +213,7 @@ export function PeHubPage() {
                   <button
                     type="button"
                     onClick={() => navigate(`/studio/${selected.id}`)}
-                    className="w-full rounded-lg bg-[var(--accent)] py-2.5 font-bold text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"
+                    className="min-h-[42px] w-full rounded-lg bg-[var(--accent)] py-2.5 font-bold text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"
                   >
                     Bắt đầu Code trên Studio (M7) →
                   </button>
@@ -229,14 +221,14 @@ export function PeHubPage() {
                   {relatedSlotObj ? (
                     <Link
                       to={`/pro192/${stageFileToSlug(relatedSlotObj.file)}?slot=${relatedSlotObj.slot}`}
-                      className="block w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2 text-center text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)]"
+                      className="block w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2.5 text-center text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)]"
                     >
                       Xem lại lý thuyết Slot {relatedSlotObj.slot} trước
                     </Link>
                   ) : (
                     <Link
                       to="/pro192"
-                      className="block w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2 text-center text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)]"
+                      className="block w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2.5 text-center text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)]"
                     >
                       Xem lại lý thuyết PRO192 trước
                     </Link>
@@ -257,24 +249,25 @@ export function PeHubPage() {
             progress.mistakes.map((m) => (
               <div
                 key={m.id}
+                data-reveal
                 className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4"
               >
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={[
-                        'rounded border px-2 py-0.5',
+                        'rounded border px-2 py-0.5 text-xs',
                         m.type === 'runtime'
                           ? 'border-[var(--danger)]/30 bg-[var(--danger-soft)] text-[var(--danger-text)]'
-                          : 'border-[var(--warning)]/30 bg-[var(--warning-soft)] text-[#FDE68A]',
+                          : 'border-[var(--warning)]/30 bg-[var(--warning-soft)] text-[var(--accent-text)]',
                       ].join(' ')}
                     >
                       {m.type === 'runtime' ? 'Runtime Error' : 'Clean Code'}
                     </span>
                     <span className="font-bold text-[var(--text-primary)]">{m.title}</span>
                     {m.resolved && (
-                      <span className="inline-flex items-center gap-1 rounded bg-[var(--success-soft)] px-2 py-0.5 text-[11px] text-[var(--success-text)]">
-                        <CheckCircle2 className="h-3 w-3" />
+                      <span className="inline-flex items-center gap-1 rounded bg-[var(--success-soft)] px-2 py-0.5 text-xs text-[var(--success-text)]">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
                         Đã khắc phục
                       </span>
                     )}
@@ -285,15 +278,22 @@ export function PeHubPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => toggleMistakeResolved(m.id)}
-                    className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    onClick={() => {
+                      toggleMistakeResolved(m.id);
+                      pushToast({
+                        title: m.resolved ? 'Đã mở lại ghi chú lỗi' : 'Đã đánh dấu khắc phục lỗi',
+                        description: m.title,
+                        tone: m.resolved ? 'info' : 'success',
+                      });
+                    }}
+                    className="min-h-[38px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   >
                     {m.resolved ? 'Mở lại' : 'Đánh dấu đã sửa'}
                   </button>
                   <button
                     type="button"
                     onClick={() => navigate(`/studio/${m.peId}`)}
-                    className="rounded-lg border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-3.5 py-2 text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+                    className="min-h-[38px] rounded-lg border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-3.5 py-2 text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
                   >
                     Mở lại PE {String(m.peId).padStart(2, '0')} →
                   </button>

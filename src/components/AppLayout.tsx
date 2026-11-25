@@ -5,6 +5,7 @@ import { PdfPreviewModal } from './PdfPreviewModal';
 import { SearchModal } from './SearchModal';
 import { SettingsModal } from './SettingsModal';
 import { TopBar } from './TopBar';
+import { LucianToastStack } from './lucian/LucianToastStack';
 
 export function AppLayout() {
   const location = useLocation();
@@ -51,6 +52,7 @@ export function AppLayout() {
       <SearchModal />
       <SettingsModal />
       <PdfPreviewModal />
+      <LucianToastStack />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./lucian-tokens.css";
 
 /* Default theme: The Night Coffee Lab · Mood C (matches prototype-buoc-5.html) */
 :root,

@@ -1,0 +1,93 @@
+/* Lucian UX/UI Prompt #039 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#039 */
+.u039-tabs {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--ux-surface);
+  box-shadow: 0 0 0 1px var(--ux-line-2);
+}
+
+.u039-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.u039-tabs.is-pill {
+  border-radius: 999px;
+}
+
+.u039-pill {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: var(--w, 0px);
+  border-radius: 8px;
+  background: var(--ux-accent);
+  transform: translateX(var(--x, 4px));
+  box-shadow: 0 6px 14px -8px var(--ux-shadow-strong);
+  transition:
+    transform 0.45s var(--ux-spring),
+    width 0.45s var(--ux-spring),
+    opacity 0.2s var(--ux-ease);
+  pointer-events: none;
+}
+
+.u039-tabs.is-pill .u039-pill {
+  border-radius: 999px;
+}
+
+.u039-tabs[data-tone='neutral'] .u039-pill {
+  background: var(--ux-ink);
+}
+
+.u039-tab {
+  position: relative;
+  z-index: 1;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ux-ink-2);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: color 0.3s var(--ux-ease);
+}
+
+.u039-tabs.is-pill .u039-tab {
+  border-radius: 999px;
+}
+
+.u039-tab:hover {
+  color: var(--ux-ink);
+}
+
+.u039-tab[aria-selected='true'] {
+  color: var(--ux-accent-ink);
+  font-weight: 700;
+}
+
+.u039-tabs[data-tone='neutral'] .u039-tab[aria-selected='true'] {
+  color: var(--ux-page);
+}
+
+.u039-tab:focus-visible {
+  outline: 2px solid var(--ux-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u039-pill {
+    transition: none;
+  }
+}

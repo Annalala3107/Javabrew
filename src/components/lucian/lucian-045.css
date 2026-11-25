@@ -1,0 +1,227 @@
+/* Lucian UX/UI Prompt #045 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#045 */
+.u045-ham {
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-default);
+  padding: 0;
+  border-radius: 999px;
+  background: var(--ux-surface);
+  color: var(--ux-ink);
+  z-index: 70;
+  transition:
+    transform 0.4s var(--ux-spring),
+    background-color 0.35s var(--ux-ease),
+    border-color 0.35s var(--ux-ease);
+}
+
+.u045-ham.is-open {
+  border-color: var(--accent);
+}
+
+.u045-ham:hover {
+  transform: scale(1.05);
+}
+
+.u045-ham:active {
+  transform: scale(0.92);
+}
+
+.u045-ham:focus-visible {
+  outline: 2px solid var(--ux-accent);
+  outline-offset: 3px;
+}
+
+.u045-ham i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 2px;
+  margin: -1px 0 0 -9px;
+  border-radius: 2px;
+  background: currentColor;
+  transition:
+    transform 0.55s var(--ux-spring),
+    opacity 0.25s,
+    width 0.4s var(--ux-ease);
+}
+
+.u045-ham i:nth-child(1) {
+  transform: translateY(-6px);
+}
+
+.u045-ham i:nth-child(2) {
+  width: 12px;
+  margin-left: -3px;
+}
+
+.u045-ham i:nth-child(3) {
+  transform: translateY(6px);
+}
+
+.u045-ham.is-open i:nth-child(1) {
+  transform: rotate(45deg);
+}
+
+.u045-ham.is-open i:nth-child(2) {
+  opacity: 0;
+  transform: translateX(8px);
+}
+
+.u045-ham.is-open i:nth-child(3) {
+  transform: rotate(-45deg);
+}
+
+.u045-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  padding: 20px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background:
+    radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--ux-accent) 18%, transparent), transparent 60%),
+    radial-gradient(90% 60% at 0% 100%, color-mix(in srgb, var(--ux-accent-2) 16%, transparent), transparent 65%),
+    var(--ux-page);
+  color: var(--ux-ink);
+  clip-path: circle(0 at var(--cx, 90%) var(--cy, 28px));
+  visibility: hidden;
+  transition:
+    clip-path 0.65s var(--ux-ease),
+    visibility 0s 0.65s;
+}
+
+.u045-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  margin-bottom: 18px;
+}
+
+.u045-sheet.is-open {
+  clip-path: circle(150vmax at var(--cx, 90%) var(--cy, 28px));
+  visibility: visible;
+  transition:
+    clip-path 0.72s var(--ux-ease),
+    visibility 0s;
+}
+
+.u045-sheet small {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ux-ink-3);
+  text-transform: uppercase;
+}
+
+.u045-nav {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.u045-ln {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: inherit;
+  text-decoration: none;
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.25s,
+    transform 0.3s var(--ux-ease);
+}
+
+.u045-ln em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--ux-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.u045-ln span {
+  background: var(--ux-grad) no-repeat 0 100% / 0 2.5px;
+  padding-bottom: 2px;
+  transition: background-size 0.4s var(--ux-ease);
+}
+
+.u045-ln:hover span,
+.u045-ln:focus-visible span {
+  background-size: 100% 2.5px;
+}
+
+.u045-sheet.is-open .u045-ln {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.35s var(--ux-ease) calc(0.14s + var(--i) * 55ms),
+    transform 0.6s var(--ux-spring) calc(0.14s + var(--i) * 55ms);
+}
+
+.u045-foot {
+  margin-top: auto;
+  padding-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.25s,
+    transform 0.3s;
+}
+
+.u045-sheet.is-open .u045-foot {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.35s 0.38s,
+    transform 0.55s var(--ux-spring) 0.38s;
+}
+
+.u045-foot a {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid var(--border-strong);
+  color: var(--ux-ink);
+}
+
+.u045-foot a.go {
+  margin-left: auto;
+  border: 0;
+  background: var(--ux-accent);
+  color: var(--ux-accent-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u045-sheet {
+    transition: none;
+    clip-path: none;
+  }
+  .u045-sheet.is-open .u045-ln,
+  .u045-sheet.is-open .u045-foot {
+    transition: none;
+  }
+}

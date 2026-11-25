@@ -1,0 +1,134 @@
+/* Lucian UX/UI Prompt #229 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#229 */
+.u229-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--ux-surface);
+  border: 1px solid var(--border-default);
+  box-shadow: 0 22px 46px -22px var(--ux-shadow-strong);
+  color: var(--ux-ink);
+}
+
+.u229-tm {
+  position: relative;
+  border-radius: 10px;
+  background: var(--bg-code);
+  border: 1px solid var(--border-default);
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.u229-bd {
+  padding: 10px 12px;
+  min-height: 98px;
+}
+
+.u229-l {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.u229-l .p {
+  color: var(--success-text);
+  font-weight: 600;
+}
+
+.u229-l .d {
+  color: var(--text-muted);
+}
+
+.u229-l .ok {
+  color: var(--success-text);
+  font-weight: 700;
+}
+
+.u229-l .sp {
+  display: inline-block;
+  width: 1.4ch;
+  color: var(--info-text);
+}
+
+.u229-cu {
+  display: inline-block;
+  width: 6px;
+  height: 13px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--accent);
+  animation: u229-bl 1s steps(1) infinite;
+}
+
+@keyframes u229-bl {
+  50% {
+    opacity: 0;
+  }
+}
+
+.u229-pb {
+  display: inline-block;
+  width: 108px;
+  height: 6px;
+  margin: 0 8px 0 4px;
+  border-radius: 999px;
+  background: var(--border-default);
+  vertical-align: 1px;
+  overflow: hidden;
+}
+
+.u229-pb i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: 0 50%;
+  transform: scaleX(var(--prog, 0));
+  background: linear-gradient(90deg, var(--success), var(--accent));
+  transition: transform 0.25s var(--ux-ease);
+}
+
+.u229-re {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-canvas);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 0.2s var(--ux-ease),
+    border-color 0.2s var(--ux-ease),
+    transform 0.35s var(--ux-spring);
+}
+
+.u229-re:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.u229-re:active {
+  transform: scale(0.94);
+}
+
+.u229-re svg {
+  width: 12px;
+  height: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u229-cu {
+    animation: none;
+    display: none;
+  }
+  .u229-pb i {
+    transition: none;
+  }
+}

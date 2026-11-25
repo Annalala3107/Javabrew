@@ -1,0 +1,139 @@
+/* Lucian UX/UI Prompt #044 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#044 */
+.u044-it {
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-canvas);
+  transition:
+    background-color 0.35s var(--ux-ease),
+    border-color 0.35s var(--ux-ease),
+    box-shadow 0.4s var(--ux-ease);
+}
+
+.u044-it.open {
+  border-color: var(--border-strong);
+}
+
+.u044-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+}
+
+.u044-q {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ux-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.u044-pm {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  transition:
+    background-color 0.3s var(--ux-ease),
+    transform 0.4s var(--ux-spring);
+}
+
+.u044-q:hover .u044-pm {
+  transform: scale(1.08);
+  border-color: var(--accent);
+}
+
+.u044-q:active .u044-pm {
+  transform: scale(0.92);
+}
+
+.u044-pm::before,
+.u044-pm::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 1.8px;
+  margin: -0.9px 0 0 -5px;
+  border-radius: 2px;
+  background: var(--ux-ink);
+  transition:
+    transform 0.45s var(--ux-spring),
+    background-color 0.3s;
+}
+
+.u044-pm::after {
+  transform: rotate(90deg);
+}
+
+.u044-it.open .u044-pm {
+  background: var(--ux-accent);
+  border-color: var(--ux-accent);
+}
+
+.u044-it.open .u044-pm::before,
+.u044-it.open .u044-pm::after {
+  background: var(--ux-accent-ink);
+}
+
+.u044-it.open .u044-pm::after {
+  transform: rotate(180deg);
+}
+
+.u044-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.42s var(--ux-ease);
+}
+
+.u044-it.open .u044-body {
+  grid-template-rows: 1fr;
+}
+
+.u044-body > div {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.u044-reveal {
+  animation: u044-pop 0.32s var(--ux-ease);
+}
+
+@keyframes u044-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u044-body,
+  .u044-pm,
+  .u044-pm::before,
+  .u044-pm::after {
+    transition: none;
+  }
+  .u044-reveal {
+    animation: none;
+  }
+}

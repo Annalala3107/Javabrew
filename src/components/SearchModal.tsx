@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, GraduationCap, HelpCircle, Search, Terminal } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { SkeletonCard } from './lucian/SkeletonCard';
 import { normalizeSearchText, stageFileToSlug } from '../utils/text';
 
 type FilterTab = 'all' | 'docs' | 'slots' | 'exercises' | 'pe';
@@ -241,11 +242,7 @@ export function SearchModal() {
 
         <div className="max-h-80 overflow-y-auto p-3">
           {loading ? (
-            <div className="space-y-2">
-              <div className="h-10 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
-              <div className="h-10 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
-              <div className="h-10 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
-            </div>
+            <SkeletonCard variant="list" />
           ) : results.length === 0 ? (
             <div className="p-4 text-center text-xs text-[var(--text-dim)]">
               Không tìm thấy kết quả cho “{query}”. Thử tìm “HashMap” hoặc “Student”.
@@ -282,12 +279,12 @@ export function SearchModal() {
                           <div className="truncate font-semibold text-[var(--text-primary)]">
                             {item.title}
                           </div>
-                          <div className="truncate text-[11px] text-[var(--text-muted)]">
+                          <div className="truncate text-xs text-[var(--text-muted)]">
                             {item.subtitle}
                           </div>
                         </div>
                       </div>
-                      <span className="shrink-0 rounded bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--accent-text)]">
+                      <span className="shrink-0 rounded bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-xs text-[var(--accent-text)]">
                         {item.badge} →
                       </span>
                     </button>
