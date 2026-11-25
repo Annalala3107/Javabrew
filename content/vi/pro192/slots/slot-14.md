@@ -230,6 +230,157 @@ Lớp cha `Parent` có 2 trường: `private int x;` và `protected int y;`. L�
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 14A: W3Schools Inheritance — Sửa lỗi Truy cập `private` từ Lớp con
+- **Mục tiêu:** Sửa `ElectricCar extends Vehicle` truy cập `brand` qua getter công khai thay vì đọc trực tiếp field `private`.
+- **Expected Output:**
+  - `Brand: VinFast, Battery: 85 kWh`
+
+```java
+class Vehicle {
+    private String brand;
+    Vehicle(String brand) { this.brand = brand; }
+    public String getBrand() { return brand; }
+}
+
+class ElectricCar extends Vehicle {
+    private int battery;
+    ElectricCar(String brand, int battery) {
+        super(brand);
+        this.battery = battery;
+    }
+    String info() {
+        // TODO: Thay this.brand bang loi goi getter hop le
+        return "Brand: " + this.brand + ", Battery: " + battery + " kWh";
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new ElectricCar("VinFast", 85).info());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 14A)</summary>
+
+```java
+class Vehicle {
+    private String brand;
+    Vehicle(String brand) { this.brand = brand; }
+    public String getBrand() { return brand; }
+}
+
+class ElectricCar extends Vehicle {
+    private int battery;
+    ElectricCar(String brand, int battery) {
+        super(brand);
+        this.battery = battery;
+    }
+    String info() {
+        return "Brand: " + getBrand() + ", Battery: " + battery + " kWh";
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new ElectricCar("VinFast", 85).info());
+    }
+}
+```
+
+* **Giải thích:** Thuộc tính `private` của lớp cha vẫn nằm trong vùng nhớ đối tượng lớp con, nhưng chỉ truy cập gián tiếp được qua getter/setter công khai (hoặc đổi cha sang `protected`).
+
+</details>
+
+---
+
+#### 🟡 Thực hành 14B: Quan hệ `is-a` (`extends`) kết hợp `has-a` (Composition)
+- **Mục tiêu:** Thiết kế `Employee extends Person` (`is-a`) và chứa trường `Address` (`has-a`).
+- **Expected Output:**
+  - `Minh | salary=1200.0 | city=Ha Noi`
+- 🔗 [Mở bài lab Slot 14 trên Code Studio Tryit](/studio/playground?example=slot-14-lab)
+
+```java
+class Address {
+    String city;
+    Address(String city) { this.city = city; }
+}
+
+class Person {
+    private String name;
+    Person(String name) { this.name = name; }
+    public String getName() { return name; }
+}
+
+class Employee extends Person {
+    private double salary;
+    // TODO: Them field Address (has-a) va constructor Employee(name, salary, addr)
+    Employee(String name, double salary) {
+        super(name);
+        this.salary = salary;
+    }
+    String info() {
+        return getName() + " | salary=" + salary;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new Employee("Minh", 1200.0).info());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 14B)</summary>
+
+```java
+class Address {
+    String city;
+    Address(String city) { this.city = city; }
+}
+
+class Person {
+    private String name;
+    Person(String name) { this.name = name; }
+    public String getName() { return name; }
+}
+
+class Employee extends Person {
+    private double salary;
+    private Address addr;
+
+    Employee(String name, double salary, Address addr) {
+        super(name);
+        this.salary = salary;
+        this.addr = addr;
+    }
+
+    String info() {
+        return getName() + " | salary=" + salary + " | city=" + addr.city;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Employee e = new Employee("Minh", 1200.0, new Address("Ha Noi"));
+        System.out.println(e.info());
+    }
+}
+```
+
+* **Giải thích:** Trong bài đa file trên Code Studio Tryit (`slot-14-lab`), bạn sẽ thấy rõ cách tách `Person.java` thành file độc lập đúng chuẩn NetBeans/PE.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md)

@@ -229,6 +229,107 @@ Tại sao Cách 2 lại được các chuyên gia đánh giá là có hiệu nă
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 26A: W3Schools HashSet/TreeSet (Cầu nối `PE5-Q4`) — Đếm Chữ số Khác nhau
+- **Mục tiêu:** Dùng `TreeSet<Character>` lọc và đếm các chữ số *duy nhất* trong chuỗi `"a1b2c1d9a2"`.
+- **Expected Output:**
+  - `Digits: [1, 2, 9] -> count = 3`
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        String s = "a1b2c1d9a2";
+        Set<Character> digits = new TreeSet<Character>();
+        // TODO: Duyet tung ky tu, neu Character.isDigit(c) thi them vao digits
+        System.out.println("Digits: " + digits + " -> count = " + digits.size());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 26A)</summary>
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        String s = "a1b2c1d9a2";
+        Set<Character> digits = new TreeSet<Character>();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isDigit(c)) {
+                digits.add(c);
+            }
+        }
+        System.out.println("Digits: " + digits + " -> count = " + digits.size());
+    }
+}
+```
+
+* **Giải thích:** `Set` tự động loại phần tử trùng, còn `TreeSet` tự giữ thứ tự tăng dần — rất tiện cho các bài đếm "distinct digits / distinct letters" trong PE Q4.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 26B: W3Schools *HashMap Loop* — Đếm Tần suất Từ qua `entrySet()`
+- **Mục tiêu:** Dùng `HashMap<String, Integer>` đếm số lần xuất hiện từng từ trong câu và duyệt in kết quả bằng `Map.Entry` (thứ tự khóa của `HashMap` có thể khác nhau; đổi sang `TreeMap` nếu muốn sort A–Z).
+- **Expected Output:**
+  - `java=3`
+  - `mal/map -> map=1, oop=1`
+- 🔗 [Mở bài lab Slot 26 trên Code Studio Tryit](/studio/playground?example=slot-26-lab)
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        String text = "java oop java java map";
+        Map<String, Integer> freq = new HashMap<String, Integer>();
+        for (String w : text.trim().split("\\s+")) {
+            // TODO: Tang so dem trong freq (JDK 8 co the kiem tra get(w) == null)
+        }
+        for (Map.Entry<String, Integer> e : freq.entrySet()) {
+            System.out.println(e.getKey() + "=" + e.getValue());
+        }
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 26B)</summary>
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        String text = "java oop java java map";
+        Map<String, Integer> freq = new HashMap<String, Integer>();
+        for (String w : text.trim().split("\\s+")) {
+            Integer old = freq.get(w);
+            freq.put(w, old == null ? 1 : old + 1);
+        }
+        for (Map.Entry<String, Integer> e : freq.entrySet()) {
+            System.out.println(e.getKey() + "=" + e.getValue());
+        }
+    }
+}
+```
+
+* **Giải thích:** Duyệt qua `freq.entrySet()` nhanh hơn duyệt `keySet()` rồi gọi `freq.get(key)` lại một lần nữa.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Phân tích Mã nguồn `HashMap`](../../java/collection/hashmap-source-code.md) · [Java Collections — Phần 1 (`List`, `Set`, `Map`)](../../java/collection/java-collection-questions-01.md)

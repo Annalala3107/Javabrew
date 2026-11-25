@@ -218,6 +218,97 @@ public class TestBlockScope {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 4A: W3Schools Type Casting — Sửa Bẫy Chia nguyên & Ép kiểu `byte`
+- **Mục tiêu:** Ép `(double)` trước khi chia `5 / 2` để tránh kết quả bị cụt thành `2.0`, và xem cơ chế tràn `byte`.
+- **Expected Output:**
+  - `Chia dung: 2.50`
+  - `(byte) 261 = 5`
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        int a = 5, b = 2;
+        // TODO: Sua bieu thuc chia de ra 2.50 thay vi 2.00
+        double ratio = a / b;
+        byte truncated = (byte) 261;
+        System.out.printf("Chia dung: %.2f%n", ratio);
+        System.out.println("(byte) 261 = " + truncated);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 4A)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        int a = 5, b = 2;
+        double ratio = (double) a / b;
+        byte truncated = (byte) 261;
+        System.out.printf("Chia dung: %.2f%n", ratio);
+        System.out.println("(byte) 261 = " + truncated);
+    }
+}
+```
+
+* **Giải thích:** Trong Java, `int / int` luôn thực hiện chia nguyên trước rồi mới gán sang `double`. Luôn ép ít nhất một vế thành `(double) a / b` — đây là lỗi cực hay mất điểm ở Q1/Q2 PE.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 4B: W3Schools *Java How To* — Tổng, Trung bình & Min của Mảng 1D
+- **Mục tiêu:** Duyệt mảng `int[]` tính tổng, tìm phần tử nhỏ nhất và in điểm trung bình 2 chữ số thập phân.
+- **Expected Output:**
+  - `Sum = 39, Min = 5, Avg = 7.80`
+- 🔗 [Mở bài lab Slot 04 trên Code Studio Tryit](/studio/playground?example=slot-04-lab)
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        int[] scores = { 8, 5, 10, 7, 9 };
+        int sum = 0;
+        int min = scores[0];
+        // TODO: Tinh sum va cap nhat min
+        double avg = (double) sum / scores.length;
+        System.out.printf("Sum = %d, Min = %d, Avg = %.2f%n", sum, min, avg);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 4B)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        int[] scores = { 8, 5, 10, 7, 9 };
+        int sum = 0;
+        int min = scores[0];
+        for (int i = 0; i < scores.length; i++) {
+            sum += scores[i];
+            if (scores[i] < min) {
+                min = scores[i];
+            }
+        }
+        double avg = (double) sum / scores.length;
+        System.out.printf("Sum = %d, Min = %d, Avg = %.2f%n", sum, min, avg);
+    }
+}
+```
+
+* **Giải thích:** Khởi tạo `min = scores[0]` an toàn hơn dùng số cố định như `0` hoặc `999` (vì mảng có thể toàn số âm hoặc số rất lớn).
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 1 (JDK/JVM, String, OOP, Từ khóa)](../../java/basis/java-basic-questions-01.md) · [Tổng quan Từ khóa Java (`static`, `final`, `this`, `super`)](../../java/basis/java-keyword-summary.md)

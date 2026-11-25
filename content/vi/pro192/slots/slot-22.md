@@ -156,6 +156,101 @@ Hàm `divide` bị ngắt ngang và đẩy ngoại lệ về `calculate()`. Do `
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 22A: W3Schools Exceptions — Bắt `ArithmeticException` & `ArrayIndexOutOfBoundsException`
+- **Mục tiêu:** Bọc khối `try-catch` xử lý cả 2 ngoại lệ Runtime để chương trình tiếp tục in thông báo kết thúc bình thường.
+- **Expected Output:**
+  - `Bat loi: chia cho 0`
+  - `Chuong trinh ket thuc an toan!`
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        // TODO: Dung try-catch bat ArithmeticException de chuong trinh khong crash
+        int x = 10 / 0;
+        System.out.println(x);
+        System.out.println("Chuong trinh ket thuc an toan!");
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 22A)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        try {
+            int x = 10 / 0;
+            System.out.println(x);
+        } catch (ArithmeticException e) {
+            System.out.println("Bat loi: chia cho 0");
+        }
+        System.out.println("Chuong trinh ket thuc an toan!");
+    }
+}
+```
+
+* **Giải thích:** Unchecked Exception (`RuntimeException`) không bị ép khai báo `throws` lúc biên dịch, nhưng nếu không bọc `try-catch` thì sẽ làm dừng ngang luồng `main`.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 22B: Safe Array Parser — Chuyển Mảng Chuỗi có Rác mà không Sập chương trình
+- **Mục tiêu:** Duyệt `String[] raw = {"10", "abc", "25", null, "5"}`, bắt `NumberFormatException` và lọc `null` để cộng các số hợp lệ.
+- **Expected Output:**
+  - `Bo qua phan tu hong -> Tong = 40`
+- 🔗 [Mở bài lab Slot 22 trên Code Studio Tryit](/studio/playground?example=slot-22-lab)
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        String[] raw = { "10", "abc", "25", null, "5" };
+        int sum = 0;
+        for (String item : raw) {
+            if (item == null) continue;
+            // TODO: Dung try-catch (NumberFormatException) khi goi Integer.parseInt(item)
+            sum += Integer.parseInt(item);
+        }
+        System.out.println("Tong = " + sum);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 22B)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        String[] raw = { "10", "abc", "25", null, "5" };
+        int sum = 0;
+        for (String item : raw) {
+            if (item == null) {
+                continue;
+            }
+            try {
+                sum += Integer.parseInt(item);
+            } catch (NumberFormatException e) {
+                System.out.println("Bo qua chuoi loi: " + item);
+            }
+        }
+        System.out.println("Tong = " + sum);
+    }
+}
+```
+
+* **Giải thích:** Đây là khuôn xử lý dữ liệu bẩn chuẩn thực chiến (dùng rất nhiều khi parse file CSV hoặc nhập liệu bảng điểm).
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 3 (Exception, Generics & try-with-resources)](../../java/basis/java-basic-questions-03.md)

@@ -247,6 +247,141 @@ Trong mối quan hệ kế thừa của Java, từ khóa `this` và từ khóa `
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 15A: W3Schools `super` Keyword — Sửa Thứ tự `super(...)` & Thiếu Default Constructor
+- **Mục tiêu:** Đưa lời gọi `super(title, price)` lên dòng đầu tiên của constructor lớp con `SpecBook`.
+- **Expected Output:**
+  - `Clean Java, PE-Q2, 18.5`
+
+```java
+class Book {
+    private String title;
+    private double price;
+    Book(String title, double price) {
+        this.title = title;
+        this.price = price;
+    }
+    public String getTitle() { return title; }
+    public double getPrice() { return price; }
+}
+
+class SpecBook extends Book {
+    private String tag;
+    SpecBook(String title, double price, String tag) {
+        // TODO: Sua vi tri super(title, price) de het loi bien dich
+        this.tag = tag;
+        super(title, price);
+    }
+    @Override
+    public String toString() {
+        return getTitle() + ", " + tag + ", " + getPrice();
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new SpecBook("Clean Java", 18.5, "PE-Q2"));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 15A)</summary>
+
+```java
+class Book {
+    private String title;
+    private double price;
+    Book(String title, double price) {
+        this.title = title;
+        this.price = price;
+    }
+    public String getTitle() { return title; }
+    public double getPrice() { return price; }
+}
+
+class SpecBook extends Book {
+    private String tag;
+    SpecBook(String title, double price, String tag) {
+        super(title, price);
+        this.tag = tag;
+    }
+    @Override
+    public String toString() {
+        return getTitle() + ", " + tag + ", " + getPrice();
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new SpecBook("Clean Java", 18.5, "PE-Q2"));
+    }
+}
+```
+
+* **Giải thích:** Java bắt buộc khởi tạo xong phần dữ liệu lớp cha (`super(...)`) trước khi thân constructor lớp con chạy bất kỳ câu lệnh nào.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 15B: Constructor Chaining 3 Tầng (`A -> B -> C`) — In Vết Thực thi
+- **Mục tiêu:** Tạo 3 lớp kế thừa nhau in thông báo trong constructor để thấy trình tự chạy từ gốc `Object -> A -> B -> C`.
+- **Expected Output:**
+  - `A -> B -> C`
+- 🔗 [Mở bài lab Slot 15 trên Code Studio Tryit](/studio/playground?example=slot-15-lab)
+
+```java
+class A {
+    A() { System.out.print("A"); }
+}
+class B extends A {
+    B() { System.out.print(" -> B"); }
+}
+class C extends B {
+    // TODO: Viet constructor C() in " -> C"
+}
+
+public class Main {
+    public static void main(String[] args) {
+        new C();
+        System.out.println();
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 15B)</summary>
+
+```java
+class A {
+    A() { System.out.print("A"); }
+}
+class B extends A {
+    B() { System.out.print(" -> B"); }
+}
+class C extends B {
+    C() { System.out.print(" -> C"); }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        new C();
+        System.out.println();
+    }
+}
+```
+
+* **Giải thích:** Mặc dù gọi `new C()`, trình biên dịch tự chèn `super();` ngầm ở dòng 1 của mỗi constructor nên lớp ông bà `A` chạy thân trước rồi mới tới `B` và `C`.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md)

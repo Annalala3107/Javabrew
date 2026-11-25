@@ -159,6 +159,93 @@ Vì sản phẩm của quá trình biên dịch là tệp bytecode `.class` trun
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 1A: W3Schools Java Output — Sửa `print()` vs `println()` in Thẻ Sinh viên
+- **Mục tiêu:** Điền/sửa lệnh in `System.out.print` và `System.out.println` để các trường tách dòng gọn gàng.
+- **Expected Output:**
+  - `=== STUDENT CARD ===`
+  - `Sinh vien: Nguyen Van An (SE180001)`
+  - `Mon: PRO192`
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        String name = "Nguyen Van An";
+        String roll = "SE180001";
+        // TODO: Sua cac lenh print/println de khop Expected Output
+        System.out.print("=== STUDENT CARD ===");
+        System.out.print("Sinh vien: " + name);
+        System.out.print(" (" + roll + ")");
+        System.out.print("Mon: PRO192");
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 1A)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        String name = "Nguyen Van An";
+        String roll = "SE180001";
+        System.out.println("=== STUDENT CARD ===");
+        System.out.print("Sinh vien: " + name);
+        System.out.println(" (" + roll + ")");
+        System.out.println("Mon: PRO192");
+    }
+}
+```
+
+* **Giải thích:** `print()` giữ con trỏ trên cùng một dòng (hợp để ghép `(" + roll + ")` ngay sau tên), còn `println()` in xong sẽ tự xuống dòng.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 1B: JVM & Platform Info Lab (`System.getProperty`)
+- **Mục tiêu:** In ra phiên bản Java, tên nhà cung cấp JVM và hệ điều hành đang chạy trong sandbox.
+- **Expected Output:**
+  - `Java Version : 21.x...`
+  - `OS Platform  : Linux`
+- 🔗 [Mở bài lab Slot 01 trên Code Studio Tryit](/studio/playground?example=slot-01-lab)
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        // TODO: Lay gia tri bang System.getProperty("java.version") va "os.name"
+        String javaVer = "";
+        String osName = "";
+        System.out.println("Java Version : " + javaVer);
+        System.out.println("OS Platform  : " + osName);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 1B)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        String javaVer = System.getProperty("java.version");
+        String osName = System.getProperty("os.name");
+        System.out.println("Java Version : " + javaVer);
+        System.out.println("OS Platform  : " + osName);
+    }
+}
+```
+
+* **Giải thích:** Mỗi hệ điều hành cài một JVM riêng nhưng đọc chung file bytecode `.class`, nhờ đó chương trình Java chạy nhất quán qua WORA.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 1 (JDK/JVM, String, OOP, Từ khóa)](../../java/basis/java-basic-questions-01.md) · [Giới thiệu Kiến trúc JVM & Quy trình thực thi Bytecode](../../java/jvm/jvm-intro.md)

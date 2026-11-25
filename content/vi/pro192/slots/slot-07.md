@@ -154,6 +154,114 @@ Sau khi dòng lệnh `s2 = null;` thực thi xong, có đối tượng nào trê
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 7A: Heap Aliasing — Hai Biến trỏ cùng 1 Đối tượng & Tuổi thọ Garbage
+- **Mục tiêu:** Tạo hai biến `b1`, `b2` cùng tham chiếu một đối tượng `MemoryBox`, đổi giá trị qua `b2`, rồi gán `b1 = null` để quan sát đối tượng còn sống qua `b2`.
+- **Expected Output:**
+  - `b1.value = 250`
+  - `b2 van song: 250`
+
+```java
+class MemoryBox {
+    int value;
+    MemoryBox(int value) { this.value = value; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        MemoryBox b1 = new MemoryBox(100);
+        MemoryBox b2 = b1;
+        // TODO: Doi b2.value = 250, in b1.value, gan b1 = null roi in b2.value
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 7A)</summary>
+
+```java
+class MemoryBox {
+    int value;
+    MemoryBox(int value) { this.value = value; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        MemoryBox b1 = new MemoryBox(100);
+        MemoryBox b2 = b1;
+        b2.value = 250;
+        System.out.println("b1.value = " + b1.value);
+
+        b1 = null;
+        System.out.println("b2 van song: " + b2.value);
+    }
+}
+```
+
+* **Giải thích:** Một đối tượng trên Heap chỉ trở thành đối tượng chờ thu hồi của Garbage Collector khi **không còn bất kỳ tham chiếu nào** trỏ tới nó.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 7B: Null Guard Practice — Duyệt Mảng có Ô `null` An toàn (Chống NPE)
+- **Mục tiêu:** Cộng giá trị các `MemoryBox` khác `null` trong mảng `{ new MemoryBox(10), null, new MemoryBox(30) }`.
+- **Expected Output:**
+  - `Tong khac null = 40`
+- 🔗 [Mở bài lab Slot 07 trên Code Studio Tryit](/studio/playground?example=slot-07-lab)
+
+```java
+class MemoryBox {
+    int value;
+    MemoryBox(int value) { this.value = value; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        MemoryBox[] slots = { new MemoryBox(10), null, new MemoryBox(30) };
+        int sum = 0;
+        for (MemoryBox box : slots) {
+            // TODO: Kiem tra box != null truoc khi doc box.value
+            sum += box.value;
+        }
+        System.out.println("Tong khac null = " + sum);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 7B)</summary>
+
+```java
+class MemoryBox {
+    int value;
+    MemoryBox(int value) { this.value = value; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        MemoryBox[] slots = { new MemoryBox(10), null, new MemoryBox(30) };
+        int sum = 0;
+        for (MemoryBox box : slots) {
+            if (box != null) {
+                sum += box.value;
+            }
+        }
+        System.out.println("Tong khac null = " + sum);
+    }
+}
+```
+
+* **Giải thích:** Trong đề thi PE Q3 (danh sách `List<Item>`), test case ẩn thường chèn phần tử hoặc tham số `null` — kiểm tra `!= null` giúp không bị trừ trắng điểm vì `NullPointerException`.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Chi tiết Garbage Collection trong JVM (G1GC / ZGC)](../../java/jvm/jvm-garbage-collection.md)

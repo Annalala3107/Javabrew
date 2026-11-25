@@ -247,6 +247,136 @@ System.out.println(x);
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 5A: W3Schools Switch & Ternary — Chặn Fall-through thiếu `break`
+- **Mục tiêu:** Sửa `switch` bị rơi tự do từ `case 'A'` xuống `default` và dùng toán tử 3 ngôi `?:` kiểm tra Đậu/Rớt.
+- **Expected Output:**
+  - `Rank: Excellent | Status: PASS`
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        char grade = 'A';
+        String rank;
+        // TODO: Them break cho moi case
+        switch (grade) {
+            case 'A': rank = "Excellent";
+            case 'B': rank = "Good";
+            default:  rank = "Try Again";
+        }
+        int score = 7;
+        String status = ""; // TODO: dung toan tu ?: (>= 5 -> "PASS", nguoc lai "FAIL")
+        System.out.println("Rank: " + rank + " | Status: " + status);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 5A)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        char grade = 'A';
+        String rank;
+        switch (grade) {
+            case 'A':
+                rank = "Excellent";
+                break;
+            case 'B':
+                rank = "Good";
+                break;
+            default:
+                rank = "Try Again";
+        }
+        int score = 7;
+        String status = (score >= 5) ? "PASS" : "FAIL";
+        System.out.println("Rank: " + rank + " | Status: " + status);
+    }
+}
+```
+
+* **Giải thích:** Nếu quên `break;`, Java tiếp tục chạy xuyên qua tất cả các `case` bên dưới (*fall-through*) cho tới khi gặp `break` hoặc hết `switch`.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 5B: W3Schools For/Continue — Liệt kê Số nguyên tố & Bẫy `for-each`
+- **Mục tiêu:** Dùng `continue` bỏ qua số chẵn > 2 khi kiểm tra nguyên tố đến 20, đồng thời thấy `for-each` không sửa được phần tử mảng nguyên thủy.
+- **Expected Output:**
+  - `Primes: 2 3 5 7 11 13 17 19`
+  - `arr[0] = 10`
+- 🔗 [Mở bài lab Slot 05 trên Code Studio Tryit](/studio/playground?example=slot-05-lab)
+
+```java
+public class Main {
+    static boolean isPrime(int n) {
+        if (n < 2) return false;
+        for (int i = 2; i * i <= n; i++) {
+            if (n % i == 0) return false;
+        }
+        return true;
+    }
+
+    public static void main(String[] args) {
+        System.out.print("Primes:");
+        for (int i = 2; i <= 20; i++) {
+            // TODO: Dung continue bo qua so chan > 2, in so nguyen to
+        }
+        System.out.println();
+
+        int[] arr = { 10, 20 };
+        // TODO: Dung for thong thuong bang chi muc i neu muon tang arr[0] len 10
+        System.out.println("arr[0] = " + arr[0]);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 5B)</summary>
+
+```java
+public class Main {
+    static boolean isPrime(int n) {
+        if (n < 2) return false;
+        for (int i = 2; i * i <= n; i++) {
+            if (n % i == 0) return false;
+        }
+        return true;
+    }
+
+    public static void main(String[] args) {
+        System.out.print("Primes:");
+        for (int i = 2; i <= 20; i++) {
+            if (i > 2 && i % 2 == 0) {
+                continue;
+            }
+            if (isPrime(i)) {
+                System.out.print(" " + i);
+            }
+        }
+        System.out.println();
+
+        int[] arr = { 10, 20 };
+        for (int x : arr) {
+            x += 5; // Ban sao cuc bo x bi vut bo sau moi vong lap
+        }
+        System.out.println("arr[0] = " + arr[0]);
+    }
+}
+```
+
+* **Giải thích:** `for (int x : arr)` chỉ sao chép giá trị phần tử sang biến cục bộ `x`; muốn gán lại phần tử vào mảng phải dùng vòng lặp chỉ số `for (int i = 0; i < arr.length; i++)`.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 1 (JDK/JVM, String, OOP, Từ khóa)](../../java/basis/java-basic-questions-01.md)

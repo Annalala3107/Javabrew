@@ -208,6 +208,113 @@ public class ListJavaFiles {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 28A: W3Schools Create/Delete Files — Tạo & Kiểm tra File bằng `java.io.File`
+- **Mục tiêu:** Tạo tệp tạm trong thư mục `java.io.tmpdir`, kiểm tra `exists()` + `getName()`, sau đó dọn sạch bằng `delete()`.
+- **Expected Output:**
+  - `Exists before delete: true`
+  - `Exists after delete : false`
+
+```java
+import java.io.File;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File f = new File(System.getProperty("java.io.tmpdir"), "jb_demo28.txt");
+        // TODO: Goi f.createNewFile(), in exists(), sau do goi f.delete() va in lai exists()
+        System.out.println("Exists before delete: " + f.exists());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 28A)</summary>
+
+```java
+import java.io.File;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File f = new File(System.getProperty("java.io.tmpdir"), "jb_demo28.txt");
+        f.createNewFile();
+        System.out.println("Exists before delete: " + f.exists());
+        f.delete();
+        System.out.println("Exists after delete : " + f.exists());
+    }
+}
+```
+
+* **Giải thích:** Nhớ: chỉ gọi `new File(...)` **chưa hề tạo file thật trên ổ đĩa**; phải gọi `createNewFile()` hoặc mở bằng Stream ghi.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 28B: Directory Inspection — Tạo Thư mục Con `mkdirs()` & Duyệt `listFiles()`
+- **Mục tiêu:** Tạo thư mục tạm chứa 2 tệp mẫu, liệt kê tên tệp bằng `dir.listFiles()`, rồi xóa gọn toàn bộ.
+- **Expected Output:**
+  - `Files in dir: a.txt, b.txt`
+- 🔗 [Mở bài lab Slot 28 trên Code Studio Tryit](/studio/playground?example=slot-28-lab)
+
+```java
+import java.io.File;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File dir = new File(System.getProperty("java.io.tmpdir"), "jb_slot28_dir");
+        dir.mkdirs();
+        File a = new File(dir, "a.txt");
+        File b = new File(dir, "b.txt");
+        a.createNewFile();
+        b.createNewFile();
+
+        // TODO: Dung dir.listFiles() de in ten cac file trong dir
+        a.delete();
+        b.delete();
+        dir.delete();
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 28B)</summary>
+
+```java
+import java.io.File;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File dir = new File(System.getProperty("java.io.tmpdir"), "jb_slot28_dir");
+        dir.mkdirs();
+        File a = new File(dir, "a.txt");
+        File b = new File(dir, "b.txt");
+        a.createNewFile();
+        b.createNewFile();
+
+        File[] children = dir.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                System.out.println("File: " + child.getName() + " (isFile=" + child.isFile() + ")");
+            }
+        }
+
+        a.delete();
+        b.delete();
+        dir.delete();
+    }
+}
+```
+
+* **Giải thích:** `dir.delete()` chỉ xóa được thư mục khi bên trong **hoàn toàn rỗng**, nên ta luôn phải xóa từng file con trước.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Nền tảng Java I/O (Byte Streams & Character Streams)](../../java/io/io-basis.md)

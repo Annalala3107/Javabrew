@@ -222,6 +222,153 @@ public static void processOrder(PaymentMethod payment, double amount) {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 20A: W3Schools Interface — Đa kế thừa Giao diện & Lỗi quên `public`
+- **Mục tiêu:** Sửa lỗi thu hẹp phạm vi truy cập khi lớp `SmartPhone` cài đặt 2 interface `Callable` và `Camera`.
+- **Expected Output:**
+  - `Calling 090123...`
+  - `Capturing 12MP photo`
+
+```java
+interface Callable { void call(String number); }
+interface Camera   { void snap(); }
+
+class SmartPhone implements Callable, Camera {
+    // TODO: Bo sung tu khoa public cho cac phuong thuc cai dat tu interface
+    @Override
+    void call(String number) { System.out.println("Calling " + number); }
+    @Override
+    void snap() { System.out.println("Capturing 12MP photo"); }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        SmartPhone sp = new SmartPhone();
+        sp.call("090123...");
+        sp.snap();
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 20A)</summary>
+
+```java
+interface Callable { void call(String number); }
+interface Camera   { void snap(); }
+
+class SmartPhone implements Callable, Camera {
+    @Override
+    public void call(String number) { System.out.println("Calling " + number); }
+    @Override
+    public void snap() { System.out.println("Capturing 12MP photo"); }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        SmartPhone sp = new SmartPhone();
+        sp.call("090123...");
+        sp.snap();
+    }
+}
+```
+
+* **Giải thích:** Mọi method trong `interface` mặc định là `public abstract`. Nếu lớp cài đặt bỏ quên chữ `public`, trình biên dịch báo lỗi `attempting to assign weaker access privileges`.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 20B: Cầu nối PE Q4 (`IString` / `MyString`) — Đếm Từ chứa Chữ số & Chuẩn hóa
+- **Mục tiêu:** Hoàn thiện `f1` (đếm từ chứa ít nhất 1 chữ số) và `f2` (chuẩn hóa 1 dấu cách giữa các từ). Mở bản 3 file ở Code Studio để luyện y hệt đề thi.
+- **Expected Output:**
+  - `f1 = 2 | f2 = [Java8 PRO192 pure]`
+- 🔗 [Mở bài lab Slot 20 trên Code Studio Tryit](/studio/playground?example=slot-20-lab)
+
+```java
+interface IString {
+    int f1(String str);
+    String f2(String str);
+}
+
+class MyString implements IString {
+    @Override
+    public int f1(String str) {
+        // TODO: dem so tu co it nhat 1 Character.isDigit(c)
+        return 0;
+    }
+
+    @Override
+    public String f2(String str) {
+        // TODO: tra ve chuoi da trim va gom nhieu khoang trang thanh 1
+        return str;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        IString tool = new MyString();
+        String s = "   Java8   PRO192   pure  ";
+        System.out.println("f1 = " + tool.f1(s) + " | f2 = [" + tool.f2(s) + "]");
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 20B)</summary>
+
+```java
+interface IString {
+    int f1(String str);
+    String f2(String str);
+}
+
+class MyString implements IString {
+    @Override
+    public int f1(String str) {
+        if (str == null || str.trim().isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (String w : str.trim().split("\\s+")) {
+            for (int i = 0; i < w.length(); i++) {
+                if (Character.isDigit(w.charAt(i))) {
+                    count++;
+                    break;
+                }
+            }
+        }
+        return count;
+    }
+
+    @Override
+    public String f2(String str) {
+        if (str == null || str.trim().isEmpty()) {
+            return "";
+        }
+        return str.trim().replaceAll("\\s+", " ");
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        IString tool = new MyString();
+        String s = "   Java8   PRO192   pure  ";
+        System.out.println("f1 = " + tool.f1(s) + " | f2 = [" + tool.f2(s) + "]");
+    }
+}
+```
+
+* **Giải thích:** Trong đề Q4/Q3 PE thật (`IDaisy`, `IString`), đề đã biên dịch sẵn file `.class` interface nên bạn chỉ viết lớp `MyString implements IString` mà không tạo mới file `IString.java`.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md) · [Tính năng mới Java 8 (Default Method Interface, Lambda, Stream)](../../java/new-features/java8-common-new-features.md)

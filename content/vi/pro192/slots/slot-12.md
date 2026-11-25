@@ -184,6 +184,146 @@ Màn hình console sẽ in ra kết quả gì?
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 12A: W3Schools Constructors — Bẫy mất Default Constructor & Chaining `this(...)`
+- **Mục tiêu:** Bổ sung lại constructor rỗng `Product()` dùng `this("DEFAULT", 0.0)` để `new Product()` biên dịch qua.
+- **Expected Output:**
+  - `DEFAULT - 0.00`
+  - `LATTE01 - 45.50`
+
+```java
+class Product {
+    private String code;
+    private double price;
+
+    // TODO: Them constructor rong Product() goi this("DEFAULT", 0.0)
+
+    public Product(String code, double price) {
+        this.code = code;
+        this.price = price;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s - %.2f", code, price);
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Product p1 = new Product();
+        Product p2 = new Product("LATTE01", 45.5);
+        System.out.println(p1);
+        System.out.println(p2);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 12A)</summary>
+
+```java
+class Product {
+    private String code;
+    private double price;
+
+    public Product() {
+        this("DEFAULT", 0.0);
+    }
+
+    public Product(String code, double price) {
+        this.code = code;
+        this.price = price;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s - %.2f", code, price);
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Product p1 = new Product();
+        Product p2 = new Product("LATTE01", 45.5);
+        System.out.println(p1);
+        System.out.println(p2);
+    }
+}
+```
+
+* **Giải thích:** Lệnh `this(...)` phải nằm ở **dòng đầu tiên** của constructor. Trong Q1/Q2 PE, máy chấm test gần như luôn tạo đối tượng bằng cả `new MyClass()` lẫn `new MyClass(args)`.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 12B: Constructor Che khuất Biến (`this.field = param`) & `toString()`
+- **Mục tiêu:** Sửa lỗi quên `this.` trong constructor khiến thuộc tính `brand` và `price` bị `null` / `0`.
+- **Expected Output:**
+  - `Coffee, 35`
+- 🔗 [Mở bài lab Slot 12 trên Code Studio Tryit](/studio/playground?example=slot-12-lab)
+
+```java
+class Drink {
+    private String name;
+    private int price;
+
+    public Drink(String name, int price) {
+        // TODO: Sua loi gan tham so cho chinh no thay vi gan cho field instance
+        name = name;
+        price = price;
+    }
+
+    @Override
+    public String toString() {
+        return name + ", " + price;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new Drink("Coffee", 35));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 12B)</summary>
+
+```java
+class Drink {
+    private String name;
+    private int price;
+
+    public Drink(String name, int price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    @Override
+    public String toString() {
+        return name + ", " + price;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new Drink("Coffee", 35));
+    }
+}
+```
+
+* **Giải thích:** Khi tham số trùng tên với thuộc tính, viết `name = name;` chỉ tự gán tham số vào chính nó, thuộc tính của object vẫn là `null`. Luôn dùng `this.name = name;`.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Tại sao Java chỉ có Truyền tham trị (Pass-by-Value)?](../../java/basis/why-there-only-value-passing-in-java.md) · [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md)

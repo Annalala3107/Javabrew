@@ -244,6 +244,138 @@ Trình biên dịch sẽ thông báo lỗi gì tại Dòng 9? Quy tắc nào tro
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 21A: Anonymous Class — Khởi tạo Tức thì & Lỗi thiếu dấu `;`
+- **Mục tiêu:** Sửa dấu `;` kết thúc Anonymous Class và quan sát quy tắc biến `effectively final` (`prefix`).
+- **Expected Output:**
+  - `Xin chao, PRO192!`
+
+```java
+interface Greeting {
+    String say(String name);
+}
+
+public class Main {
+    public static void main(String[] args) {
+        final String prefix = "Xin chao, ";
+        Greeting g = new Greeting() {
+            @Override
+            public String say(String name) {
+                return prefix + name + "!";
+            }
+        } // TODO: Them dau ; ket thuc bieu thuc Anonymous Class
+        System.out.println(g.say("PRO192"));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 21A)</summary>
+
+```java
+interface Greeting {
+    String say(String name);
+}
+
+public class Main {
+    public static void main(String[] args) {
+        final String prefix = "Xin chao, ";
+        Greeting g = new Greeting() {
+            @Override
+            public String say(String name) {
+                return prefix + name + "!";
+            }
+        };
+        System.out.println(g.say("PRO192"));
+    }
+}
+```
+
+* **Giải thích:** Anonymous Class là một **biểu thức khởi tạo** (`new Interface() { ... };`) nằm trong lệnh gán nên bắt buộc kết thúc bằng dấu chấm phẩy `;`.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 21B: Cầu nối PE Q3 (JDK 8) — Sắp xếp Đa tiêu chí bằng Anonymous `Comparator`
+- **Mục tiêu:** Dùng `new Comparator<Student>()` (chuẩn JDK 8) sắp xếp giảm dần theo `gpa`; nếu `gpa` bằng nhau thì tăng dần theo `name`.
+- **Expected Output:**
+  - `[Binh(9.0), An(8.5), Linh(8.5)]`
+- 🔗 [Mở bài lab Slot 21 trên Code Studio Tryit](/studio/playground?example=slot-21-lab)
+
+```java
+import java.util.*;
+
+class Student {
+    String name;
+    double gpa;
+    Student(String name, double gpa) { this.name = name; this.gpa = gpa; }
+    @Override
+    public String toString() { return name + "(" + gpa + ")"; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        List<Student> list = new ArrayList<Student>();
+        list.add(new Student("Linh", 8.5));
+        list.add(new Student("An", 8.5));
+        list.add(new Student("Binh", 9.0));
+
+        Collections.sort(list, new Comparator<Student>() {
+            @Override
+            public int compare(Student a, Student b) {
+                // TODO: GPA giam dan bang Double.compare(b.gpa, a.gpa), trung thi ten A-Z
+                return 0;
+            }
+        });
+        System.out.println(list);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 21B)</summary>
+
+```java
+import java.util.*;
+
+class Student {
+    String name;
+    double gpa;
+    Student(String name, double gpa) { this.name = name; this.gpa = gpa; }
+    @Override
+    public String toString() { return name + "(" + gpa + ")"; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        List<Student> list = new ArrayList<Student>();
+        list.add(new Student("Linh", 8.5));
+        list.add(new Student("An", 8.5));
+        list.add(new Student("Binh", 9.0));
+
+        Collections.sort(list, new Comparator<Student>() {
+            @Override
+            public int compare(Student a, Student b) {
+                int cmp = Double.compare(b.gpa, a.gpa);
+                return (cmp != 0) ? cmp : a.name.compareTo(b.name);
+            }
+        });
+        System.out.println(list);
+    }
+}
+```
+
+* **Giải thích:** Luôn ưu tiên `Double.compare` / `Integer.compare` thay cho phép trừ `(int)(b.gpa - a.gpa)` (tránh làm tròn `8.6 - 8.5 = 0.1` thành `0`!).
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Syntactic Sugar trong Java (Autoboxing, Anonymous Class, Lambda)](../../java/basis/syntactic-sugar.md) · [Dynamic Proxy Pattern trong Java](../../java/basis/proxy.md)

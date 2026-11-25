@@ -235,6 +235,138 @@ for (Shape s : shapes) {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 18A: W3Schools Polymorphism — Tính Tổng Diện tích qua Mảng Đa hình `Shape[]`
+- **Mục tiêu:** Cài đặt phương thức `area()` ở `Circle` và `Rectangle` để vòng lặp chung `for (Shape s : shapes)` tính đúng tổng diện tích.
+- **Expected Output:**
+  - `Total area = 48.27`
+
+```java
+class Shape {
+    double area() { return 0.0; }
+}
+class Circle extends Shape {
+    double r;
+    Circle(double r) { this.r = r; }
+    // TODO: @Override double area() -> Math.PI * r * r
+}
+class Rectangle extends Shape {
+    double w, h;
+    Rectangle(double w, double h) { this.w = w; this.h = h; }
+    // TODO: @Override double area() -> w * h
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Shape[] shapes = { new Circle(3.0), new Rectangle(4.0, 5.0) };
+        double total = 0;
+        for (Shape s : shapes) {
+            total += s.area();
+        }
+        System.out.printf("Total area = %.2f%n", total);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 18A)</summary>
+
+```java
+class Shape {
+    double area() { return 0.0; }
+}
+class Circle extends Shape {
+    double r;
+    Circle(double r) { this.r = r; }
+    @Override
+    double area() { return Math.PI * r * r; }
+}
+class Rectangle extends Shape {
+    double w, h;
+    Rectangle(double w, double h) { this.w = w; this.h = h; }
+    @Override
+    double area() { return w * h; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Shape[] shapes = { new Circle(3.0), new Rectangle(4.0, 5.0) };
+        double total = 0;
+        for (Shape s : shapes) {
+            total += s.area();
+        }
+        System.out.printf("Total area = %.2f%n", total);
+    }
+}
+```
+
+* **Giải thích:** Nhờ Dynamic Binding lúc chạy, lời gọi `s.area()` tự chọn đúng phiên bản của `Circle` hoặc `Rectangle` tùy vào thực thể thực tế trong bộ nhớ.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 18B: Bẫy Đa hình Kinh điển — Field (Kiểu tĩnh) vs Method (Kiểu động)
+- **Mục tiêu:** Quan sát lý do `Parent ref = new Child();` in thuộc tính của `Parent` nhưng gọi phương thức của `Child`.
+- **Expected Output:**
+  - `ref.tag = ParentField`
+  - `ref.getTag() = ChildMethod`
+- 🔗 [Mở bài lab Slot 18 trên Code Studio Tryit](/studio/playground?example=slot-18-lab)
+
+```java
+class Base {
+    String tag = "ParentField";
+    String getTag() { return "ParentMethod"; }
+}
+class Derived extends Base {
+    String tag = "ChildField";
+    @Override
+    String getTag() { return "ChildMethod"; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Base ref = new Derived();
+        // TODO: In ref.tag va ref.getTag() de kiem chung quy tac Binding
+        System.out.println("ref.tag = " + ref.tag);
+        System.out.println("ref.getTag() = " + ref.getTag());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 18B)</summary>
+
+```java
+class Base {
+    String tag = "ParentField";
+    String getTag() { return "ParentMethod"; }
+}
+class Derived extends Base {
+    String tag = "ChildField";
+    @Override
+    String getTag() { return "ChildMethod"; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Base ref = new Derived();
+        System.out.println("ref.tag = " + ref.tag);
+        System.out.println("ref.getTag() = " + ref.getTag());
+    }
+}
+```
+
+* **Giải thích:** Java chỉ áp dụng Đa hình (Dynamic Binding) cho **instance methods**; mọi truy xuất trường (fields) được gắn cố định theo kiểu tham chiếu lúc biên dịch (*early binding*).
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md)

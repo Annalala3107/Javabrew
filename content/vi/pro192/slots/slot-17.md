@@ -246,6 +246,122 @@ for (int i = 0; i < numOfItem; i++) {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 17A: W3Schools Type Casting — `instanceof` & Safe Downcasting
+- **Mục tiêu:** Kiểm tra `if (a instanceof Dog)` trước khi ép kiểu xuống `Dog` để tránh ngoại lệ `ClassCastException`.
+- **Expected Output:**
+  - `Dog catches ball`
+  - `Cat sleeps`
+
+```java
+class Pet {}
+class Dog extends Pet { void fetch() { System.out.println("Dog catches ball"); } }
+class Cat extends Pet { void nap()   { System.out.println("Cat sleeps"); } }
+
+public class Main {
+    public static void main(String[] args) {
+        Pet[] pets = { new Dog(), new Cat() };
+        for (Pet p : pets) {
+            // TODO: Dung instanceof ep kieu an toan sang Dog hoac Cat roi goi fetch()/nap()
+        }
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 17A)</summary>
+
+```java
+class Pet {}
+class Dog extends Pet { void fetch() { System.out.println("Dog catches ball"); } }
+class Cat extends Pet { void nap()   { System.out.println("Cat sleeps"); } }
+
+public class Main {
+    public static void main(String[] args) {
+        Pet[] pets = { new Dog(), new Cat() };
+        for (Pet p : pets) {
+            if (p instanceof Dog) {
+                ((Dog) p).fetch();
+            } else if (p instanceof Cat) {
+                ((Cat) p).nap();
+            }
+        }
+    }
+}
+```
+
+* **Giải thích:** Ép kiểu thẳng `((Dog) p)` khi `p` đang giữ thực thể `Cat` vẫn qua được trình biên dịch nhưng sẽ ném `ClassCastException` lúc chạy.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 17B: Array of Objects CRUD — Xóa Phần tử Mảng `Item[MAX]` không Tràn biên
+- **Mục tiêu:** Hoàn thiện hàm `removeAt(int idx)` dịch các phần tử phía sau sang trái (`i < count - 1`) và xóa phần tử đuôi `list[--count] = null`.
+- **Expected Output:**
+  - `Remaining: [I01, I03]`
+- 🔗 [Mở bài lab Slot 17 trên Code Studio Tryit](/studio/playground?example=slot-17-lab)
+
+```java
+import java.util.Arrays;
+
+public class Main {
+    static String[] list = { "I01", "I02", "I03" };
+    static int count = 3;
+
+    static boolean removeAt(int idx) {
+        if (idx < 0 || idx >= count) {
+            return false;
+        }
+        // TODO: Dich trai cac phan tu tu idx den count - 2, sau do list[--count] = null
+        return true;
+    }
+
+    public static void main(String[] args) {
+        removeAt(1);
+        System.out.println("Remaining: " + Arrays.toString(Arrays.copyOf(list, count)));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 17B)</summary>
+
+```java
+import java.util.Arrays;
+
+public class Main {
+    static String[] list = { "I01", "I02", "I03" };
+    static int count = 3;
+
+    static boolean removeAt(int idx) {
+        if (idx < 0 || idx >= count) {
+            return false;
+        }
+        for (int i = idx; i < count - 1; i++) {
+            list[i] = list[i + 1];
+        }
+        list[--count] = null;
+        return true;
+    }
+
+    public static void main(String[] args) {
+        removeAt(1);
+        System.out.println("Remaining: " + Arrays.toString(Arrays.copyOf(list, count)));
+    }
+}
+```
+
+* **Giải thích:** Vòng lặp dịch trái dừng tại `count - 2` (`i < count - 1`) rất quan trọng: nếu chạy đến `count - 1`, câu lệnh `list[i + 1]` sẽ gây `ArrayIndexOutOfBoundsException` khi mảng đầy.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md)

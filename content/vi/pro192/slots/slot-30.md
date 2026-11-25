@@ -248,6 +248,154 @@ public class BookIODemo {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 30A: Byte Stream Copy — Sao chép File Nhị phân với Buffer `byte[64]`
+- **Mục tiêu:** Dùng `FileInputStream` đọc theo mảng byte `len = fis.read(buf)` và ghi đúng `len` byte (`fos.write(buf, 0, len)`) sang file đích.
+- **Expected Output:**
+  - `Copied 14 bytes OK`
+
+```java
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File src = File.createTempFile("jb_src_", ".bin");
+        File dst = File.createTempFile("jb_dst_", ".bin");
+        try {
+            try (FileOutputStream fos = new FileOutputStream(src)) {
+                fos.write("Binary PRO192!".getBytes(StandardCharsets.UTF_8));
+            }
+            // TODO: Copy tu src sang dst bang buffer byte[64] va fos.write(buf, 0, len)
+            System.out.println("Copied " + dst.length() + " bytes OK");
+        } finally {
+            src.delete();
+            dst.delete();
+        }
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 30A)</summary>
+
+```java
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File src = File.createTempFile("jb_src_", ".bin");
+        File dst = File.createTempFile("jb_dst_", ".bin");
+        try {
+            try (FileOutputStream fos = new FileOutputStream(src)) {
+                fos.write("Binary PRO192!".getBytes(StandardCharsets.UTF_8));
+            }
+            byte[] buf = new byte[64];
+            try (FileInputStream fis = new FileInputStream(src);
+                 FileOutputStream fos = new FileOutputStream(dst)) {
+                int len;
+                while ((len = fis.read(buf)) != -1) {
+                    fos.write(buf, 0, len);
+                }
+            }
+            System.out.println("Copied " + dst.length() + " bytes OK");
+        } finally {
+            src.delete();
+            dst.delete();
+        }
+    }
+}
+```
+
+* **Giải thích:** Lượt đọc cuối thường ít hơn kích thước `buf.length` nên bắt buộc dùng `fos.write(buf, 0, len)` (không ghi thừa byte rác cuối buffer).
+
+</details>
+
+---
+
+#### 🟡 Thực hành 30B: Serialization & `transient` — Lưu/Đọc Đối tượng `Account` An toàn
+- **Mục tiêu:** Cho lớp `Account implements Serializable` với trường `transient String password`, ghi xuống file bằng `ObjectOutputStream` rồi đọc lại và quan sát `password == null`.
+- **Expected Output:**
+  - `Loaded: user=se180001, password=null`
+- 🔗 [Mở bài lab Slot 30 trên Code Studio Tryit](/studio/playground?example=slot-30-lab)
+
+```java
+import java.io.*;
+
+class Account implements Serializable {
+    private static final long serialVersionUID = 1L;
+    String user;
+    // TODO: Danh dau truong password la transient de khong bi luu xuong file
+    String password;
+    Account(String user, String password) {
+        this.user = user;
+        this.password = password;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File f = File.createTempFile("jb_acc_", ".ser");
+        try {
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(f))) {
+                oos.writeObject(new Account("se180001", "secret123"));
+            }
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(f))) {
+                Account loaded = (Account) ois.readObject();
+                System.out.println("Loaded: user=" + loaded.user + ", password=" + loaded.password);
+            }
+        } finally {
+            f.delete();
+        }
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 30B)</summary>
+
+```java
+import java.io.*;
+
+class Account implements Serializable {
+    private static final long serialVersionUID = 1L;
+    String user;
+    transient String password;
+    Account(String user, String password) {
+        this.user = user;
+        this.password = password;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File f = File.createTempFile("jb_acc_", ".ser");
+        try {
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(f))) {
+                oos.writeObject(new Account("se180001", "secret123"));
+            }
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(f))) {
+                Account loaded = (Account) ois.readObject();
+                System.out.println("Loaded: user=" + loaded.user + ", password=" + loaded.password);
+            }
+        } finally {
+            f.delete();
+        }
+    }
+}
+```
+
+* **Giải thích:** Các trường đánh dấu `transient` hoặc `static` bị bỏ qua khi tuần tự hóa; lúc đọc lại `ObjectInputStream`, trường `transient` mang giá trị mặc định (`null` / `0` / `false`).
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Cơ chế Serialization & `serialVersionUID` trong Java](../../java/basis/serialization.md) · [Nền tảng Java I/O (Byte Streams & Character Streams)](../../java/io/io-basis.md)

@@ -198,6 +198,95 @@ Lệnh `java MainProgram` yêu cầu JVM nạp và chạy lớp, còn lệnh `Pa
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 3A: W3Schools CLI Args — Đọc Tham số Dòng lệnh `String[] args`
+- **Mục tiêu:** Hoàn thiện hàm kiểm tra `args.length`: nếu rỗng thì dùng giá trị mặc định, ngược lại in từng tham số.
+- **Expected Output:**
+  - `args.length = 0 -> Fallback: JavaBrew`
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        // TODO: Kiem tra neu args.length == 0 in Fallback, nguoc lai in args[0]
+        System.out.println("args.length = " + args.length);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 3A)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        if (args.length == 0) {
+            System.out.println("args.length = 0 -> Fallback: JavaBrew");
+        } else {
+            System.out.println("args[0] = " + args[0]);
+        }
+    }
+}
+```
+
+* **Giải thích:** Khi chạy `java Main arg0 arg1`, JVM đóng gói danh sách đối số truyền sau tên lớp vào mảng `args` (nên luôn kiểm tra `args.length` trước khi đọc `args[0]`).
+
+</details>
+
+---
+
+#### 🟡 Thực hành 3B: Multi-Class trong 1 File `.java` & Luật Lớp `public`
+- **Mục tiêu:** Khai báo thêm một lớp hỗ trợ package-private trong cùng file với `public class Main` để không vi phạm luật trình biên dịch `javac`.
+- **Expected Output:**
+  - `[PRO192]`
+  - `Build OK`
+- 🔗 [Mở bài lab Slot 03 trên Code Studio Tryit](/studio/playground?example=slot-03-lab)
+
+```java
+// TODO: Bo tu khoa sai pham de 2 class cung nam trong Main.java biên dịch duoc
+public class TagHelper {
+    void showTag(String s) {
+        System.out.println("[" + s + "]");
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        TagHelper helper = new TagHelper();
+        helper.showTag("PRO192");
+        System.out.println("Build OK");
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 3B)</summary>
+
+```java
+class TagHelper {
+    void showTag(String s) {
+        System.out.println("[" + s + "]");
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        TagHelper helper = new TagHelper();
+        helper.showTag("PRO192");
+        System.out.println("Build OK");
+    }
+}
+```
+
+* **Giải thích:** Trong một file `.java` chỉ được có **tối đa 1 `public class`** trùng với tên tệp (`Main.java`). Các lớp phụ viết cùng file phải bỏ `public` hoặc tách ra file `.java` riêng.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Cấu trúc tệp `.class` (Bytecode Layout)](../../java/jvm/class-file-structure.md)

@@ -155,6 +155,155 @@ Tính phân cấp tổ chức mối quan hệ giữa các thực thể thành ha
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 10A: W3Schools Classes/Objects — Tạo Lớp `Car` & 2 Đối tượng Độc lập
+- **Mục tiêu:** Khai báo thuộc tính `brand`, `year` và phương thức `showInfo()` cho `Car`, sau đó khởi tạo `c1` và `c2`.
+- **Expected Output:**
+  - `Car: Toyota (2022)`
+  - `Car: Honda (2024)`
+
+```java
+class Car {
+    String brand;
+    int year;
+
+    void showInfo() {
+        // TODO: in "Car: <brand> (<year>)"
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Car c1 = new Car();
+        c1.brand = "Toyota";
+        c1.year = 2022;
+        // TODO: Tao Car c2 voi brand="Honda", year=2024 va goi showInfo() cho ca 2
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 10A)</summary>
+
+```java
+class Car {
+    String brand;
+    int year;
+
+    void showInfo() {
+        System.out.println("Car: " + brand + " (" + year + ")");
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Car c1 = new Car();
+        c1.brand = "Toyota";
+        c1.year = 2022;
+
+        Car c2 = new Car();
+        c2.brand = "Honda";
+        c2.year = 2024;
+
+        c1.showInfo();
+        c2.showInfo();
+    }
+}
+```
+
+* **Giải thích:** Mỗi lần gọi `new Car()` cấp phát một vùng nhớ riêng trên Heap: thay đổi `c2.brand` hoàn toàn không làm ảnh hưởng đến `c1.brand`.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 10B: State vs Behavior — Lớp `BankAccount` với `deposit()` & `withdraw()`
+- **Mục tiêu:** Hoàn thiện hành vi nạp và rút tiền có kiểm tra số dư hợp lệ.
+- **Expected Output:**
+  - `An balance = 650.00`
+  - `Binh withdraw ok? false`
+- 🔗 [Mở bài lab Slot 10 trên Code Studio Tryit](/studio/playground?example=slot-10-lab)
+
+```java
+class BankAccount {
+    String owner;
+    double balance;
+
+    BankAccount(String owner, double balance) {
+        this.owner = owner;
+        this.balance = balance;
+    }
+
+    void deposit(double amount) {
+        // TODO: cong vao balance neu amount > 0
+    }
+
+    boolean withdraw(double amount) {
+        // TODO: tru balance va tra true neu 0 < amount <= balance, nguoc lai false
+        return false;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        BankAccount acc1 = new BankAccount("An", 500.0);
+        BankAccount acc2 = new BankAccount("Binh", 200.0);
+        acc1.deposit(150.0);
+        System.out.printf("%s balance = %.2f%n", acc1.owner, acc1.balance);
+        System.out.println(acc2.owner + " withdraw ok? " + acc2.withdraw(300.0));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 10B)</summary>
+
+```java
+class BankAccount {
+    String owner;
+    double balance;
+
+    BankAccount(String owner, double balance) {
+        this.owner = owner;
+        this.balance = balance;
+    }
+
+    void deposit(double amount) {
+        if (amount > 0) {
+            balance += amount;
+        }
+    }
+
+    boolean withdraw(double amount) {
+        if (amount > 0 && amount <= balance) {
+            balance -= amount;
+            return true;
+        }
+        return false;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        BankAccount acc1 = new BankAccount("An", 500.0);
+        BankAccount acc2 = new BankAccount("Binh", 200.0);
+        acc1.deposit(150.0);
+        System.out.printf("%s balance = %.2f%n", acc1.owner, acc1.balance);
+        System.out.println(acc2.owner + " withdraw ok? " + acc2.withdraw(300.0));
+    }
+}
+```
+
+* **Giải thích:** Trong OOP, dữ liệu (`owner`, `balance`) chỉ nên bị thay đổi thông qua các phương thức hành vi kiểm soát logic như `deposit` / `withdraw`.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md)

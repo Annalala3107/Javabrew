@@ -233,6 +233,105 @@ for (Integer n : numbers) {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 25A: W3Schools ArrayList — Thêm, Sửa (`set`) & Duyệt `ArrayList<String>`
+- **Mục tiêu:** Tạo danh sách môn học, thay thế phần tử tại chỉ mục `1` bằng `set(1, "DBI202")` và in kích thước.
+- **Expected Output:**
+  - `[PRO192, DBI202, CSD201] (size=3)`
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> courses = new ArrayList<String>();
+        courses.add("PRO192");
+        courses.add("PRF192");
+        courses.add("CSD201");
+        // TODO: Sua phan tu index 1 thanh "DBI202" bang courses.set(...)
+        System.out.println(courses + " (size=" + courses.size() + ")");
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 25A)</summary>
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> courses = new ArrayList<String>();
+        courses.add("PRO192");
+        courses.add("PRF192");
+        courses.add("CSD201");
+        courses.set(1, "DBI202");
+        System.out.println(courses + " (size=" + courses.size() + ")");
+    }
+}
+```
+
+* **Giải thích:** Trong PE Q3 JDK 8, nhớ viết `new ArrayList<String>()` (hoặc diamond `<>` JDK 7+); tuyệt đối không dùng `List.of(...)` vì đây là API từ Java 9.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 25B: W3Schools Iterator (Cầu nối PE4/PE5-Q3) — Sửa Lỗi `ConcurrentModificationException`
+- **Mục tiêu:** Chuyển vòng lặp `for-each` xóa trực tiếp sang `Iterator<Integer>` với `it.remove()` để xóa mọi số lẻ an toàn.
+- **Expected Output:**
+  - `Even only: [10, 30]`
+- 🔗 [Mở bài lab Slot 25 trên Code Studio Tryit](/studio/playground?example=slot-25-lab)
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        List<Integer> nums = new ArrayList<Integer>(Arrays.asList(10, 15, 21, 30, 33));
+        // TODO: Thay vong lap for-each gay ConcurrentModificationException bang Iterator
+        for (Integer n : nums) {
+            if (n % 2 != 0) {
+                nums.remove(n);
+            }
+        }
+        System.out.println("Even only: " + nums);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 25B)</summary>
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        List<Integer> nums = new ArrayList<Integer>(Arrays.asList(10, 15, 21, 30, 33));
+        Iterator<Integer> it = nums.iterator();
+        while (it.hasNext()) {
+            Integer n = it.next();
+            if (n % 2 != 0) {
+                it.remove();
+            }
+        }
+        System.out.println("Even only: " + nums);
+    }
+}
+```
+
+* **Giải thích:** Đây là bẫy phổ biến nhất ở câu Q3 `f3` (`PE4-Q3 MyShoes.f3`, `PE5-Q3 MyLadder.f3`). Nếu dùng `for (int i = 0; ...)` xóa xuôi mà quên `i--` khi gặp 2 phần tử liên tiếp (như `15`, `21`) cũng bị bỏ sót!
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Collections — Phần 1 (`List`, `Set`, `Map`)](../../java/collection/java-collection-questions-01.md) · [Phân tích Mã nguồn `ArrayList`](../../java/collection/arraylist-source-code.md)

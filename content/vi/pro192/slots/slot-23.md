@@ -216,6 +216,104 @@ public class FallbackDemo {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 23A: W3Schools Try...Catch — Sửa Thứ tự `catch` Con trước Cha
+- **Mục tiêu:** Đảo thứ tự khối `catch (Exception e)` xuống sau `catch (ArithmeticException e)` để hết lỗi unreachable code.
+- **Expected Output:**
+  - `ArithmeticException caught!`
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        try {
+            int res = 10 / 0;
+            System.out.println(res);
+        // TODO: Sua thu tu 2 khoi catch (ngoai le cu the phai dung truoc tong quat)
+        } catch (Exception e) {
+            System.out.println("General Exception");
+        } catch (ArithmeticException e) {
+            System.out.println("ArithmeticException caught!");
+        }
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 23A)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        try {
+            int res = 10 / 0;
+            System.out.println(res);
+        } catch (ArithmeticException e) {
+            System.out.println("ArithmeticException caught!");
+        } catch (Exception e) {
+            System.out.println("General Exception");
+        }
+    }
+}
+```
+
+* **Giải thích:** Vì `ArithmeticException` là lớp con của `Exception`, nếu đặt `catch (Exception e)` lên đầu, khối `catch (ArithmeticException)` phía dưới trở thành unreachable và bị trình biên dịch cấm.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 23B: W3Schools Finally — Vết Thực thi `finally` khi Có `return` trong `try`
+- **Mục tiêu:** Quan sát khối `finally` luôn chạy trước khi thoát hàm kể cả khi `try` trả về kết quả sớm.
+- **Expected Output:**
+  - `finally ran!`
+  - `Returned: 5`
+- 🔗 [Mở bài lab Slot 23 trên Code Studio Tryit](/studio/playground?example=slot-23-lab)
+
+```java
+public class Main {
+    static int compute() {
+        try {
+            return 10 / 2;
+        } finally {
+            // TODO: In "finally ran!" va thu quan sat xem no chay truoc hay sau return
+        }
+    }
+
+    public static void main(String[] args) {
+        System.out.println("Returned: " + compute());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 23B)</summary>
+
+```java
+public class Main {
+    static int compute() {
+        try {
+            return 10 / 2;
+        } finally {
+            System.out.println("finally ran!");
+        }
+    }
+
+    public static void main(String[] args) {
+        System.out.println("Returned: " + compute());
+    }
+}
+```
+
+* **Giải thích:** Không nên đặt câu lệnh `return` ở bên trong `finally`, vì nó sẽ nuốt mất exception và ghi đè giá trị trả về của `try` / `catch`.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 3 (Exception, Generics & try-with-resources)](../../java/basis/java-basic-questions-03.md)

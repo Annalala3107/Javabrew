@@ -192,6 +192,133 @@ public class TestBank {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 13A: W3Schools Encapsulation — `private` Fields & Validation trong Setter
+- **Mục tiêu:** Khóa trường dữ liệu thành `private` và viết `setScore(int)` kẹp các giá trị âm `< 0` về `0`.
+- **Expected Output:**
+  - `Score = 0`
+  - `Score = 90`
+
+```java
+class MemberScore {
+    private int score;
+
+    public int getScore() {
+        return score;
+    }
+
+    public void setScore(int score) {
+        // TODO: Neu score < 0 gan 0, nguoc lai gan score
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        MemberScore m = new MemberScore();
+        m.setScore(-25);
+        System.out.println("Score = " + m.getScore());
+        m.setScore(90);
+        System.out.println("Score = " + m.getScore());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 13A)</summary>
+
+```java
+class MemberScore {
+    private int score;
+
+    public int getScore() {
+        return score;
+    }
+
+    public void setScore(int score) {
+        this.score = (score < 0) ? 0 : score;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        MemberScore m = new MemberScore();
+        m.setScore(-25);
+        System.out.println("Score = " + m.getScore());
+        m.setScore(90);
+        System.out.println("Score = " + m.getScore());
+    }
+}
+```
+
+* **Giải thích:** Nhờ `private` + setter, logic kiểm tra dữ liệu biên tập trung tại một chỗ (cũng là yêu cầu quen thuộc ở `PE3-Q2 OLEDScreen.setRefresh()`).
+
+</details>
+
+---
+
+#### 🟡 Thực hành 13B: Cầu nối `PE3-Q1` — Định dạng Chuỗi trong Getter An toàn `null`
+- **Mục tiêu:** Viết `getName()` trả chữ cái đầu viết hoa, phần còn lại viết thường, và an toàn nếu `name` bị `null` hoặc rỗng.
+- **Expected Output:**
+  - `Passio coffee`
+- 🔗 [Mở bài lab Slot 13 trên Code Studio Tryit](/studio/playground?example=slot-13-lab)
+
+```java
+class Store {
+    private String name;
+
+    public Store(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        // TODO: Kiem tra null/rong roi tra ve dang "Chu dau hoa, con lai thuong"
+        return name;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new Store("passio Coffee").getName());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 13B)</summary>
+
+```java
+class Store {
+    private String name;
+
+    public Store(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        if (name == null || name.isEmpty()) {
+            return "";
+        }
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1).toLowerCase();
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new Store("passio Coffee").getName());
+    }
+}
+```
+
+* **Giải thích:** Trong các đề Q1 PE (`Camel`, `Crocus`, `CoffeeShop`), nhiều logic biến đổi chuỗi được chấm ngay bên trong `getXxx()` chứ không chỉ ở setter.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 1 (JDK/JVM, String, OOP, Từ khóa)](../../java/basis/java-basic-questions-01.md)

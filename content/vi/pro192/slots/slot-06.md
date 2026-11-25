@@ -187,6 +187,117 @@ public class InfiniteCall {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 6A: JVM Stack vs Heap — Truyền Tham trị Nguyên thủy vs Tham chiếu Mảng
+- **Mục tiêu:** Hoàn thiện 2 hàm `swap` (kiểu `int`) và `doubleFirst` (`int[]`) để chứng minh mọi lời gọi hàm trong Java đều là Pass-by-Value.
+- **Expected Output:**
+  - `a=10, b=20`
+  - `arr[0]=14`
+
+```java
+public class Main {
+    static void swap(int x, int y) {
+        int tmp = x; x = y; y = tmp;
+    }
+
+    static void doubleFirst(int[] arr) {
+        // TODO: Nhan doi arr[0] neu mang khac null va do dai > 0
+    }
+
+    public static void main(String[] args) {
+        int a = 10, b = 20;
+        swap(a, b);
+        System.out.println("a=" + a + ", b=" + b);
+
+        int[] heapArr = { 7, 9 };
+        doubleFirst(heapArr);
+        System.out.println("arr[0]=" + heapArr[0]);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 6A)</summary>
+
+```java
+public class Main {
+    static void swap(int x, int y) {
+        int tmp = x;
+        x = y;
+        y = tmp;
+    }
+
+    static void doubleFirst(int[] arr) {
+        if (arr != null && arr.length > 0) {
+            arr[0] *= 2;
+        }
+    }
+
+    public static void main(String[] args) {
+        int a = 10, b = 20;
+        swap(a, b);
+        System.out.println("a=" + a + ", b=" + b);
+
+        int[] heapArr = { 7, 9 };
+        doubleFirst(heapArr);
+        System.out.println("arr[0]=" + heapArr[0]);
+    }
+}
+```
+
+* **Giải thích:** Với `int[]`, Java sao chép *giá trị địa chỉ Heap* vào Stack Frame của hàm `doubleFirst`, nên hàm có thể chỉnh sửa đối tượng mảng gốc trên Heap; còn `swap(a, b)` chỉ hoán đổi bản sao cục bộ.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 6B: W3Schools Recursion — Đệ quy có Base Case tránh `StackOverflowError`
+- **Mục tiêu:** Viết hàm đệ quy `factorial(int n)` với điều kiện dừng `n <= 1` và đếm số frame tạo ra.
+- **Expected Output:**
+  - `5! = 120`
+- 🔗 [Mở bài lab Slot 06 trên Code Studio Tryit](/studio/playground?example=slot-06-lab)
+
+```java
+public class Main {
+    static long factorial(int n) {
+        // TODO: Bo sung base case (n <= 1 -> return 1) de khong tran JVM Stack!
+        return n * factorial(n - 1);
+    }
+
+    public static void main(String[] args) {
+        System.out.println("5! = " + factorial(5));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 6B)</summary>
+
+```java
+public class Main {
+    static long factorial(int n) {
+        if (n <= 1) {
+            return 1;
+        }
+        return n * factorial(n - 1);
+    }
+
+    public static void main(String[] args) {
+        System.out.println("5! = " + factorial(5));
+    }
+}
+```
+
+* **Giải thích:** Mỗi lần gọi đệ quy đẩy thêm 1 Stack Frame vào JVM Stack. Thiếu Base Case làm Stack đầy dần rồi ném `StackOverflowError`.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Vùng nhớ Runtime JVM (Heap, Metaspace, JVM Stack)](../../java/jvm/memory-area.md)

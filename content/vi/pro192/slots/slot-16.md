@@ -282,6 +282,144 @@ public String toString() {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 16A: Ghi đè `@Override toString()` chuẩn format Q2 PE
+- **Mục tiêu:** Bổ sung `@Override public String toString()` kết hợp `super.toString()` để xuất `name, color, age` (dấu phẩy + 1 khoảng trắng).
+- **Expected Output:**
+  - `Daisy, Yellow, 5`
+
+```java
+class Flower {
+    private String name;
+    private int age;
+    Flower(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+    public String getName() { return name; }
+    public int getAge() { return age; }
+    @Override
+    public String toString() { return name + ", " + age; }
+}
+
+class SpecFlower extends Flower {
+    private String color;
+    SpecFlower(String name, int age, String color) {
+        super(name, age);
+        this.color = color;
+    }
+    // TODO: @Override toString() tra ve "name, color, age"
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new SpecFlower("Daisy", 5, "Yellow"));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 16A)</summary>
+
+```java
+class Flower {
+    private String name;
+    private int age;
+    Flower(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+    public String getName() { return name; }
+    public int getAge() { return age; }
+    @Override
+    public String toString() { return name + ", " + age; }
+}
+
+class SpecFlower extends Flower {
+    private String color;
+    SpecFlower(String name, int age, String color) {
+        super(name, age);
+        this.color = color;
+    }
+    @Override
+    public String toString() {
+        return getName() + ", " + color + ", " + getAge();
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(new SpecFlower("Daisy", 5, "Yellow"));
+    }
+}
+```
+
+* **Giải thích:** Trong Q2 PE (`SpecDaisy`, `SpecCala`, `OLEDScreen`), mỗi đề quy định format dấu cách sau dấu phẩy khác nhau (`", "` vs `","`), chỉ sai 1 dấu cách là test case fail.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 16B: Overriding Phương thức Instance vs Hiding Phương thức `static`
+- **Mục tiêu:** Quan sát `Parent ref = new Child();`: instance method chạy theo đối tượng `Child`, còn `static` method chạy theo kiểu biến `Parent`.
+- **Expected Output:**
+  - `Child instance speak`
+  - `Parent static kind`
+- 🔗 [Mở bài lab Slot 16 trên Code Studio Tryit](/studio/playground?example=slot-16-lab)
+
+```java
+class ParentAnimal {
+    static void kind() { System.out.println("Parent static kind"); }
+    void speak() { System.out.println("Parent instance speak"); }
+}
+
+class Husky extends ParentAnimal {
+    // TODO: Viet static void kind() ("Child static kind") va @Override void speak()
+}
+
+public class Main {
+    public static void main(String[] args) {
+        ParentAnimal ref = new Husky();
+        ref.speak();
+        ref.kind();
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 16B)</summary>
+
+```java
+class ParentAnimal {
+    static void kind() { System.out.println("Parent static kind"); }
+    void speak() { System.out.println("Parent instance speak"); }
+}
+
+class Husky extends ParentAnimal {
+    static void kind() { System.out.println("Child static kind"); }
+    @Override
+    void speak() { System.out.println("Child instance speak"); }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        ParentAnimal ref = new Husky();
+        ref.speak();
+        ref.kind();
+    }
+}
+```
+
+* **Giải thích:** Phương thức `static` gắn với *lớp khai báo*, không tham gia Dynamic Binding nên bị **ẩn (hiding)** chứ không phải ghi đè (overriding).
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 1 (JDK/JVM, String, OOP, Từ khóa)](../../java/basis/java-basic-questions-01.md) · [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md)

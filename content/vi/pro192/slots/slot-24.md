@@ -182,6 +182,151 @@ public class SafeInput {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 24A: W3Schools `throw` Keyword — Chủ động Ném Ngoại lệ Kiểm tra Tuổi
+- **Mục tiêu:** Viết hàm `checkAge(int age)` ném `IllegalArgumentException` nếu `< 18` và bắt lại tại `main`.
+- **Expected Output:**
+  - `Tu choi: Can du 18 tuoi!`
+
+```java
+public class Main {
+    static void checkAge(int age) {
+        if (age < 18) {
+            // TODO: throw new IllegalArgumentException("Can du 18 tuoi!");
+        }
+        System.out.println("Access granted!");
+    }
+
+    public static void main(String[] args) {
+        try {
+            checkAge(15);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Tu choi: " + e.getMessage());
+        }
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 24A)</summary>
+
+```java
+public class Main {
+    static void checkAge(int age) {
+        if (age < 18) {
+            throw new IllegalArgumentException("Can du 18 tuoi!");
+        }
+        System.out.println("Access granted!");
+    }
+
+    public static void main(String[] args) {
+        try {
+            checkAge(15);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Tu choi: " + e.getMessage());
+        }
+    }
+}
+```
+
+* **Giải thích:** Phân biệt nhanh: `throw` (không có `s`) nằm **bên trong thân hàm** để ném 1 đối tượng exception cụ thể; `throws` (có `s`) nằm **trên chữ ký hàm** để cảnh báo người gọi.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 24B: Custom `InvalidScoreException` + Vòng lặp `Scanner` Bắt nhập lại
+- **Mục tiêu:** Tạo Checked Exception `InvalidScoreException extends Exception` kiểm tra điểm `[0..10]` trong vòng lặp `Scanner` cho tới khi hợp lệ.
+- **Expected Output:**
+  - `Nhap lai...`
+  - `Nhan diem hop le: 8.5`
+- 🔗 [Mở bài lab Slot 24 trên Code Studio Tryit](/studio/playground?example=slot-24-lab)
+
+```java
+import java.util.Scanner;
+
+class InvalidScoreException extends Exception {
+    public InvalidScoreException(String msg) { super(msg); }
+}
+
+public class Main {
+    static double parseScore(String raw) throws InvalidScoreException {
+        double v;
+        try {
+            v = Double.parseDouble(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new InvalidScoreException("Khong phai so!");
+        }
+        // TODO: Neu v < 0 || v > 10 thi throw InvalidScoreException
+        return v;
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner("abc\n12\n8.5\n");
+        while (sc.hasNextLine()) {
+            try {
+                double s = parseScore(sc.nextLine());
+                System.out.println("Nhan diem hop le: " + s);
+                break;
+            } catch (InvalidScoreException e) {
+                System.out.println("Nhap lai: " + e.getMessage());
+            }
+        }
+        sc.close();
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 24B)</summary>
+
+```java
+import java.util.Scanner;
+
+class InvalidScoreException extends Exception {
+    public InvalidScoreException(String msg) { super(msg); }
+}
+
+public class Main {
+    static double parseScore(String raw) throws InvalidScoreException {
+        double v;
+        try {
+            v = Double.parseDouble(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new InvalidScoreException("Khong phai so!");
+        }
+        if (v < 0 || v > 10) {
+            throw new InvalidScoreException("Diem ngoai khoang [0..10]: " + v);
+        }
+        return v;
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner("abc\n12\n8.5\n");
+        while (sc.hasNextLine()) {
+            try {
+                double s = parseScore(sc.nextLine());
+                System.out.println("Nhan diem hop le: " + s);
+                break;
+            } catch (InvalidScoreException e) {
+                System.out.println("Nhap lai: " + e.getMessage());
+            }
+        }
+        sc.close();
+    }
+}
+```
+
+* **Giải thích:** Mở bản `slot-24-lab` trên Code Studio Tryit để thử nhập nhiều dòng `stdin` trực tiếp qua ô Input.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 3 (Exception, Generics & try-with-resources)](../../java/basis/java-basic-questions-03.md)

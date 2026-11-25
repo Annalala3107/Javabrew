@@ -209,6 +209,118 @@ public class ParseScore {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 9A: W3Schools User Input — Sửa Bẫy `Scanner.nextLine()` bị Trôi lệnh
+- **Mục tiêu:** Xả ký tự xuống dòng `\n` sau `sc.nextInt()` trước khi đọc họ tên sinh viên có dấu cách.
+- **Expected Output:**
+  - `Sinh vien: Nguyen Van An (20 tuoi)`
+
+```java
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        String fakeStdin = "20\nNguyen Van An\n";
+        Scanner sc = new Scanner(fakeStdin);
+        int age = sc.nextInt();
+        // TODO: Them lenh xa bo dem Scanner truoc khi doc fullName
+        String fullName = sc.nextLine();
+        System.out.println("Sinh vien: " + fullName + " (" + age + " tuoi)");
+        sc.close();
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 9A)</summary>
+
+```java
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        String fakeStdin = "20\nNguyen Van An\n";
+        Scanner sc = new Scanner(fakeStdin);
+        int age = sc.nextInt();
+        sc.nextLine(); // Xa \n con sot trong buffer!
+        String fullName = sc.nextLine();
+        System.out.println("Sinh vien: " + fullName + " (" + age + " tuoi)");
+        sc.close();
+    }
+}
+```
+
+* **Giải thích:** Trong bản mở trên Code Studio Tryit, `System.in` đã nạp sẵn `stdin`. Khi chạy bằng bàn phím thật hay PE test, sau `nextInt()`/`nextDouble()` luôn nhớ `sc.nextLine()` nếu lệnh sau là `nextLine()`.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 9B: W3Schools *How To* (Cầu nối PE Q4) — Đếm Từ & Đảo Chuỗi JDK 8
+- **Mục tiêu:** Tách từ an toàn với `trim().split("\\s+")` (không dùng `isBlank()` của Java 11) và kiểm tra đối xứng bằng `StringBuilder.reverse()`.
+- **Expected Output:**
+  - `So tu: 3 | Palindrome(madam): true`
+- 🔗 [Mở bài lab Slot 09 trên Code Studio Tryit](/studio/playground?example=slot-09-lab)
+
+```java
+public class Main {
+    static int countWords(String s) {
+        if (s == null || s.trim().isEmpty()) {
+            return 0;
+        }
+        // TODO: tach mang tu bang trim().split("\\s+")
+        return 0;
+    }
+
+    static boolean isPalindrome(String s) {
+        // TODO: dung new StringBuilder(s).reverse().toString().equals(s)
+        return false;
+    }
+
+    public static void main(String[] args) {
+        String input = "   Java   PRO192   W3Schools  ";
+        System.out.println("So tu: " + countWords(input) + " | Palindrome(madam): " + isPalindrome("madam"));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 9B)</summary>
+
+```java
+public class Main {
+    static int countWords(String s) {
+        if (s == null || s.trim().isEmpty()) {
+            return 0;
+        }
+        return s.trim().split("\\s+").length;
+    }
+
+    static boolean isPalindrome(String s) {
+        if (s == null) {
+            return false;
+        }
+        String rev = new StringBuilder(s).reverse().toString();
+        return s.equals(rev);
+    }
+
+    public static void main(String[] args) {
+        String input = "   Java   PRO192   W3Schools  ";
+        System.out.println("So tu: " + countWords(input) + " | Palindrome(madam): " + isPalindrome("madam"));
+    }
+}
+```
+
+* **Giải thích:** Nhớ viết `s.trim().split("\\s+")` vì nếu chuỗi có khoảng trắng ở đầu mà quên `.trim()`, phần tử `words[0]` sẽ là chuỗi rỗng `""` làm sai tổng số từ.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 1 (JDK/JVM, String, OOP, Từ khóa)](../../java/basis/java-basic-questions-01.md) · [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md)

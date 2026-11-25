@@ -239,6 +239,126 @@ public class ReadUTF8Demo {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 29A: W3Schools Write/Read Files — Ghi & Đọc `UTF-8` bằng `try-with-resources`
+- **Mục tiêu:** Dùng `BufferedWriter` ghi 2 dòng văn bản UTF-8 vào file tạm rồi đọc lại từng dòng bằng `BufferedReader.readLine()`.
+- **Expected Output:**
+  - `Line: Java PRO192`
+  - `Line: UTF-8 Safe IO`
+
+```java
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File temp = File.createTempFile("jb_slot29a_", ".txt");
+        // TODO: Dung try-with-resources BufferedWriter ghi 2 dong roi doc lai bang BufferedReader
+        temp.delete();
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 29A)</summary>
+
+```java
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        File temp = File.createTempFile("jb_slot29a_", ".txt");
+        try {
+            try (BufferedWriter bw = new BufferedWriter(
+                    new OutputStreamWriter(new FileOutputStream(temp), StandardCharsets.UTF_8))) {
+                bw.write("Java PRO192");
+                bw.newLine();
+                bw.write("UTF-8 Safe IO");
+                bw.newLine();
+            }
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(new FileInputStream(temp), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    System.out.println("Line: " + line);
+                }
+            }
+        } finally {
+            temp.delete();
+        }
+    }
+}
+```
+
+* **Giải thích:** Nhờ `try (...)`, Java tự gọi `flush()` và `close()` ngay cả khi có ngoại lệ, tránh lỗi file trống 0 byte.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 29B: CSV Parser + `NumberFormatException` — Bỏ qua Dòng Hỏng khi Đọc File
+- **Mục tiêu:** Tách từng dòng `id,name,gpa` bằng `split(",")`, parse điểm số bằng `Double.parseDouble` và bỏ qua dòng lỗi số.
+- **Expected Output:**
+  - `OK: SV01 (8.5)`
+  - `Bo qua dong loi: SV02,Binh,bad`
+  - `OK: SV03 (9.2)`
+- 🔗 [Mở bài lab Slot 29 trên Code Studio Tryit](/studio/playground?example=slot-29-lab)
+
+```java
+import java.io.*;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        String raw = "SV01,An,8.5\nSV02,Binh,bad\nSV03,Chau,9.2";
+        BufferedReader br = new BufferedReader(new StringReader(raw));
+        String line;
+        while ((line = br.readLine()) != null) {
+            String[] parts = line.split(",");
+            // TODO: parseDouble(parts[2]), neu NumberFormatException thi in "Bo qua dong loi: " + line
+        }
+        br.close();
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 29B)</summary>
+
+```java
+import java.io.*;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        String raw = "SV01,An,8.5\nSV02,Binh,bad\nSV03,Chau,9.2";
+        try (BufferedReader br = new BufferedReader(new StringReader(raw))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length == 3) {
+                    try {
+                        double gpa = Double.parseDouble(parts[2].trim());
+                        System.out.println("OK: " + parts[0] + " (" + gpa + ")");
+                    } catch (NumberFormatException e) {
+                        System.out.println("Bo qua dong loi: " + line);
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+* **Giải thích:** `BufferedReader.readLine()` trả về **`null`** khi hết file (EOF), khác với `FileReader.read()` trả về **`-1`**.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Nền tảng Java I/O (Byte Streams & Character Streams)](../../java/io/io-basis.md) · [Design Patterns trong Java I/O (Decorator / Adapter)](../../java/io/io-design-patterns.md)

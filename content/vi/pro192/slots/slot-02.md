@@ -155,6 +155,79 @@ Tổ hợp phím tắt là **`Shift + F6`**.
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 2A: W3Schools Java Syntax — Sửa 3 Lỗi Biên dịch Khởi đầu
+- **Mục tiêu:** Sửa tên lớp trùng file `Main`, dấu chấm phẩy thiếu và chữ ký `main` chuẩn.
+- **Expected Output:**
+  - `Environment Ready: JDK 1.8 / NetBeans!`
+
+```java
+public class WrongName {
+    public void main(String[] args) {
+        System.out.println("Environment Ready: JDK 1.8 / NetBeans!")
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 2A)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Environment Ready: JDK 1.8 / NetBeans!");
+    }
+}
+```
+
+* **Giải thích:** Trong bài thi PE/PEA, `main` bắt buộc có đủ `public static void main(String[] args)` (không thiếu `static`), kết thúc lệnh bằng `;` và tên `public class` phải trùng tên tệp.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 2B: Output Numbers & Bẫy Nối chuỗi Trái sang Phải
+- **Mục tiêu:** Quan sát sự khác nhau giữa `3 + 3` và `"Result: " + 3 + 3`, sửa lại bằng dấu ngoặc đơn `()`.
+- **Expected Output:**
+  - `6`
+  - `Sai: 33`
+  - `Dung: 6`
+- 🔗 [Mở bài lab Slot 02 trên Code Studio Tryit](/studio/playground?example=slot-02-lab)
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(3 + 3);
+        System.out.println("Sai: " + 3 + 3);
+        // TODO: Them dau ngoac () de in ra "Dung: 6"
+        System.out.println("Dung: " + 3 + 3);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 2B)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        System.out.println(3 + 3);
+        System.out.println("Sai: " + 3 + 3);
+        System.out.println("Dung: " + (3 + 3));
+    }
+}
+```
+
+* **Giải thích:** Toán tử `+` kết hợp từ trái sang phải: một khi vế trái là `String`, các toán hạng phía sau tự động bị ép sang chuỗi nếu không nhóm ngoặc `(3 + 3)`.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 1 (JDK/JVM, String, OOP, Từ khóa)](../../java/basis/java-basic-questions-01.md)

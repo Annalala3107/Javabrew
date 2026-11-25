@@ -150,6 +150,122 @@ public void log(int code, String tag) { }
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 11A: UML -> Java Code — Chuyển Sơ đồ Lớp sang Code Chuẩn
+- **Mục tiêu:** Đọc bảng UML (`-id: String`, `-gpa: double`, `+isHonors(): boolean`) và cài đặt đúng kiểu trả về sau dấu hai chấm `:`.
+- **Expected Output:**
+  - `SE1801 honors = true`
+
+```java
+class StudentCard {
+    private String id;
+    private double gpa;
+
+    public StudentCard(String id, double gpa) {
+        this.id = id;
+        this.gpa = gpa;
+    }
+
+    // TODO: Viet public String getId() va public boolean isHonors() (gpa >= 8.0)
+}
+
+public class Main {
+    public static void main(String[] args) {
+        StudentCard s = new StudentCard("SE1801", 8.5);
+        System.out.println(s.getId() + " honors = " + s.isHonors());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 11A)</summary>
+
+```java
+class StudentCard {
+    private String id;
+    private double gpa;
+
+    public StudentCard(String id, double gpa) {
+        this.id = id;
+        this.gpa = gpa;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public boolean isHonors() {
+        return gpa >= 8.0;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        StudentCard s = new StudentCard("SE1801", 8.5);
+        System.out.println(s.getId() + " honors = " + s.isHonors());
+    }
+}
+```
+
+* **Giải thích:** Nhớ quy tắc UML trong đề PE: `-` là `private`, `+` là `public`, và kiểu dữ liệu / kiểu trả về đứng **sau dấu hai chấm** (`+getId(): String`).
+
+</details>
+
+---
+
+#### 🟡 Thực hành 11B: W3Schools Method Overloading — Nạp chồng `area()` theo Danh sách Tham số
+- **Mục tiêu:** Viết các phiên bản nạp chồng `area(...)` khác nhau về danh sách tham số (hình vuông, hình chữ nhật, hình tròn).
+- **Expected Output:**
+  - `16.00 | 15.00 | 12.57`
+- 🔗 [Mở bài lab Slot 11 trên Code Studio Tryit](/studio/playground?example=slot-11-lab)
+
+```java
+public class Main {
+    static double area(double side) {
+        return side * side;
+    }
+
+    // TODO: Viet them static double area(double w, double h) va area(double r, boolean isCircle)
+
+    public static void main(String[] args) {
+        System.out.printf("%.2f | %.2f | %.2f%n", area(4), area(3, 5), area(2, true));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 11B)</summary>
+
+```java
+public class Main {
+    static double area(double side) {
+        return side * side;
+    }
+
+    static double area(double w, double h) {
+        return w * h;
+    }
+
+    static double area(double r, boolean isCircle) {
+        return isCircle ? Math.PI * r * r : 0.0;
+    }
+
+    public static void main(String[] args) {
+        System.out.printf("%.2f | %.2f | %.2f%n", area(4), area(3, 5), area(2, true));
+    }
+}
+```
+
+* **Giải thích:** Overloading yêu cầu cùng tên hàm và **khác danh sách tham số** (số lượng hoặc kiểu tham số) — chỉ đổi mỗi kiểu trả về sẽ bị lỗi biên dịch.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Tổng hợp Design Patterns trong OOP & System Design](../../system-design/design-pattern.md)

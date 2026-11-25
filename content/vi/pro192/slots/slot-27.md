@@ -242,6 +242,177 @@ Tại sao Dòng 2 không in ra các con số mà lại in ra chuỗi dạng `[I@
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 27A: W3Schools Advanced Sorting — `Comparable<T>` theo Giá tăng dần
+- **Mục tiêu:** Cho lớp `BookItem` cài đặt `Comparable<BookItem>` dùng `Integer.compare(this.price, other.price)`.
+- **Expected Output:**
+  - `[(Beta,20), (Gamma,35), (Alpha,50)]`
+
+```java
+import java.util.*;
+
+class BookItem implements Comparable<BookItem> {
+    String name;
+    int price;
+    BookItem(String name, int price) { this.name = name; this.price = price; }
+
+    @Override
+    public int compareTo(BookItem other) {
+        // TODO: tra ve Integer.compare(this.price, other.price)
+        return 0;
+    }
+
+    @Override
+    public String toString() { return "(" + name + "," + price + ")"; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        List<BookItem> list = new ArrayList<BookItem>();
+        list.add(new BookItem("Alpha", 50));
+        list.add(new BookItem("Beta", 20));
+        list.add(new BookItem("Gamma", 35));
+        Collections.sort(list);
+        System.out.println(list);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 27A)</summary>
+
+```java
+import java.util.*;
+
+class BookItem implements Comparable<BookItem> {
+    String name;
+    int price;
+    BookItem(String name, int price) { this.name = name; this.price = price; }
+
+    @Override
+    public int compareTo(BookItem other) {
+        return Integer.compare(this.price, other.price);
+    }
+
+    @Override
+    public String toString() { return "(" + name + "," + price + ")"; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        List<BookItem> list = new ArrayList<BookItem>();
+        list.add(new BookItem("Alpha", 50));
+        list.add(new BookItem("Beta", 20));
+        list.add(new BookItem("Gamma", 35));
+        Collections.sort(list);
+        System.out.println(list);
+    }
+}
+```
+
+* **Giải thích:** Dùng `Integer.compare(a, b)` tránh lỗi tràn số nguyên (*integer overflow*) khi hiệu `a - b` vượt quá `Integer.MAX_VALUE`.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 27B: Cầu nối `PE1-Q3` (`MyDaisy.f2`) — Partial Sort Giữ nguyên Vị trí
+- **Mục tiêu:** Tách chỉ số các phần tử có chữ thường trong `name`, sắp xếp riêng nhóm đó tăng theo `price` rồi gán trả về đúng các chỉ số cũ (`JAVA` và `OOP` đứng yên).
+- **Expected Output:**
+  - `[(Beta,20), (JAVA,99), (Alpha,50)]`
+- 🔗 [Mở bài lab Slot 27 trên Code Studio Tryit](/studio/playground?example=slot-27-lab)
+
+```java
+import java.util.*;
+
+class BookItem {
+    String name;
+    int price;
+    BookItem(String name, int price) { this.name = name; this.price = price; }
+    @Override
+    public String toString() { return "(" + name + "," + price + ")"; }
+}
+
+public class Main {
+    static boolean hasLower(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            if (Character.isLowerCase(s.charAt(i))) return true;
+        }
+        return false;
+    }
+
+    public static void main(String[] args) {
+        List<BookItem> list = new ArrayList<BookItem>(Arrays.asList(
+                new BookItem("Alpha", 50),
+                new BookItem("JAVA", 99),
+                new BookItem("Beta", 20)
+        ));
+        // TODO: Dung 2 list (indices + matched), sort matched theo price, roi ghi lai vao list!
+        System.out.println(list);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 27B)</summary>
+
+```java
+import java.util.*;
+
+class BookItem {
+    String name;
+    int price;
+    BookItem(String name, int price) { this.name = name; this.price = price; }
+    @Override
+    public String toString() { return "(" + name + "," + price + ")"; }
+}
+
+public class Main {
+    static boolean hasLower(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            if (Character.isLowerCase(s.charAt(i))) return true;
+        }
+        return false;
+    }
+
+    public static void main(String[] args) {
+        List<BookItem> list = new ArrayList<BookItem>(Arrays.asList(
+                new BookItem("Alpha", 50),
+                new BookItem("JAVA", 99),
+                new BookItem("Beta", 20)
+        ));
+        List<Integer> indices = new ArrayList<Integer>();
+        List<BookItem> matched = new ArrayList<BookItem>();
+        for (int i = 0; i < list.size(); i++) {
+            if (hasLower(list.get(i).name)) {
+                indices.add(i);
+                matched.add(list.get(i));
+            }
+        }
+        Collections.sort(matched, new Comparator<BookItem>() {
+            @Override
+            public int compare(BookItem a, BookItem b) {
+                return Integer.compare(a.price, b.price);
+            }
+        });
+        for (int k = 0; k < indices.size(); k++) {
+            list.set(indices.get(k), matched.get(k));
+        }
+        System.out.println(list);
+    }
+}
+```
+
+* **Giải thích:** Kỹ thuật **3 bước Partial Sort** (gom `indices` + `matched` → sort `matched` → `set` lại vào `indices`) là bài tủ xuất hiện rất nhiều trong PE Q3.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Collections — Phần 2 (`Comparable`, `Comparator`, Algorithms)](../../java/collection/java-collection-questions-02.md) · [Lưu ý thực chiến & Bẫy khi dùng Java Collections](../../java/collection/java-collection-precautions-for-use.md)

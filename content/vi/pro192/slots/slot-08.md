@@ -194,6 +194,100 @@ if (Character.isDigit(c)) {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 8A: W3Schools Wrapper — Bẫy Integer Cache `127` vs `200`
+- **Mục tiêu:** Sửa phép so sánh `x == y` của `Integer` thành `.equals()` và chuyển chuỗi `"42"` sang `int`.
+- **Expected Output:**
+  - `127 == 127: true`
+  - `200 equals 200: true`
+  - `Parsed + 8 = 50`
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        Integer a = 127, b = 127;
+        Integer x = 200, y = 200;
+        System.out.println("127 == 127: " + (a == b));
+        // TODO: Sua x == y thanh so sanh gia tri dung bang .equals()
+        System.out.println("200 equals 200: " + (x == y));
+        int parsed = 0; // TODO: Integer.parseInt("42")
+        System.out.println("Parsed + 8 = " + (parsed + 8));
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 8A)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        Integer a = 127, b = 127;
+        Integer x = 200, y = 200;
+        System.out.println("127 == 127: " + (a == b));
+        System.out.println("200 equals 200: " + x.equals(y));
+        int parsed = Integer.parseInt("42");
+        System.out.println("Parsed + 8 = " + (parsed + 8));
+    }
+}
+```
+
+* **Giải thích:** JVM chỉ cache sẵn `Integer` trong khoảng `-128..127`. Từ `128` trở lên, `Integer x = 200; Integer y = 200;` là 2 đối tượng khác địa chỉ nên `==` trả `false`.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 8B: Character API & `Math` — Đếm Chữ cái / Chữ số (Cầu nối PE Q1 & Q4)
+- **Mục tiêu:** Dùng `Character.isLetter()`, `Character.isDigit()` và `Math.round(Math.sqrt(50))` chuẩn JDK 8.
+- **Expected Output:**
+  - `Letters=7, Digits=4, Math=7`
+- 🔗 [Mở bài lab Slot 08 trên Code Studio Tryit](/studio/playground?example=slot-08-lab)
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        String s = "PRO192_Java8!";
+        int letters = 0, digits = 0;
+        // TODO: Dem bang Character.isLetter(c) va Character.isDigit(c)
+        long approx = 0; // TODO: Math.round(Math.sqrt(50))
+        System.out.println("Letters=" + letters + ", Digits=" + digits + ", Math=" + approx);
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 8B)</summary>
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        String s = "PRO192_Java8!";
+        int letters = 0, digits = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isLetter(c)) {
+                letters++;
+            } else if (Character.isDigit(c)) {
+                digits++;
+            }
+        }
+        long approx = Math.round(Math.sqrt(50));
+        System.out.println("Letters=" + letters + ", Digits=" + digits + ", Math=" + approx);
+    }
+}
+```
+
+* **Giải thích:** Combo `Character.isLetter(c)` / `isDigit(c)` / `isLowerCase(c)` giải quyết trực tiếp đa số câu Q1 và Q4 PE (như `PE1-Q1 Crocus`, `PE1-Q4 MyString`, `PE5-Q4`).
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 1 (JDK/JVM, String, OOP, Từ khóa)](../../java/basis/java-basic-questions-01.md)

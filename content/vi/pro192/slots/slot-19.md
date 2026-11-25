@@ -197,6 +197,187 @@ public static double totalArea(Shape[] list) {
 
 </details>
 
+
+---
+
+### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+
+#### 🟢 Thực hành 19A: W3Schools Abstraction — Lớp Con Hoàn thiện `abstract class Employee`
+- **Mục tiêu:** Cài đặt phương thức trừu tượng `calcSalary()` cho `FullTimeEmployee` và `PartTimeEmployee`.
+- **Expected Output:**
+  - `FullTime salary = 1500.0`
+  - `PartTime salary = 320.0`
+
+```java
+abstract class Employee {
+    String name;
+    Employee(String name) { this.name = name; }
+    abstract double calcSalary();
+}
+
+class FullTimeEmployee extends Employee {
+    double monthly;
+    FullTimeEmployee(String name, double monthly) {
+        super(name);
+        this.monthly = monthly;
+    }
+    // TODO: @Override double calcSalary() tra ve monthly
+    @Override
+    double calcSalary() { return 0; }
+}
+
+class PartTimeEmployee extends Employee {
+    int hours;
+    double rate;
+    PartTimeEmployee(String name, int hours, double rate) {
+        super(name);
+        this.hours = hours;
+        this.rate = rate;
+    }
+    // TODO: @Override double calcSalary() tra ve hours * rate
+    @Override
+    double calcSalary() { return 0; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Employee e1 = new FullTimeEmployee("An", 1500.0);
+        Employee e2 = new PartTimeEmployee("Binh", 16, 20.0);
+        System.out.println("FullTime salary = " + e1.calcSalary());
+        System.out.println("PartTime salary = " + e2.calcSalary());
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 19A)</summary>
+
+```java
+abstract class Employee {
+    String name;
+    Employee(String name) { this.name = name; }
+    abstract double calcSalary();
+}
+
+class FullTimeEmployee extends Employee {
+    double monthly;
+    FullTimeEmployee(String name, double monthly) {
+        super(name);
+        this.monthly = monthly;
+    }
+    @Override
+    double calcSalary() { return monthly; }
+}
+
+class PartTimeEmployee extends Employee {
+    int hours;
+    double rate;
+    PartTimeEmployee(String name, int hours, double rate) {
+        super(name);
+        this.hours = hours;
+        this.rate = rate;
+    }
+    @Override
+    double calcSalary() { return hours * rate; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Employee e1 = new FullTimeEmployee("An", 1500.0);
+        Employee e2 = new PartTimeEmployee("Binh", 16, 20.0);
+        System.out.println("FullTime salary = " + e1.calcSalary());
+        System.out.println("PartTime salary = " + e2.calcSalary());
+    }
+}
+```
+
+* **Giải thích:** Dù không thể gọi `new Employee(...)` trực tiếp, `abstract class` vẫn có constructor để lớp con gọi qua `super(...)` khởi tạo phần thuộc tính chung.
+
+</details>
+
+---
+
+#### 🟡 Thực hành 19B: Template Method trên `abstract class Payment`
+- **Mục tiêu:** Viết phương thức cụ thể `printReceipt()` ngay trong lớp trừu tượng gọi tới `abstract double calculateFee()`.
+- **Expected Output:**
+  - `CardPayment: total = 510.00`
+  - `CashPayment: total = 500.00`
+- 🔗 [Mở bài lab Slot 19 trên Code Studio Tryit](/studio/playground?example=slot-19-lab)
+
+```java
+abstract class Payment {
+    double amount;
+    Payment(double amount) { this.amount = amount; }
+    abstract double calculateFee();
+
+    void printReceipt() {
+        double total = amount + calculateFee();
+        System.out.printf("%s: total = %.2f%n", getClass().getSimpleName(), total);
+    }
+}
+
+class CardPayment extends Payment {
+    CardPayment(double amount) { super(amount); }
+    // TODO: @Override double calculateFee() = 2% cua amount
+    @Override
+    double calculateFee() { return 0; }
+}
+
+class CashPayment extends Payment {
+    CashPayment(double amount) { super(amount); }
+    @Override
+    double calculateFee() { return 0; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        new CardPayment(500).printReceipt();
+        new CashPayment(500).printReceipt();
+    }
+}
+```
+
+<details>
+<summary>👁️ Hiện lời giải chuẩn &amp; giải thích (Thực hành 19B)</summary>
+
+```java
+abstract class Payment {
+    double amount;
+    Payment(double amount) { this.amount = amount; }
+    abstract double calculateFee();
+
+    void printReceipt() {
+        double total = amount + calculateFee();
+        System.out.printf("%s: total = %.2f%n", getClass().getSimpleName(), total);
+    }
+}
+
+class CardPayment extends Payment {
+    CardPayment(double amount) { super(amount); }
+    @Override
+    double calculateFee() { return amount * 0.02; }
+}
+
+class CashPayment extends Payment {
+    CashPayment(double amount) { super(amount); }
+    @Override
+    double calculateFee() { return 0; }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        new CardPayment(500).printReceipt();
+        new CashPayment(500).printReceipt();
+    }
+}
+```
+
+* **Giải thích:** Đây là mẫu *Template Method*: khung báo cáo `printReceipt()` viết một lần ở lớp cha, chỉ phần tính phí `calculateFee()` thay đổi ở mỗi lớp con.
+
+</details>
+
 ## 5. Study Bridge (PRO192 × JavaGuide) & Tài nguyên Slide
 
 - **Đọc sâu bản chất trên JavaGuide:** [Java Cơ bản — Phần 2 (Kế thừa, Đa hình, Abstract/Interface)](../../java/basis/java-basic-questions-02.md)
