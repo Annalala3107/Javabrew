@@ -1,12 +1,14 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { GET, POST } from '../../server/java-run';
+import { resetMemoryRateLimitsForTest } from '../../server/requestGuard';
 
 const ENV_KEYS = [
   'VERCEL_OIDC_TOKEN',
   'VERCEL_TOKEN',
   'VERCEL_PROJECT_ID',
   'VERCEL_TEAM_ID',
+  'VERCEL_ENV',
   'JAVA_RUNNER_URL',
 ] as const;
 
@@ -14,6 +16,7 @@ describe('server/java-run HTTP handler', () => {
   const savedEnv: Partial<Record<(typeof ENV_KEYS)[number], string | undefined>> = {};
 
   beforeEach(() => {
+    resetMemoryRateLimitsForTest();
     for (const key of ENV_KEYS) {
       savedEnv[key] = process.env[key];
       delete process.env[key];
@@ -194,5 +197,66 @@ describe('server/java-run HTTP handler', () => {
       })
     );
     expect(limitedRes.status).toBe(429);
+  });
+
+  it('POST blocks cross-origin requests in production and prioritizes x-vercel-forwarded-for for rate limiting', async () => {
+    process.env.VERCEL_ENV = 'production';
+    const noOriginRes = await POST(
+      new Request('https://javabrew.test/api/java-run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-vercel-oidc-token': 'test-oidc-token',
+        },
+        body: '{invalid-json',
+      })
+    );
+    expect(noOriginRes.status).toBe(403);
+
+    const crossRes = await POST(
+      new Request('https://javabrew.test/api/java-run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-vercel-oidc-token': 'test-oidc-token',
+          origin: 'https://attacker.example',
+        },
+        body: '{invalid-json',
+      })
+    );
+    expect(crossRes.status).toBe(403);
+
+    // Same trusted client IP should be tracked even if spoofed x-forwarded-for changes
+    for (let i = 0; i < 20; i++) {
+      const r = await POST(
+        new Request('https://javabrew.test/api/java-run', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-vercel-oidc-token': 'test-oidc-token',
+            origin: 'https://javabrew.test',
+            'x-vercel-forwarded-for': '203.0.113.88',
+            'x-forwarded-for': `198.51.100.${i + 1}`,
+          },
+          body: '{invalid-json',
+        })
+      );
+      expect(r.status).toBe(400);
+    }
+
+    const blockedSpoof = await POST(
+      new Request('https://javabrew.test/api/java-run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-vercel-oidc-token': 'test-oidc-token',
+          origin: 'https://javabrew.test',
+          'x-vercel-forwarded-for': '203.0.113.88',
+          'x-forwarded-for': '198.51.100.250',
+        },
+        body: '{invalid-json',
+      })
+    );
+    expect(blockedSpoof.status).toBe(429);
   });
 });

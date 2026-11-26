@@ -15,6 +15,11 @@ import {
   type JavaSourceFile,
 } from './javaValidation';
 import { buildPeHarness, getPeInterfaceFiles } from './peHarnesses';
+import {
+  consumeRateLimit,
+  getTrustedClientIp,
+  validateOrigin,
+} from './requestGuard';
 
 const BASE_SANDBOX_NAME = 'javabrew-openjdk21-base';
 const SANDBOX_REGION = 'sin1' as const;
@@ -22,10 +27,9 @@ const WORK_DIR = '/tmp/jb-work';
 const OUT_DIR = '/tmp/jb-out';
 const MAX_OUTPUT_BYTES = 32_768;
 const RUN_TIMEOUT_MS = 15_000;
-const RATE_WINDOW_MS = 60_000;
+const RATE_WINDOW_SECONDS = 60;
 const RATE_LIMIT_MAX = 20;
 
-const ipBuckets = new Map<string, { count: number; resetAt: number }>();
 let bootstrapPromise: Promise<void> | null = null;
 
 function hasExplicitTokenParams(): boolean {
@@ -53,35 +57,6 @@ function hasSandboxCredentials(request: Request): boolean {
       process.env.VERCEL_OIDC_TOKEN ||
       hasExplicitTokenParams()
   );
-}
-
-function getClientIp(request: Request): string {
-  const fwd = request.headers.get('x-forwarded-for');
-  if (fwd) {
-    return fwd.split(',')[0].trim();
-  }
-  return request.headers.get('x-real-ip') || 'anonymous';
-}
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  if (ipBuckets.size > 500) {
-    for (const [key, bucket] of ipBuckets.entries()) {
-      if (bucket.resetAt <= now) {
-        ipBuckets.delete(key);
-      }
-    }
-  }
-  const existing = ipBuckets.get(ip);
-  if (!existing || existing.resetAt <= now) {
-    ipBuckets.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  if (existing.count >= RATE_LIMIT_MAX) {
-    return false;
-  }
-  existing.count += 1;
-  return true;
 }
 
 const utf8Encoder = new TextEncoder();
@@ -245,6 +220,15 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   const startedAt = performance.now();
+  const originCheck = validateOrigin(request);
+  if (!originCheck.ok) {
+    await emitMetric('java_sandbox.run', 1, { mode: 'unknown', outcome: 'origin_blocked' });
+    return Response.json(
+      { error: originCheck.reason },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } }
+    );
+  }
+
   const sandboxReady = hasSandboxCredentials(request);
   const externalCfg = resolveExternalRunnerConfig(process.env);
 
@@ -260,8 +244,14 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const clientIp = getClientIp(request);
-  if (!checkRateLimit(clientIp)) {
+  const clientIp = getTrustedClientIp(request);
+  const rateLimit = await consumeRateLimit({
+    namespace: 'java-run',
+    key: clientIp,
+    limit: RATE_LIMIT_MAX,
+    windowSeconds: RATE_WINDOW_SECONDS,
+  });
+  if (!rateLimit.allowed) {
     await emitMetric('java_sandbox.run', 1, { mode: 'unknown', outcome: 'rate_limited' });
     return Response.json(
       {
