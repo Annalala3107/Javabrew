@@ -10,7 +10,13 @@ import { LucianAccordion } from '../components/lucian/LucianAccordion';
 import { LucianChecklistItem } from '../components/lucian/LucianChecklistItem';
 import { useApp } from '../context/AppContext';
 import { useRevealSection } from '../hooks/useMotion';
-import { stageEntrySlug, stageFileToSlug } from '../utils/text';
+import { findArticleTitle, stageEntrySlug, stageFileToSlug } from '../utils/text';
+
+function getTimeGreeting(hour = new Date().getHours()): string {
+  if (hour >= 5 && hour < 12) return 'Chào buổi sáng';
+  if (hour >= 12 && hour < 18) return 'Chào buổi chiều';
+  return 'Chào buổi tối';
+}
 
 export function DashboardPage() {
   const { navigation, pro192, lang, progress, toggleSlotCompleted, pushToast } = useApp();
@@ -26,6 +32,8 @@ export function DashboardPage() {
 
   const totalSlots = pro192?.course.totalSlots ?? 30;
   const doneSlots = progress.completedSlots.length;
+  const totalExercises = pro192?.course.totalExercises ?? 150;
+  const doneExercises = progress.solvedExercises.length;
   const doneDrills = progress.completedDrills.length;
   const totalDrills = 60;
   const proPct = Math.round((doneSlots / totalSlots) * 100);
@@ -51,28 +59,45 @@ export function DashboardPage() {
       ? `Học tiếp Slot ${String(nextSlot.slot).padStart(2, '0')} →`
       : 'Vào giáo trình PRO192 →';
 
+  const greeting = getTimeGreeting();
+  const javaDomain = navigation?.domains.find((d) => d.id === 'java');
+  const groupCount = (id: string) =>
+    javaDomain?.groups.find((g) => g.id === id)?.articles.length ?? 0;
+
+  const basicsCount = javaDomain ? groupCount('basis') + groupCount('new-features') : 33;
+  const collectionsCount = javaDomain ? groupCount('collection') : 12;
+  const jvmCount = javaDomain ? groupCount('jvm') : 11;
+  const concIoCount = javaDomain ? groupCount('concurrent') + groupCount('io') : 22;
+
+  const bridgeCandidates = nextSlot?.studyBridge ?? [];
+  const suggestedBridgeRel =
+    bridgeCandidates.find((rel) => !progress.completedArticles.includes(rel)) ||
+    bridgeCandidates[0] ||
+    'java/collection/hashmap-source-code.md';
+  const suggestedBridgeTitle = findArticleTitle(navigation, suggestedBridgeRel, lang);
+
   const featuredClusters = [
     {
       domainId: 'java',
-      title: 'Java Basics & OOP (33)',
+      title: `Java Basics & OOP (${basicsCount})`,
       desc: 'String Pool, equals, Generics & Proxy',
       to: '/docs/java/basis/java-basic-questions-01.md',
     },
     {
       domainId: 'java',
-      title: 'Collections (13)',
+      title: `Collections (${collectionsCount})`,
       desc: 'ArrayList, HashMap, HashSet & Comparator',
       to: '/docs/java/collection/hashmap-source-code.md',
     },
     {
       domainId: 'java',
-      title: 'JVM & GC (11)',
+      title: `JVM & GC (${jvmCount})`,
       desc: 'Stack/Heap, Metaspace, G1 & ZGC',
       to: '/docs/java/jvm/memory-area.md',
     },
     {
       domainId: 'java',
-      title: 'Concurrency & IO (15)',
+      title: `Concurrency & IO (${concIoCount})`,
       desc: 'Thread, AQS, File I/O & Serialization',
       to: '/docs/java/io/io-basis.md',
     },
@@ -90,8 +115,8 @@ export function DashboardPage() {
           </div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">
             {nextSlot
-              ? `Chào buổi tối, học tiếp từ Slot ${String(nextSlot.slot).padStart(2, '0')} nhé!`
-              : 'Chào buổi tối, cùng pha cà phê và luyện Java OOP nhé!'}
+              ? `${greeting}, học tiếp từ Slot ${String(nextSlot.slot).padStart(2, '0')} nhé!`
+              : `${greeting}, cùng pha cà phê và luyện Java OOP nhé!`}
           </h1>
           <p className="text-xs text-[var(--text-muted)]">
             {nextSlot ? (
@@ -158,6 +183,9 @@ export function DashboardPage() {
             <div className="flex flex-col items-end gap-0.5 text-right">
               <span className="font-mono text-xs font-semibold tabular-nums text-[var(--accent)]">
                 {doneSlots}/{totalSlots} ({proPct}%)
+              </span>
+              <span className="font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
+                Bài tập: {doneExercises}/{totalExercises}
               </span>
               <span className="font-mono text-[11px] tabular-nums text-[var(--info-text)]">
                 Thực hành Live Lab: {doneDrills}/{totalDrills}
@@ -306,26 +334,28 @@ export function DashboardPage() {
             </div>
 
             <div className="flex flex-wrap gap-1.5 text-xs">
-              {navigation?.domains.slice(1).map((dom) => (
-                <Link
-                  key={dom.id}
-                  to={`/docs?domain=${dom.id}`}
-                  className="rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2 py-1 text-[var(--text-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent-text)]"
-                >
-                  {lang === 'vi' ? dom.labelVi : dom.labelEn} ({dom.totalArticles})
-                </Link>
-              ))}
+              {navigation?.domains
+                .filter((dom) => dom.id !== 'java')
+                .map((dom) => (
+                  <Link
+                    key={dom.id}
+                    to={`/docs?domain=${dom.id}`}
+                    className="rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2 py-1 text-[var(--text-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent-text)]"
+                  >
+                    {lang === 'vi' ? dom.labelVi : dom.labelEn} ({dom.totalArticles})
+                  </Link>
+                ))}
             </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-default)] pt-3 text-xs">
-            <span className="text-[var(--text-muted)]">
-              🌉 Cầu nối gợi ý:{' '}
-              <strong className="text-[var(--text-primary)]">Cơ chế HashMap</strong>
+            <span className="min-w-0 truncate text-[var(--text-muted)]">
+              🌉 Cầu nối gợi ý{nextSlot ? ` (Slot ${String(nextSlot.slot).padStart(2, '0')})` : ''}:{' '}
+              <strong className="text-[var(--text-primary)]">{suggestedBridgeTitle}</strong>
             </span>
             <Link
-              to="/docs/java/collection/hashmap-source-code.md"
-              className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-1.5 text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+              to={`/docs/${suggestedBridgeRel}`}
+              className="shrink-0 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-1.5 text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
             >
               Đọc bài ngay →
             </Link>

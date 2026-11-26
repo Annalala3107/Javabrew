@@ -80,6 +80,8 @@ const MOCK_PRO192: Pro192Data = {
       slidePptx: '/media/pro192/slides/Get%20Start.pptx',
       exercisesCount: 1,
       studyBridge: ['java/basis/bigdecimal.md'],
+      objectives: ['Hiểu cơ chế JDK, JRE và JVM độc lập nền tảng.'],
+      examTraps: ['Bẫy **JDK 8 trong PE**: Không dùng `isBlank()`, hãy dùng `trim().isEmpty()`.'],
     },
     {
       slot: 2,
@@ -209,12 +211,27 @@ const MOCK_SEARCH: SearchIndexData = {
 };
 
 function installFetchMock(
-  sandboxHandler?: (method: string, bodyText?: string) => Promise<Response> | Response
+  sandboxHandler?: (method: string, bodyText?: string) => Promise<Response> | Response,
+  aiHandler?: (
+    method: string,
+    bodyText?: string,
+    init?: RequestInit
+  ) => Promise<Response> | Response
 ) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/api/ai-mentor')) {
+        if (aiHandler) {
+          return aiHandler(
+            (init?.method || 'GET').toUpperCase(),
+            typeof init?.body === 'string' ? init.body : undefined,
+            init
+          );
+        }
+        return new Response('Not found', { status: 404 });
+      }
       if (url.endsWith('/api/java-run')) {
         if (sandboxHandler) {
           return sandboxHandler(
@@ -512,9 +529,10 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     const searchInp = await screen.findByLabelText('Nhập từ khóa tìm kiếm');
     fireEvent.change(searchInp, { target: { value: 'da hinh' } });
 
+    const searchDialog = screen.getByRole('dialog', { name: /Tìm kiếm toàn cục JavaBrew/i });
     await waitFor(() => {
       expect(
-        screen.getByText(/Giải thích chi tiết về Đa hình và BigDecimal/i)
+        within(searchDialog).getByText(/Giải thích chi tiết về Đa hình và BigDecimal/i)
       ).toBeInTheDocument();
     });
 
@@ -524,8 +542,8 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     const keyInp = screen.getByLabelText(/Gemini API Key/i);
     fireEvent.change(keyInp, { target: { value: 'AIzaTest123' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu cấu hình/i }));
-    expect(sessionStorage.getItem('javabrew:byok_key')).toBe('AIzaTest123');
-    expect(localStorage.getItem('javabrew:byok_key')).toBeNull();
+    expect(localStorage.getItem('javabrew:byok_key')).toBe('AIzaTest123');
+    expect(sessionStorage.getItem('javabrew:byok_key')).toBeNull();
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -533,11 +551,11 @@ describe('JavaBrew Night Coffee Lab UI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Cài đặt AI Key/i }));
     const persistCheckbox = screen.getByRole('checkbox', { name: /Ghi nhớ API Key/i });
-    expect(persistCheckbox).not.toBeChecked();
+    expect(persistCheckbox).toBeChecked();
     fireEvent.click(persistCheckbox);
     fireEvent.click(screen.getByRole('button', { name: /Lưu cấu hình/i }));
-    expect(localStorage.getItem('javabrew:byok_key')).toBe('AIzaTest123');
-    expect(sessionStorage.getItem('javabrew:byok_key')).toBeNull();
+    expect(sessionStorage.getItem('javabrew:byok_key')).toBe('AIzaTest123');
+    expect(localStorage.getItem('javabrew:byok_key')).toBeNull();
   });
 
   it('renders ExerciseBlock, MarkdownRenderer, and Resources PdfPreviewModal cleanly', async () => {
@@ -1156,9 +1174,10 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     const combo = await screen.findByRole('combobox', { name: /Nhập từ khóa tìm kiếm/i });
     expect(document.body.style.overflow).toBe('hidden');
 
+    const searchDialog = screen.getByRole('dialog', { name: /Tìm kiếm toàn cục JavaBrew/i });
     fireEvent.change(combo, { target: { value: 'da hinh bigdecimal' } });
     expect(
-      await screen.findByText(/Giải thích chi tiết về Đa hình và BigDecimal/i)
+      await within(searchDialog).findByText(/Giải thích chi tiết về Đa hình và BigDecimal/i)
     ).toBeInTheDocument();
 
     const firstOpt = screen.getAllByRole('option')[0];
@@ -1387,5 +1406,383 @@ describe('JavaBrew Night Coffee Lab UI', () => {
       };
       expect(saved.completedPe).toEqual(['01', '02', '12']);
     });
+  });
+
+  it('activates automatic Server AI Mentor streaming without BYOK key and aborts cleanly on Dừng', async () => {
+    const encoder = new TextEncoder();
+    let streamCount = 0;
+    let abortedObserved = false;
+
+    installFetchMock(undefined, (method, _body, init) => {
+      if (method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            available: true,
+            mode: 'server',
+            defaultModel: 'gemini-3.5-flash-lite',
+            dailyLimit: 30,
+            remaining: 30,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      streamCount += 1;
+      if (streamCount === 1) {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                'event: meta\ndata: {"source":"server","model":"gemini-3.5-flash-lite","remaining":29,"limit":30}\n\n'
+              )
+            );
+            controller.enqueue(encoder.encode('event: delta\ndata: {"text":"Gợi ý tự động "}\n\n'));
+            controller.enqueue(encoder.encode('event: delta\ndata: {"text":"cho Crocus."}\n\n'));
+            controller.enqueue(
+              encoder.encode(
+                'event: done\ndata: {"interactionId":"int_auto_1","model":"gemini-3.5-flash-lite","source":"server","remaining":29,"limit":30}\n\n'
+              )
+            );
+            controller.close();
+          },
+        });
+        return new Response(body, {
+          status: 200,
+          headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+        });
+      }
+
+      // 2nd call stays open until aborted
+      const pendingBody = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(
+              'event: meta\ndata: {"source":"server","model":"gemini-3.5-flash-lite","remaining":28,"limit":30}\n\n'
+            )
+          );
+          init?.signal?.addEventListener(
+            'abort',
+            () => {
+              abortedObserved = true;
+              try {
+                controller.error(new DOMException('Aborted', 'AbortError'));
+              } catch {
+                // ignore
+              }
+            },
+            { once: true }
+          );
+        },
+      });
+      return new Response(pendingBody, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+      });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/studio/1']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/✨ AI Tự động \(30\/30\)/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cách tối ưu?' }));
+    expect(await screen.findByText(/Gợi ý tự động cho Crocus\./i)).toBeInTheDocument();
+    expect(screen.getByText(/✨ AI Tự động \(29\/30\)/i)).toBeInTheDocument();
+
+    // Start second request and click Stop (Dừng) while busy
+    fireEvent.click(screen.getByRole('button', { name: 'Giải thích code' }));
+    expect(screen.getByRole('button', { name: 'Cách tối ưu?' })).toBeDisabled();
+    const stopButtons = await screen.findAllByRole('button', { name: 'Dừng' });
+    fireEvent.click(stopButtons[0]);
+
+    await waitFor(() => {
+      expect(abortedObserved).toBe(true);
+      expect(screen.getByRole('button', { name: 'Cách tối ưu?' })).not.toBeDisabled();
+    });
+  });
+
+  it('renders dynamic Dashboard cluster counts, exercise count, and Study Bridge', async () => {
+    const richNav: NavigationData = {
+      ...MOCK_NAV,
+      totalArticles: 78,
+      domains: [
+        {
+          id: 'java',
+          labelEn: 'Java Core',
+          labelVi: 'Java Cốt lõi',
+          totalArticles: 78,
+          groups: [
+            {
+              id: 'basis',
+              labelEn: 'Basics',
+              labelVi: 'Cơ bản',
+              count: 15,
+              articles: Array.from({ length: 15 }, (_, i) => ({
+                rel: i === 0 ? 'java/basis/bigdecimal.md' : `java/basis/b${i}.md`,
+                titleZh: '',
+                titleEn: `Base ${i}`,
+                titleVi: i === 0 ? 'Giải thích chi tiết về Đa hình và BigDecimal' : `Bài cơ bản ${i}`,
+                chars: 1200,
+                lines: 40,
+                images: 0,
+                status: { zhRef: 'ready', en: 'done', vi: 'done' },
+              })),
+            },
+            {
+              id: 'new-features',
+              labelEn: 'New',
+              labelVi: 'Mới',
+              count: 18,
+              articles: Array.from({ length: 18 }, (_, i) => ({
+                rel: `java/new-features/n${i}.md`,
+                titleZh: '',
+                titleEn: `New ${i}`,
+                titleVi: `New ${i}`,
+                chars: 1200,
+                lines: 40,
+                images: 0,
+                status: { zhRef: 'ready', en: 'done', vi: 'done' },
+              })),
+            },
+            {
+              id: 'collection',
+              labelEn: 'Collections',
+              labelVi: 'Collections',
+              count: 12,
+              articles: Array.from({ length: 12 }, (_, i) => ({
+                rel: `java/collection/c${i}.md`,
+                titleZh: '',
+                titleEn: `Col ${i}`,
+                titleVi: `Col ${i}`,
+                chars: 1200,
+                lines: 40,
+                images: 0,
+                status: { zhRef: 'ready', en: 'done', vi: 'done' },
+              })),
+            },
+            {
+              id: 'jvm',
+              labelEn: 'JVM',
+              labelVi: 'JVM',
+              count: 11,
+              articles: Array.from({ length: 11 }, (_, i) => ({
+                rel: `java/jvm/j${i}.md`,
+                titleZh: '',
+                titleEn: `JVM ${i}`,
+                titleVi: `JVM ${i}`,
+                chars: 1200,
+                lines: 40,
+                images: 0,
+                status: { zhRef: 'ready', en: 'done', vi: 'done' },
+              })),
+            },
+            {
+              id: 'concurrent',
+              labelEn: 'Concurrent',
+              labelVi: 'Concurrent',
+              count: 17,
+              articles: Array.from({ length: 17 }, (_, i) => ({
+                rel: `java/concurrent/co${i}.md`,
+                titleZh: '',
+                titleEn: `Conc ${i}`,
+                titleVi: `Conc ${i}`,
+                chars: 1200,
+                lines: 40,
+                images: 0,
+                status: { zhRef: 'ready', en: 'done', vi: 'done' },
+              })),
+            },
+            {
+              id: 'io',
+              labelEn: 'IO',
+              labelVi: 'IO',
+              count: 5,
+              articles: Array.from({ length: 5 }, (_, i) => ({
+                rel: `java/io/io${i}.md`,
+                titleZh: '',
+                titleEn: `IO ${i}`,
+                titleVi: `IO ${i}`,
+                chars: 1200,
+                lines: 40,
+                images: 0,
+                status: { zhRef: 'ready', en: 'done', vi: 'done' },
+              })),
+            },
+          ],
+        },
+      ],
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.endsWith('/metadata/navigation.json')) {
+          return new Response(JSON.stringify(richNav), { status: 200 });
+        }
+        if (url.endsWith('/metadata/pro192.json')) {
+          return new Response(JSON.stringify(MOCK_PRO192), { status: 200 });
+        }
+        return new Response('Not found', { status: 404 });
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Collections (12)')).toBeInTheDocument();
+    expect(screen.getByText('Concurrency & IO (22)')).toBeInTheDocument();
+    expect(screen.getByText('Bài tập: 0/1')).toBeInTheDocument();
+    expect(screen.getByText(/Cầu nối gợi ý \(Slot 01\)/i)).toBeInTheDocument();
+    expect(screen.getByText('Giải thích chi tiết về Đa hình và BigDecimal')).toBeInTheDocument();
+  });
+
+  it('routes non-PE Slot to matching Live Lab, auto-closes mobile sidebar, supports bottom completion, and hides PE CTA on non-Java docs', async () => {
+    const dbNav: NavigationData = {
+      ...MOCK_NAV,
+      totalDomains: 2,
+      totalArticles: 2,
+      domains: [
+        ...MOCK_NAV.domains,
+        {
+          id: 'database',
+          labelEn: 'Database',
+          labelVi: 'Cơ sở dữ liệu',
+          totalArticles: 1,
+          groups: [
+            {
+              id: 'mysql',
+              labelEn: 'MySQL',
+              labelVi: 'MySQL',
+              count: 1,
+              articles: [
+                {
+                  rel: 'database/mysql/index-basics.md',
+                  titleZh: 'Index',
+                  titleEn: 'MySQL Index',
+                  titleVi: 'B+Tree Index trong MySQL',
+                  chars: 1800,
+                  lines: 60,
+                  images: 0,
+                  status: { zhRef: 'ready', en: 'done', vi: 'done' },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.endsWith('/metadata/navigation.json')) {
+          return new Response(JSON.stringify(dbNav), { status: 200 });
+        }
+        if (url.endsWith('/metadata/pro192.json')) {
+          return new Response(JSON.stringify(MOCK_PRO192), { status: 200 });
+        }
+        if (url.endsWith('/content/vi/pro192/slots/slot-01.md')) {
+          return new Response('# Slot 01\n\nNội dung Slot 01.', { status: 200 });
+        }
+        if (url.endsWith('/content/vi/pro192/slots/slot-02.md')) {
+          return new Response('# Slot 02\n\nNội dung Slot 02.', { status: 200 });
+        }
+        if (url.endsWith('/content/vi/database/mysql/index-basics.md')) {
+          return new Response('# MySQL Index\n\nNội dung chỉ mục B+Tree.', { status: 200 });
+        }
+        return new Response('Not found', { status: 404 });
+      })
+    );
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/pro192/slots/slot-01']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Nội dung Slot 01.');
+
+    const tocBtn = screen.getByRole('button', { name: /Mục lục/i });
+    fireEvent.click(tocBtn);
+    expect(tocBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Bottom slot complete button works without scrolling to top
+    fireEvent.click(screen.getByRole('button', { name: /^Hoàn thành Slot 01$/i }));
+    expect(
+      screen.getByRole('button', { name: /✔ Đã hoàn thành Slot 01/i })
+    ).toBeInTheDocument();
+
+    // Navigating to Slot 02 auto-closes mobile sidebar and shows Live Lab CTA
+    fireEvent.click(screen.getByRole('link', { name: /Slot 02: Cài đặt JDK & NetBeans/i }));
+    await screen.findByText('Nội dung Slot 02.');
+    expect(screen.getByRole('button', { name: /Mục lục/i })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    expect(
+      screen.getByRole('button', { name: /▶ Thực hành Slot 02 \(Live Lab\)/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /Thực hành Live Lab Slot 02 →/i })
+    ).toHaveAttribute('href', '/studio/playground?example=slot-02-lab');
+
+    unmount();
+
+    // Non-Java JavaGuide domain hides PE/AnanQuiz CTA and shows domain-appropriate CTA
+    render(
+      <MemoryRouter initialEntries={['/docs/database/mysql/index-basics.md']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+    await screen.findByText('Nội dung chỉ mục B+Tree.');
+    expect(screen.queryByRole('link', { name: /Làm bài code PE/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Ôn Quiz FE/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Xem thêm bài Cơ sở dữ liệu/i })).toHaveAttribute(
+      'href',
+      '/docs?domain=database'
+    );
+  });
+
+  it('renders real examTraps & objectives in Code Studio Lý thuyết nhanh and alerts on invalid /studio/:peId', async () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/studio/1']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const theoryTab = await screen.findByRole('tab', { name: 'Lý thuyết nhanh' });
+    fireEvent.click(theoryTab);
+    expect(await screen.findByText(/Bẫy thi PE & JDK 8 \(PE1-Q1\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Không dùng/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hiểu cơ chế JDK, JRE và JVM độc lập nền tảng\./i)).toBeInTheDocument();
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/studio/999']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText(/Không tìm thấy đề PE “999”/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Về Kho Đề PE/i })).toHaveAttribute('href', '/pe');
   });
 });

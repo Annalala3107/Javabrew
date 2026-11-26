@@ -72,6 +72,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   const [companionMd, setCompanionMd] = useState('');
   const [dualLoading, setDualLoading] = useState(false);
   const noteDirtyRef = useRef(false);
+  const noteTimerRef = useRef<number>(0);
   const [bridgeExpanded, setBridgeExpanded] = useState(true);
   const [treeFilter, setTreeFilter] = useState('');
   const [expandedStages, setExpandedStages] = useState<Record<number, boolean>>({ 1: true });
@@ -330,6 +331,39 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
         : '';
   const isBookmarked = itemKey ? progress.bookmarks.includes(itemKey) : false;
   const currentNote = itemKey ? progress.notes[itemKey] || '' : '';
+  const [draftNote, setDraftNote] = useState(currentNote);
+  const prevNoteKeyRef = useRef(itemKey);
+  const latestNoteRef = useRef({ key: itemKey, value: currentNote });
+
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [slug, docRel, mode]);
+
+  useEffect(() => {
+    if (prevNoteKeyRef.current !== itemKey) {
+      window.clearTimeout(noteTimerRef.current);
+      if (noteDirtyRef.current && latestNoteRef.current.key) {
+        saveNote(latestNoteRef.current.key, latestNoteRef.current.value);
+      }
+      prevNoteKeyRef.current = itemKey;
+      noteDirtyRef.current = false;
+      setDraftNote(currentNote);
+      latestNoteRef.current = { key: itemKey, value: currentNote };
+    } else if (!noteDirtyRef.current) {
+      setDraftNote(currentNote);
+      latestNoteRef.current = { key: itemKey, value: currentNote };
+    }
+  }, [itemKey, currentNote, saveNote]);
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(noteTimerRef.current);
+      if (noteDirtyRef.current && latestNoteRef.current.key) {
+        saveNote(latestNoteRef.current.key, latestNoteRef.current.value);
+        noteDirtyRef.current = false;
+      }
+    };
+  }, [saveNote]);
 
   // Record last visited
   useEffect(() => {
@@ -417,21 +451,31 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
     return () => window.clearTimeout(timer);
   }, [loading, parsed, searchParams, location.hash]);
 
-  // Determine related PE challenge for "▶ Thử code bài này" button
-  const relatedPeId = useMemo(() => {
-    if (!pro192?.peChallenges) return 1;
+  // Determine matched PE challenge or Live Lab template for active Slot / Stage
+  const matchedPeForSlot = useMemo(() => {
+    if (!pro192?.peChallenges?.length) return null;
     if (activeSlot) {
-      const slotMatch = pro192.peChallenges.find((pe) =>
+      if (activeSlot.peRefs && activeSlot.peRefs.length > 0) {
+        const refSet = new Set(activeSlot.peRefs);
+        const byRef = pro192.peChallenges.find((pe) => refSet.has(pe.code));
+        if (byRef) return byRef;
+      }
+      const byRelated = pro192.peChallenges.find((pe) =>
         pe.relatedSlots.includes(activeSlot.slot)
       );
-      if (slotMatch) return slotMatch.id;
+      return byRelated ?? null;
     }
-    if (!activeStage) return 1;
-    const match = pro192.peChallenges.find((pe) =>
-      pe.relatedSlots.some((s) => activeStage.slots.includes(s))
+    if (!activeStage) return null;
+    return (
+      pro192.peChallenges.find((pe) =>
+        pe.relatedSlots.some((s) => activeStage.slots.includes(s))
+      ) ?? null
     );
-    return match?.id ?? 1;
   }, [activeSlot, activeStage, pro192]);
+
+  const slotLabExampleId = activeSlot
+    ? `slot-${String(activeSlot.slot).padStart(2, '0')}-lab`
+    : null;
 
   const breadcrumbText = useMemo(() => {
     if (mode === 'pro192') {
@@ -975,13 +1019,25 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                           </>
                         )}
 
-                        {mode === 'pro192' && activeStage && (
+                        {mode === 'pro192' && activeStage && (matchedPeForSlot || slotLabExampleId) && (
                           <button
                             type="button"
-                            onClick={() => navigate(`/studio/${relatedPeId}`)}
+                            onClick={() => {
+                              if (activeSlot && !matchedPeForSlot && slotLabExampleId) {
+                                navigate(`/studio/playground?example=${slotLabExampleId}`);
+                              } else if (matchedPeForSlot) {
+                                navigate(`/studio/${matchedPeForSlot.id}`);
+                              } else if (slotLabExampleId) {
+                                navigate(`/studio/playground?example=${slotLabExampleId}`);
+                              }
+                            }}
                             className="rounded-md bg-[var(--accent)] px-3 py-1 font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
                           >
-                            ▶ Thử code bài này
+                            {activeSlot && !matchedPeForSlot
+                              ? `▶ Thực hành Slot ${String(activeSlot.slot).padStart(2, '0')} (Live Lab)`
+                              : matchedPeForSlot
+                                ? `▶ Luyện ${matchedPeForSlot.code}`
+                                : '▶ Thử code bài này'}
                           </button>
                         )}
                       </div>
@@ -1246,28 +1302,130 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                     </div>
                   )}
 
-                  {/* Quick Check CTA (PE inside + FE outside, matches view-m34) */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] p-4 text-xs">
-                    <span className="text-[var(--text-muted)]">
-                      Vừa học xong lý thuyết? Chọn cách kiểm tra ngay:
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        to={`/studio/${relatedPeId}`}
-                        className="rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 py-1.5 font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
-                      >
-                        Làm bài code PE →
-                      </Link>
-                      <a
-                        href="https://anan-mocha.vercel.app/quizzes"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-lg border border-dashed border-[var(--border-strong)] px-3 py-1.5 text-[var(--text-secondary)] hover:border-[var(--accent)]"
-                      >
-                        Ôn Quiz FE (AnanQuiz) ↗
-                      </a>
+                  {/* Quick Check CTA (context-aware for PRO192/Java vs other CS/AI domains) */}
+                  {mode === 'pro192' || currentDocInfo?.domainId === 'java' ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] p-4 text-xs">
+                      <span className="text-[var(--text-muted)]">
+                        Vừa học xong lý thuyết? Chọn cách kiểm tra ngay:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {activeSlot && !matchedPeForSlot && slotLabExampleId ? (
+                          <Link
+                            to={`/studio/playground?example=${slotLabExampleId}`}
+                            className="rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 py-1.5 font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
+                          >
+                            Thực hành Live Lab Slot {String(activeSlot.slot).padStart(2, '0')} →
+                          </Link>
+                        ) : (
+                          <Link
+                            to={`/studio/${matchedPeForSlot?.id ?? 1}`}
+                            className="rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 py-1.5 font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
+                          >
+                            {matchedPeForSlot
+                              ? `Làm bài ${matchedPeForSlot.code} →`
+                              : 'Làm bài code PE →'}
+                          </Link>
+                        )}
+                        <a
+                          href="https://anan-mocha.vercel.app/quizzes"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-lg border border-dashed border-[var(--border-strong)] px-3 py-1.5 text-[var(--text-secondary)] hover:border-[var(--accent)]"
+                        >
+                          Ôn Quiz FE (AnanQuiz) ↗
+                        </a>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    docRel && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] p-4 text-xs">
+                        <span className="text-[var(--text-muted)]">
+                          Hoàn thành bài đọc trong nhóm{' '}
+                          <strong className="text-[var(--text-primary)]">
+                            {currentDocInfo?.domainLabel || 'JavaGuide'}
+                          </strong>
+                          :
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const wasDone = progress.completedArticles.includes(docRel);
+                              toggleArticleCompleted(docRel);
+                              pushToast({
+                                title: wasDone
+                                  ? 'Bỏ đánh dấu đã đọc bài'
+                                  : 'Đã hoàn thành bài đọc!',
+                                description: displayTitle,
+                                tone: wasDone ? 'info' : 'success',
+                              });
+                            }}
+                            className="rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 py-1.5 font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
+                          >
+                            {progress.completedArticles.includes(docRel)
+                              ? '✔ Đã đọc xong'
+                              : 'Đánh dấu đã đọc'}
+                          </button>
+                          <Link
+                            to={`/docs?domain=${currentDocInfo?.domainId || ''}`}
+                            className="rounded-lg border border-dashed border-[var(--border-strong)] px-3 py-1.5 text-[var(--text-secondary)] hover:border-[var(--accent)]"
+                          >
+                            Xem thêm bài {currentDocInfo?.domainLabel || 'cùng chủ đề'} →
+                          </Link>
+                        </div>
+                      </div>
+                    )
+                  )}
+
+                  {/* Bottom Slot Completion Action */}
+                  {mode === 'pro192' && activeSlot && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] px-4 py-3 text-xs">
+                      <span className="text-[var(--text-muted)]">
+                        Đã nắm vững lý thuyết &amp; bài tập của{' '}
+                        <strong className="text-[var(--text-primary)]">
+                          Slot {String(activeSlot.slot).padStart(2, '0')}
+                        </strong>
+                        ?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const wasDone = progress.completedSlots.includes(activeSlot.slot);
+                          toggleSlotCompleted(activeSlot.slot);
+                          pushToast({
+                            title: wasDone
+                              ? `Đã bỏ đánh dấu Slot ${String(activeSlot.slot).padStart(2, '0')}`
+                              : `Hoàn thành Slot ${String(activeSlot.slot).padStart(2, '0')}!`,
+                            description: activeSlot.title,
+                            tone: wasDone ? 'info' : 'success',
+                          });
+                        }}
+                        aria-pressed={progress.completedSlots.includes(activeSlot.slot)}
+                        className={[
+                          'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border px-3.5 py-1.5 font-bold transition-colors',
+                          progress.completedSlots.includes(activeSlot.slot)
+                            ? 'border-[var(--success)]/40 bg-[var(--success-soft)] text-[var(--success-text)]'
+                            : 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]',
+                        ].join(' ')}
+                      >
+                        {progress.completedSlots.includes(activeSlot.slot) ? (
+                          <>
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>
+                              ✔ Đã hoàn thành Slot {String(activeSlot.slot).padStart(2, '0')}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Circle className="h-3.5 w-3.5" />
+                            <span>
+                              Hoàn thành Slot {String(activeSlot.slot).padStart(2, '0')}
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Personal Local Notes (matches view-m34) */}
                   {itemKey && (
@@ -1281,14 +1439,23 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                       <textarea
                         id="lesson-personal-note"
                         rows={2}
-                        value={currentNote}
+                        value={draftNote}
                         onChange={(e) => {
+                          const nextVal = e.target.value;
+                          setDraftNote(nextVal);
                           noteDirtyRef.current = true;
-                          saveNote(itemKey, e.target.value);
+                          latestNoteRef.current = { key: itemKey, value: nextVal };
+                          window.clearTimeout(noteTimerRef.current);
+                          noteTimerRef.current = window.setTimeout(() => {
+                            noteDirtyRef.current = false;
+                            saveNote(itemKey, nextVal);
+                          }, 250);
                         }}
                         onBlur={() => {
+                          window.clearTimeout(noteTimerRef.current);
                           if (noteDirtyRef.current) {
                             noteDirtyRef.current = false;
+                            saveNote(itemKey, draftNote);
                             pushToast({
                               title: 'Đã lưu ghi chú cá nhân',
                               description: displayTitle,
