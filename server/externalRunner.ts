@@ -129,17 +129,40 @@ export function buildPistonPayload(
   };
 }
 
-export function mergeJavaFilesForJudge0(files: JavaSourceFile[], entryClass: string): string {
+export interface MergedJudge0LineRef {
+  file: string;
+  line: number;
+}
+
+export interface MergedJudge0Source {
+  source: string;
+  lineMap: Array<MergedJudge0LineRef | null>;
+}
+
+const JUDGE0_PUBLIC_TYPE_RE =
+  /^([ \t]*)public\s+((?:final\s+|abstract\s+|static\s+|sealed\s+|non-sealed\s+)*(?:class|interface|enum|record)\s+([A-Za-z_][A-Za-z0-9_]*)\b)/gm;
+
+export function mergeJavaFilesForJudge0WithMap(
+  files: JavaSourceFile[],
+  entryClass: string
+): MergedJudge0Source {
   if (files.length === 1 && entryClass === 'Main') {
-    return files[0].content;
+    const raw = files[0].content;
+    const rawLines = raw.split(/\r?\n/);
+    return {
+      source: raw,
+      lineMap: rawLines.map((_, idx) => ({ file: files[0].name, line: idx + 1 })),
+    };
   }
 
   const imports = new Set<string>();
-  const bodyChunks: string[] = [];
+  const bodyChunks: Array<Array<{ text: string; ref: MergedJudge0LineRef | null }>> = [];
 
   for (const file of files) {
-    const cleanedLines: string[] = [];
-    for (const line of file.content.split(/\r?\n/)) {
+    const rawLines = file.content.split(/\r?\n/);
+    const kept: Array<{ text: string; origLine: number }> = [];
+    for (let idx = 0; idx < rawLines.length; idx++) {
+      const line = rawLines[idx];
       const trimmed = line.trim();
       if (/^package\s+[A-Za-z_][A-Za-z0-9_.]*\s*;/.test(trimmed)) {
         continue;
@@ -148,38 +171,102 @@ export function mergeJavaFilesForJudge0(files: JavaSourceFile[], entryClass: str
         imports.add(trimmed);
         continue;
       }
-      cleanedLines.push(line);
+      kept.push({ text: line, origLine: idx + 1 });
     }
 
-    let body = cleanedLines.join('\n').trim();
-    body = body.replace(
-      /^([ \t]*)public\s+((?:final\s+|abstract\s+|static\s+|sealed\s+|non-sealed\s+)*(?:class|interface|enum|record)\s+([A-Za-z_][A-Za-z0-9_]*)\b)/gm,
-      (full, indent: string, decl: string, typeName: string) => {
+    while (kept.length > 0 && kept[0].text.trim() === '') {
+      kept.shift();
+    }
+    while (kept.length > 0 && kept[kept.length - 1].text.trim() === '') {
+      kept.pop();
+    }
+
+    if (kept.length === 0) continue;
+
+    const joined = kept
+      .map((k) => k.text)
+      .join('\n')
+      .trim()
+      .replace(JUDGE0_PUBLIC_TYPE_RE, (full, indent: string, decl: string, typeName: string) => {
         if (entryClass === 'Main' && typeName === 'Main') {
           return full;
         }
         return `${indent}${decl}`;
-      }
-    );
+      });
 
-    if (body) {
-      bodyChunks.push(`// --- ${file.name} ---\n${body}`);
+    if (!joined) continue;
+
+    const bodyLines = joined.split('\n');
+    const chunk: Array<{ text: string; ref: MergedJudge0LineRef | null }> = [
+      { text: `// --- ${file.name} ---`, ref: null },
+    ];
+    for (let i = 0; i < bodyLines.length; i++) {
+      const refEntry = kept[Math.min(i, kept.length - 1)];
+      chunk.push({
+        text: bodyLines[i],
+        ref: refEntry ? { file: file.name, line: refEntry.origLine } : { file: file.name, line: i + 1 },
+      });
     }
+    bodyChunks.push(chunk);
   }
 
-  const parts: string[] = [];
+  const parts: Array<Array<{ text: string; ref: MergedJudge0LineRef | null }>> = [];
   if (imports.size > 0) {
-    parts.push(Array.from(imports).join('\n'));
+    parts.push(Array.from(imports).map((text) => ({ text, ref: null })));
   }
   parts.push(...bodyChunks);
 
   if (entryClass !== 'Main') {
     parts.push(
-      `public class Main {\n    public static void main(String[] args) throws Exception {\n        ${entryClass}.main(args);\n    }\n}`
+      [
+        'public class Main {',
+        '    public static void main(String[] args) throws Exception {',
+        `        ${entryClass}.main(args);`,
+        '    }',
+        '}',
+      ].map((text) => ({ text, ref: null }))
     );
   }
 
-  return `${parts.join('\n\n')}\n`;
+  const outLines: string[] = [];
+  const lineMap: Array<MergedJudge0LineRef | null> = [];
+  for (let p = 0; p < parts.length; p++) {
+    if (p > 0) {
+      outLines.push('');
+      lineMap.push(null);
+    }
+    for (const row of parts[p]) {
+      outLines.push(row.text);
+      lineMap.push(row.ref);
+    }
+  }
+
+  return {
+    source: `${outLines.join('\n')}\n`,
+    lineMap,
+  };
+}
+
+export function mergeJavaFilesForJudge0(files: JavaSourceFile[], entryClass: string): string {
+  return mergeJavaFilesForJudge0WithMap(files, entryClass).source;
+}
+
+export function remapJudge0Diagnostics(
+  diagnostics: JavaDiagnostic[],
+  lineMap: Array<MergedJudge0LineRef | null>,
+  fallbackFile = 'Main.java'
+): JavaDiagnostic[] {
+  return diagnostics.map((diag) => {
+    const isMergedTarget = diag.file === 'Main.java' || diag.file === '';
+    if (!isMergedTarget) return diag;
+    if (diag.line >= 1 && diag.line <= lineMap.length) {
+      const ref = lineMap[diag.line - 1];
+      if (ref) {
+        return { ...diag, file: ref.file, line: ref.line };
+      }
+    }
+    return { ...diag, file: fallbackFile };
+  });
 }
 
 function toBase64Utf8(text: string): string {
@@ -269,7 +356,7 @@ export async function executeViaExternalRunner(params: {
   const startedAt = performance.now();
 
   if (config.provider === 'judge0') {
-    const mergedSource = mergeJavaFilesForJudge0(files, entryClass);
+    const merged = mergeJavaFilesForJudge0WithMap(files, entryClass);
     const endpoint = config.url.includes('/submissions')
       ? `${config.url}${config.url.includes('?') ? '&' : '?'}base64_encoded=true&wait=true`
       : `${config.url}/submissions?base64_encoded=true&wait=true`;
@@ -290,7 +377,7 @@ export async function executeViaExternalRunner(params: {
       headers,
       body: JSON.stringify({
         language_id: config.judge0LanguageId,
-        source_code: toBase64Utf8(mergedSource),
+        source_code: toBase64Utf8(merged.source),
         stdin: toBase64Utf8(stdin),
       }),
     });
@@ -313,7 +400,11 @@ export async function executeViaExternalRunner(params: {
         timedOut: false,
         stdout: '',
         stderr: compileOut || rawStderr || 'Compilation error.',
-        diagnostics: parseJavacDiagnostics(compileOut || rawStderr, primaryFileName),
+        diagnostics: remapJudge0Diagnostics(
+          parseJavacDiagnostics(compileOut || rawStderr, 'Main.java'),
+          merged.lineMap,
+          primaryFileName
+        ),
       };
     }
 

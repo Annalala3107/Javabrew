@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
 import fssync from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = String.raw`e:\JavAncode`;
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifestPath = path.join(ROOT, 'metadata', 'manifest.json');
 
 function extractTitle(text) {

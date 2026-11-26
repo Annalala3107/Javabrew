@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
-  Archive,
   ArrowLeft,
   ArrowRight,
   BookOpen,
@@ -12,20 +11,20 @@ import {
   Circle,
   Clock,
   Columns2,
-  Download,
   Eye,
   EyeOff,
   FileText,
   FolderArchive,
   GraduationCap,
-  Image as ImageIcon,
   Languages,
-  Presentation,
   RefreshCw,
   Search,
 } from 'lucide-react';
 import { CodingDrillBlock } from '../components/CodingDrillBlock';
 import { ExerciseBlock } from '../components/ExerciseBlock';
+import { DocsDirectoryView } from '../components/learn/DocsDirectoryView';
+import { Pro192OverviewView } from '../components/learn/Pro192OverviewView';
+import { ResourcesVaultView } from '../components/learn/ResourcesVaultView';
 import { BookmarkRibbonButton } from '../components/lucian/BookmarkRibbonButton';
 import { ReadingProgressFab } from '../components/lucian/ReadingProgressFab';
 import { SkeletonCard } from '../components/lucian/SkeletonCard';
@@ -35,7 +34,6 @@ import { useApp } from '../context/AppContext';
 import type { NavArticle, TocHeading } from '../types/content';
 import { parseMarkdownDocument, splitPro192StageContent } from '../utils/markdown';
 import {
-  estimateReadingMinutes,
   findArticleTitle,
   normalizeSearchText,
   stageEntrySlug,
@@ -48,7 +46,7 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   const params = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const {
     navigation,
@@ -81,12 +79,6 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     'java/basis': true,
   });
-
-  // Docs directory filters
-  const selectedDomainId = searchParams.get('domain') || 'all';
-  const [dirQuery, setDirQuery] = useState('');
-  const [readFilter, setReadFilter] = useState<'all' | 'unread' | 'read'>('all');
-  const [resourceQuery, setResourceQuery] = useState('');
 
   // Markdown reader state
   const slug =
@@ -440,30 +432,6 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
     );
     return match?.id ?? 1;
   }, [activeSlot, activeStage, pro192]);
-
-  // Resources data
-  const slideDecks = useMemo(() => {
-    if (!pro192) return [];
-    const q = normalizeSearchText(resourceQuery);
-    return pro192.assets.slides
-      .map((pptxUrl) => {
-        const fileName = decodeURIComponent(pptxUrl.split('/').pop() || '');
-        const baseName = fileName.replace(/\.pptx$/i, '');
-        const pdfUrl = `/media/pro192/resources/${encodeURIComponent(`${baseName}.pdf`)}`;
-        const matchingStages = pro192.stages
-          .filter((st) => st.slides.includes(fileName))
-          .map((st) => ({ id: st.id, slug: stageEntrySlug(st) }));
-        const matchingSlots = pro192.slots
-          .filter((sl) => decodeURIComponent(sl.slidePptx).endsWith(`/${fileName}`))
-          .map((sl) => sl.slot);
-        return { name: baseName, pdfUrl, pptxUrl, stages: matchingStages, slots: matchingSlots };
-      })
-      .filter((d) =>
-        !q ? true : normalizeSearchText(`${d.name} slot ${d.slots.join(' ')}`).includes(q)
-      );
-  }, [pro192, resourceQuery]);
-
-  const bankingArchive = pro192?.assets.resources.find((r) => r.endsWith('.rar'));
 
   const breadcrumbText = useMemo(() => {
     if (mode === 'pro192') {
@@ -889,472 +857,30 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
           <div className={focusMode ? 'p-6 md:col-span-12 md:p-8' : 'p-5 md:col-span-9 md:p-8'}>
             {/* 1. Resources Vault View (/resources) */}
             {mode === 'resources' && (
-              <div className="mx-auto max-w-4xl space-y-6">
-                <header className="space-y-1.5 border-b border-[var(--border-default)] pb-4">
-                  <span className="inline-block rounded-md border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-medium text-[var(--accent-text)]">
-                    Tài nguyên Offline · PRO192
-                  </span>
-                  <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                    Kho Slide PDF, PowerPoint &amp; Source Code
-                  </h1>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    Toàn bộ {pro192?.course.totalSlides ?? 14} slide PDF (xem trực tiếp), 14 tệp .pptx gốc và dự án mẫu MVC lưu nội bộ 100%.
-                  </p>
-                </header>
-
-                {bankingArchive && (
-                  <div className="flex flex-col justify-between gap-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] p-4 sm:flex-row sm:items-center">
-                    <div className="flex items-start gap-3">
-                      <div className="rounded-lg border border-[var(--border-default)] bg-[var(--accent-soft)] p-2.5 text-[var(--accent)]">
-                        <Archive className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-[var(--text-primary)]">
-                          banking.rar — Dự án mẫu kiến trúc MVC Java OOP
-                        </div>
-                        <div className="text-xs text-[var(--text-muted)]">
-                          Source code mẫu đi kèm giáo trình PRO192 để tham khảo tách lớp.
-                        </div>
-                      </div>
-                    </div>
-                    <a
-                      href={bankingArchive}
-                      download
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3.5 py-2 text-xs font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      <span>Tải banking.rar</span>
-                    </a>
-                  </div>
-                )}
-
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[var(--text-dim)]" aria-hidden="true" />
-                  <input
-                    type="search"
-                    value={resourceQuery}
-                    onChange={(e) => setResourceQuery(e.target.value)}
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-label="Tìm theo tên slide hoặc số Slot"
-                    placeholder="Tìm theo tên slide hoặc số Slot (VD: Collections, Inheritance)…"
-                    className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2 pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-                  />
-                </div>
-
-                <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)]">
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-left text-xs">
-                      <thead className="border-b border-[var(--border-default)] bg-[var(--bg-surface)]">
-                        <tr>
-                          <th className="px-4 py-3 font-semibold uppercase text-[var(--text-muted)]">
-                            Bộ Slide bài giảng
-                          </th>
-                          <th className="px-4 py-3 font-semibold uppercase text-[var(--text-muted)]">
-                            Giai đoạn &amp; Slots
-                          </th>
-                          <th className="px-4 py-3 text-right font-semibold uppercase text-[var(--text-muted)]">
-                            Thao tác
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[var(--border-default)]">
-                        {slideDecks.map((deck) => (
-                          <tr key={deck.name} className="hover:bg-[var(--bg-surface)]/50">
-                            <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
-                              <div className="flex items-center gap-2">
-                                <Presentation className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-                                <span>{deck.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-1.5">
-                                {deck.stages.map((st) => (
-                                  <Link
-                                    key={st.id}
-                                    to={`/pro192/${st.slug}`}
-                                    className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 text-[var(--text-secondary)] hover:border-[var(--accent)]"
-                                  >
-                                    GĐ {st.id}
-                                  </Link>
-                                ))}
-                                {deck.slots.length > 0 && (
-                                  <span className="tabular-nums text-[var(--text-dim)]">
-                                    Slot {deck.slots.join(', ')}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="inline-flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openPdfPreview({
-                                      title: deck.name,
-                                      pdfUrl: deck.pdfUrl,
-                                      pptxUrl: deck.pptxUrl,
-                                    })
-                                  }
-                                  className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 py-1 font-semibold text-[var(--text-primary)] hover:border-[var(--accent)]"
-                                >
-                                  <FileText className="h-3.5 w-3.5 text-[var(--accent)]" />
-                                  <span>Xem PDF</span>
-                                </button>
-                                <a
-                                  href={deck.pptxUrl}
-                                  download
-                                  className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                                >
-                                  <Download className="h-3.5 w-3.5" />
-                                  <span>PPTX</span>
-                                </a>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
+              <ResourcesVaultView pro192={pro192} openPdfPreview={openPdfPreview} />
             )}
 
             {/* 2. PRO192 Overview 30-Slot Matrix (/pro192 without slug) */}
             {mode === 'pro192' && !slug && (
-              <div className="mx-auto max-w-4xl space-y-6">
-                <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border-default)] pb-4">
-                  <div className="space-y-1.5">
-                    <span className="inline-block rounded-md border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-medium text-[var(--accent-text)]">
-                      PRO192 · 30 Slots · 150 Bài tập
-                    </span>
-                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                      Giáo trình PRO192 &amp; Cầu nối Study Bridge
-                    </h1>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      Chọn bất kỳ Slot nào để đọc lý thuyết chuẩn, mở Slide PDF, làm bài tập ẩn đáp án hoặc nhảy thẳng sang bài chuyên sâu JavaGuide.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                      to="/pro192/pe-patterns"
-                      className="rounded-lg border border-[var(--info)]/40 bg-[var(--info-soft)] px-3.5 py-2 text-xs font-semibold text-[var(--info-text)] hover:opacity-90"
-                    >
-                      📘 Bí kíp &amp; 7 Khuôn mẫu PE →
-                    </Link>
-                    <Link
-                      to="/pro192/slots/slot-01"
-                      className="rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
-                    >
-                      Bắt đầu Slot 01 →
-                    </Link>
-                  </div>
-                </header>
-
-                <div className="space-y-5">
-                  {pro192?.stages.map((stage) => {
-                    const stSlug = stageEntrySlug(stage);
-                    const slots = pro192.slots.filter((s) => s.stage === stage.id);
-                    return (
-                      <section
-                        key={stage.id}
-                        className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)]"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
-                          <div>
-                            <div className="font-mono text-xs font-semibold text-[var(--accent-text)]">
-                              Giai đoạn {stage.id} · Slot {stage.slots[0]}–
-                              {stage.slots[stage.slots.length - 1]}
-                            </div>
-                            <h2 className="text-sm font-bold text-[var(--text-primary)]">
-                              {stage.title.replace(/^Giai đoạn \d+:\s*/, '')}
-                            </h2>
-                          </div>
-                          <Link
-                            to={`/pro192/${stSlug}`}
-                            className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--accent)]"
-                          >
-                            Mở bài giảng →
-                          </Link>
-                        </div>
-
-                        <div className="divide-y divide-[var(--border-default)]">
-                          {slots.map((sl) => {
-                            const done = progress.completedSlots.includes(sl.slot);
-                            return (
-                              <div
-                                key={sl.slot}
-                                className="flex flex-col justify-between gap-3 px-4 py-3 sm:flex-row sm:items-center"
-                              >
-                                <div className="flex min-w-0 items-start gap-2.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleSlotCompleted(sl.slot)}
-                                    aria-label={`Đánh dấu Slot ${sl.slot}`}
-                                    aria-pressed={done}
-                                    className="mt-0.5 shrink-0"
-                                  >
-                                    {done ? (
-                                      <CheckCircle2 className="h-4 w-4 text-[var(--success)]" />
-                                    ) : (
-                                      <Circle className="h-4 w-4 text-[var(--text-dim)]" />
-                                    )}
-                                  </button>
-                                  <div className="min-w-0 space-y-1.5">
-                                    <Link
-                                      to={`/pro192/${stageFileToSlug(sl.file)}`}
-                                      className="block text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--accent-text)]"
-                                    >
-                                      <span className="font-mono text-[var(--accent-text)]">
-                                        Slot {sl.slot}:
-                                      </span>{' '}
-                                      {sl.title}
-                                    </Link>
-                                    {(sl.examFocus?.length || sl.estimatedMinutes) && (
-                                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-                                        {sl.examFocus?.map((tag) => (
-                                          <span
-                                            key={tag}
-                                            className="rounded border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-1.5 py-0.5 font-medium text-[var(--accent-text)]"
-                                          >
-                                            {tag}
-                                          </span>
-                                        ))}
-                                        {sl.estimatedMinutes && (
-                                          <span className="inline-flex items-center gap-1">
-                                            <Clock className="h-3 w-3" />~{sl.estimatedMinutes} phút
-                                          </span>
-                                        )}
-                                      </div>
-                                    )}
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {sl.studyBridge.map((rel) => (
-                                        <Link
-                                          key={rel}
-                                          to={`/docs/${rel}`}
-                                          className="inline-flex items-center gap-1 rounded border border-[var(--info)]/30 bg-[var(--info-soft)] px-2 py-0.5 text-xs text-[var(--info-text)] hover:opacity-90"
-                                        >
-                                          <BookOpen className="h-3 w-3" />
-                                          <span className="max-w-[200px] truncate">
-                                            {findArticleTitle(navigation, rel, lang)}
-                                          </span>
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="flex shrink-0 items-center gap-1.5 pl-6 sm:pl-0">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      openPdfPreview({
-                                        title: `Slot ${sl.slot} — Slide PDF`,
-                                        pdfUrl: sl.slidePdf,
-                                        pptxUrl: sl.slidePptx,
-                                      })
-                                    }
-                                    className="inline-flex items-center gap-1 rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)] hover:border-[var(--accent)]"
-                                  >
-                                    <FileText className="h-3 w-3 text-[var(--accent)]" />
-                                    <span>PDF</span>
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    );
-                  })}
-                </div>
-              </div>
+              <Pro192OverviewView
+                pro192={pro192}
+                navigation={navigation}
+                lang={lang}
+                completedSlots={progress.completedSlots}
+                toggleSlotCompleted={toggleSlotCompleted}
+                openPdfPreview={openPdfPreview}
+              />
             )}
 
             {/* 3. JavaGuide Directory (/docs without rel) */}
             {mode === 'docs' && !docRel && (
-              <div className="mx-auto max-w-4xl space-y-5">
-                <header className="space-y-1.5 border-b border-[var(--border-default)] pb-4">
-                  <span className="inline-block rounded-md border border-[var(--info)]/30 bg-[var(--info-soft)] px-2.5 py-0.5 text-xs font-medium text-[var(--info-text)]">
-                    JavaGuide · {navigation?.totalArticles ?? 354} bài song ngữ EN/VI
-                  </span>
-                  <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                    Danh mục Kho Tri thức JavaGuide
-                  </h1>
-                </header>
-
-                <div className="space-y-3">
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <div className="relative flex-1">
-                      <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[var(--text-dim)]" aria-hidden="true" />
-                      <input
-                        type="search"
-                        value={dirQuery}
-                        onChange={(e) => setDirQuery(e.target.value)}
-                        autoComplete="off"
-                        spellCheck={false}
-                        aria-label="Tìm theo tên bài hoặc đường dẫn"
-                        placeholder="Tìm theo tên bài Việt/Anh hoặc đường dẫn…"
-                        className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] py-2 pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-                      />
-                    </div>
-                    <div className="inline-flex rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-0.5 text-xs">
-                      {(['all', 'unread', 'read'] as const).map((status) => (
-                        <button
-                          key={status}
-                          type="button"
-                          onClick={() => setReadFilter(status)}
-                          className={[
-                            'rounded-md px-3 py-1.5 transition-colors',
-                            readFilter === status
-                              ? 'bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
-                              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                          ].join(' ')}
-                        >
-                          {status === 'all' ? 'Tất cả' : status === 'unread' ? 'Chưa đọc' : 'Đã đọc'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setSearchParams({})}
-                      className={[
-                        'rounded-lg border px-2.5 py-1 transition-colors',
-                        selectedDomainId === 'all'
-                          ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-text)]'
-                          : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-muted)]',
-                      ].join(' ')}
-                    >
-                      Tất cả ({navigation?.totalArticles ?? 354})
-                    </button>
-                    {navigation?.domains.map((dom) => (
-                      <button
-                        key={dom.id}
-                        type="button"
-                        onClick={() => setSearchParams({ domain: dom.id })}
-                        className={[
-                          'rounded-lg border px-2.5 py-1 transition-colors',
-                          selectedDomainId === dom.id
-                            ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-text)]'
-                            : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-muted)]',
-                        ].join(' ')}
-                      >
-                        {lang === 'vi' ? dom.labelVi : dom.labelEn} ({dom.totalArticles})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {metaLoading && !navigation ? (
-                  <SkeletonCard variant="article" />
-                ) : (
-                  <div className="space-y-5">
-                    {(navigation?.domains || [])
-                      .filter((d) => selectedDomainId === 'all' || d.id === selectedDomainId)
-                      .map((dom) => {
-                        const q = normalizeSearchText(dirQuery);
-                        const groups = dom.groups
-                          .map((grp) => ({
-                            grp,
-                            articles: grp.articles.filter((art) => {
-                              const done = progress.completedArticles.includes(art.rel);
-                              if (readFilter === 'read' && !done) return false;
-                              if (readFilter === 'unread' && done) return false;
-                              if (!q) return true;
-                              return normalizeSearchText(
-                                `${art.titleVi} ${art.titleEn} ${art.rel}`
-                              ).includes(q);
-                            }),
-                          }))
-                          .filter((g) => g.articles.length > 0);
-                        if (groups.length === 0) return null;
-
-                        return (
-                          <section key={dom.id} className="space-y-3">
-                            <h2 className="text-sm font-bold text-[var(--text-primary)]">
-                              {lang === 'vi' ? dom.labelVi : dom.labelEn}{' '}
-                              <span className="font-normal text-[var(--text-dim)]">
-                                · {lang === 'vi' ? dom.labelEn : dom.labelVi}
-                              </span>
-                            </h2>
-
-                            {groups.map(({ grp, articles }) => (
-                              <div
-                                key={`${dom.id}-${grp.id}`}
-                                className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)]"
-                              >
-                                <div className="flex items-center justify-between border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-xs font-semibold text-[var(--text-muted)]">
-                                  <span>{lang === 'vi' ? grp.labelVi : grp.labelEn}</span>
-                                  <span className="tabular-nums">{articles.length} bài</span>
-                                </div>
-                                <ul className="divide-y divide-[var(--border-default)]">
-                                  {articles.map((art) => {
-                                    const done = progress.completedArticles.includes(art.rel);
-                                    const primary =
-                                      lang === 'vi'
-                                        ? art.titleVi || art.titleEn
-                                        : art.titleEn || art.titleVi;
-                                    const secondary =
-                                      lang === 'vi'
-                                        ? art.titleEn || art.titleVi
-                                        : art.titleVi || art.titleEn;
-
-                                    return (
-                                      <li
-                                        key={art.rel}
-                                        className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-[var(--bg-surface)]/50"
-                                      >
-                                        <div className="flex min-w-0 items-start gap-2.5">
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleArticleCompleted(art.rel)}
-                                            aria-label={`Đánh dấu đã đọc ${primary}`}
-                                            aria-pressed={done}
-                                            className="mt-0.5 shrink-0"
-                                          >
-                                            {done ? (
-                                              <CheckCircle2 className="h-4 w-4 text-[var(--success)]" />
-                                            ) : (
-                                              <Circle className="h-4 w-4 text-[var(--text-dim)]" />
-                                            )}
-                                          </button>
-                                          <Link to={`/docs/${art.rel}`} className="min-w-0">
-                                            <div className="text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--accent-text)]">
-                                              {primary}
-                                            </div>
-                                            <div className="truncate text-xs text-[var(--text-dim)]">
-                                              {secondary}
-                                            </div>
-                                          </Link>
-                                        </div>
-
-                                        <div className="hidden shrink-0 items-center gap-3 text-xs tabular-nums text-[var(--text-dim)] sm:flex">
-                                          {art.images > 0 && (
-                                            <span className="inline-flex items-center gap-1">
-                                              <ImageIcon className="h-3 w-3" />
-                                              {art.images}
-                                            </span>
-                                          )}
-                                          <span className="inline-flex items-center gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            {estimateReadingMinutes(art.chars)} phút
-                                          </span>
-                                        </div>
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              </div>
-                            ))}
-                          </section>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
+              <DocsDirectoryView
+                navigation={navigation}
+                lang={lang}
+                metaLoading={metaLoading}
+                completedArticles={progress.completedArticles}
+                toggleArticleCompleted={toggleArticleCompleted}
+              />
             )}
 
             {/* 4. Reader View (PRO192 Stage OR JavaGuide Article) */}

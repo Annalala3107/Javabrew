@@ -1,0 +1,54 @@
+name: JavaBrew CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Setup OpenJDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security audit (production dependencies)
+        run: npm audit --omit=dev
+
+      - name: TypeScript typecheck
+        run: npx tsc -b --noEmit
+
+      - name: Unit & UI integration tests
+        run: npm test
+
+      - name: Verify PRO192 content & internal links
+        run: npm run verify:content
+
+      - name: Verify EN/VI translations
+        run: npm run verify:translations
+
+      - name: Compile & grade 19 PE challenges + 45 Live Lab templates on OpenJDK
+        run: node scripts/verify-java-runtime.mjs --require-jdk
+
+      - name: Build production bundle & Vercel function
+        run: npm run build

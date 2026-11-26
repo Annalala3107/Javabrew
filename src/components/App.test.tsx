@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '../App';
-import { AppProvider } from '../context/AppContext';
+import { AppProvider, normalizePeKey } from '../context/AppContext';
 import type { NavigationData, Pro192Data, SearchIndexData } from '../types/content';
 import { savePeDraft } from '../utils/studioDrafts';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -1290,5 +1290,102 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     expect(
       await screen.findByRole('group', { name: 'Ngôn ngữ JavaGuide' })
     ).toBeInTheDocument();
+  });
+
+  it('defers metadata fetches on LandingPage / until navigating into app routes', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Night Coffee Lab/i)).toBeInTheDocument();
+    const callsOnLanding = vi.mocked(fetch).mock.calls.map(([u]) => String(u));
+    expect(callsOnLanding.some((u) => u.includes('/metadata/navigation.json'))).toBe(false);
+    expect(callsOnLanding.some((u) => u.includes('/metadata/pro192.json'))).toBe(false);
+
+    fireEvent.click(screen.getByRole('link', { name: /Vào Dashboard ngay/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Slot 01: Tổng quan Java/i)).toBeInTheDocument();
+    });
+    const callsAfterNav = vi.mocked(fetch).mock.calls.map(([u]) => String(u));
+    expect(callsAfterNav.some((u) => u.includes('/metadata/navigation.json'))).toBe(true);
+    expect(callsAfterNav.some((u) => u.includes('/metadata/pro192.json'))).toBe(true);
+  });
+
+  it('shows recoverable metaError alert instead of hanging in CodeStudioPage', async () => {
+    let proMetaAttempts = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.endsWith('/api/java-run')) {
+          return new Response(
+            JSON.stringify({ available: false, runtime: 'OpenJDK 21 (Vercel Sandbox)' }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        if (url.endsWith('/metadata/navigation.json')) {
+          return new Response(JSON.stringify(MOCK_NAV), { status: 200 });
+        }
+        if (url.endsWith('/metadata/pro192.json')) {
+          proMetaAttempts += 1;
+          if (proMetaAttempts === 1) {
+            return new Response('Server error', { status: 500 });
+          }
+          return new Response(JSON.stringify(MOCK_PRO192), { status: 200 });
+        }
+        return new Response('Not found', { status: 404 });
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/studio/1']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const mainEl = screen.getByRole('main');
+    const studioAlert = await within(mainEl).findByRole('alert');
+    expect(studioAlert).toHaveTextContent(/Không thể tải dữ liệu chỉ mục/i);
+    expect(screen.queryByText(/Đang tải dữ liệu Code Studio/i)).not.toBeInTheDocument();
+    expect(within(mainEl).getByRole('link', { name: /Mở JavaBrew Live Lab/i })).toHaveAttribute(
+      'href',
+      '/studio/playground'
+    );
+
+    fireEvent.click(within(mainEl).getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText(/Yêu cầu bài toán:/i)).toBeInTheDocument();
+  });
+
+  it('normalizes and deduplicates completedPe keys ("1" and "01") across storage sanitization', async () => {
+    expect(normalizePeKey('1')).toBe('01');
+    expect(normalizePeKey(19)).toBe('19');
+
+    localStorage.setItem(
+      'javabrew:progress',
+      JSON.stringify({
+        completedPe: ['1', '01', '2', '12'],
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem('javabrew:progress') || '{}') as {
+        completedPe?: string[];
+      };
+      expect(saved.completedPe).toEqual(['01', '02', '12']);
+    });
   });
 });

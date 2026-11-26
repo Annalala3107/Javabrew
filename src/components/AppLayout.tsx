@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -10,8 +11,14 @@ import { LucianToastStack } from './lucian/LucianToastStack';
 
 export function AppLayout() {
   const location = useLocation();
-  const { metaError, retryMeta } = useApp();
+  const { metaError, retryMeta, isSearchOpen, isSettingsOpen, ensureMetadataLoaded } = useApp();
   const isLanding = location.pathname === '/';
+
+  useEffect(() => {
+    if (!isLanding || isSearchOpen || isSettingsOpen) {
+      void ensureMetadataLoaded();
+    }
+  }, [isLanding, isSearchOpen, isSettingsOpen, ensureMetadataLoaded]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">

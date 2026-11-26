@@ -116,6 +116,27 @@ function readInitialAiModel(): AiMentorModel {
   return DEFAULT_AI_MODEL;
 }
 
+export function normalizePeKey(peId: string | number): string {
+  const raw = String(peId).trim();
+  if (/^\d+$/.test(raw)) {
+    return raw.padStart(2, '0');
+  }
+  return raw;
+}
+
+function normalizePeList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of raw) {
+    const key = normalizePeKey(String(item));
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
 function sanitizeProgress(raw: unknown): LearningProgress {
   if (!raw || typeof raw !== 'object') return DEFAULT_PROGRESS;
   const parsed = raw as Partial<LearningProgress>;
@@ -124,7 +145,7 @@ function sanitizeProgress(raw: unknown): LearningProgress {
     completedSlots: Array.isArray(parsed.completedSlots) ? parsed.completedSlots : [],
     solvedExercises: Array.isArray(parsed.solvedExercises) ? parsed.solvedExercises : [],
     completedDrills: Array.isArray(parsed.completedDrills) ? parsed.completedDrills.map(String) : [],
-    completedPe: Array.isArray(parsed.completedPe) ? parsed.completedPe : [],
+    completedPe: normalizePeList(parsed.completedPe),
     bookmarks: Array.isArray(parsed.bookmarks) ? parsed.bookmarks : [],
     notes: parsed.notes && typeof parsed.notes === 'object' ? parsed.notes : {},
     mistakes: Array.isArray(parsed.mistakes)
@@ -158,6 +179,7 @@ interface AppContextValue {
   pro192: Pro192Data | null;
   metaLoading: boolean;
   metaError: string | null;
+  ensureMetadataLoaded: () => Promise<void>;
   retryMeta: () => void;
   searchIndex: SearchIndexData | null;
   loadSearchIndex: () => Promise<SearchIndexData | null>;
@@ -206,8 +228,10 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [navigation, setNavigation] = useState<NavigationData | null>(null);
   const [pro192, setPro192] = useState<Pro192Data | null>(null);
-  const [metaLoading, setMetaLoading] = useState(true);
+  const [metaLoading, setMetaLoading] = useState(false);
   const [metaError, setMetaError] = useState<string | null>(null);
+  const metaLoadedRef = useRef(false);
+  const metaPromiseRef = useRef<Promise<void> | null>(null);
 
   const [searchIndex, setSearchIndex] = useState<SearchIndexData | null>(null);
   const searchPromiseRef = useRef<Promise<SearchIndexData | null> | null>(null);
@@ -244,15 +268,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ])) as [NavigationData, Pro192Data];
       setNavigation(navData);
       setPro192(proData);
+      metaLoadedRef.current = true;
     } catch (err) {
       setMetaError(err instanceof Error ? err.message : 'Lỗi tải metadata.');
     } finally {
       setMetaLoading(false);
+      metaPromiseRef.current = null;
     }
   }, []);
 
-  useEffect(() => {
-    void fetchMetadata();
+  const ensureMetadataLoaded = useCallback(async (): Promise<void> => {
+    if (metaLoadedRef.current) return;
+    if (metaPromiseRef.current) return metaPromiseRef.current;
+    const promise = fetchMetadata();
+    metaPromiseRef.current = promise;
+    return promise;
+  }, [fetchMetadata]);
+
+  const retryMeta = useCallback(() => {
+    metaLoadedRef.current = false;
+    if (metaPromiseRef.current) return;
+    const promise = fetchMetadata();
+    metaPromiseRef.current = promise;
   }, [fetchMetadata]);
 
   const loadSearchIndex = useCallback(async (): Promise<SearchIndexData | null> => {
@@ -383,12 +420,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const togglePeCompleted = useCallback((peId: string) => {
+    const normId = normalizePeKey(peId);
     setProgress((prev) => {
-      const nextCompleted = toggleStringItem(prev.completedPe, peId);
-      const numId = Number(peId);
+      const normalized = normalizePeList(prev.completedPe);
+      const nextCompleted = toggleStringItem(normalized, normId);
+      const numId = Number(normId);
       const nextStatus = { ...prev.peStatus };
       if (!Number.isNaN(numId)) {
-        if (nextCompleted.includes(peId)) nextStatus[numId] = 'pass';
+        if (nextCompleted.includes(normId)) nextStatus[numId] = 'pass';
         else nextStatus[numId] = 'in-progress';
       }
       return {
@@ -400,18 +439,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markPeStatus = useCallback((peId: number, status: 'pass' | 'in-progress') => {
-    const strId = String(peId).padStart(2, '0');
+    const normId = normalizePeKey(peId);
     setProgress((prev) => {
       const nextStatus = { ...prev.peStatus, [peId]: status };
-      const hasCompleted =
-        prev.completedPe.includes(strId) || prev.completedPe.includes(String(peId));
-      let nextCompleted = prev.completedPe;
+      const normalized = normalizePeList(prev.completedPe);
+      const hasCompleted = normalized.includes(normId);
+      let nextCompleted = normalized;
       if (status === 'pass' && !hasCompleted) {
-        nextCompleted = [...prev.completedPe, strId];
+        nextCompleted = [...normalized, normId];
       } else if (status !== 'pass' && hasCompleted) {
-        nextCompleted = prev.completedPe.filter(
-          (x) => x !== strId && x !== String(peId)
-        );
+        nextCompleted = normalized.filter((x) => x !== normId);
       }
       return {
         ...prev,
@@ -607,7 +644,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pro192,
       metaLoading,
       metaError,
-      retryMeta: fetchMetadata,
+      ensureMetadataLoaded,
+      retryMeta,
       searchIndex,
       loadSearchIndex,
       lang,
@@ -654,7 +692,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pro192,
       metaLoading,
       metaError,
-      fetchMetadata,
+      ensureMetadataLoaded,
+      retryMeta,
       searchIndex,
       loadSearchIndex,
       lang,

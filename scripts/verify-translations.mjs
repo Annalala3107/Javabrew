@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
 import fssync from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = String.raw`e:\JavAncode`;
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const prefix = (process.argv[2] || '').replace(/^\/+|\/+$/g, '');
 
 async function walkMd(dir, out = []) {
@@ -143,6 +144,9 @@ async function main() {
     filesWithIssues: issues.length,
     issues,
   }, null, 2));
+  if (issues.length > 0) {
+    process.exitCode = 1;
+  }
 }
 
 main().catch((err) => {

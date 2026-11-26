@@ -18,6 +18,8 @@ import {
   buildPistonPayload,
   extractTestMarkerBlock,
   mergeJavaFilesForJudge0,
+  mergeJavaFilesForJudge0WithMap,
+  remapJudge0Diagnostics,
   resolveExternalRunnerConfig,
 } from '../../server/externalRunner';
 import { validateJavaPolicy as validateClientJavaPolicy } from './javaFiles';
@@ -380,5 +382,61 @@ describe('javaValidation & peHarnesses', () => {
       { id: 'TC1', name: 'real', passed: true, durationMs: 2 },
     ]);
     expect(validCheck.cleanedStdout).toBe('hello');
+  });
+
+  it('remaps Judge0 merged-file compile diagnostics accurately back to original file and line', () => {
+    const daisyCode = [
+      'import java.util.*;',
+      'public class Daisy {',
+      '  private String name;',
+      '  int brokenField = unknownSymbol;',
+      '}',
+    ].join('\n');
+    const specDaisyCode = [
+      'import java.util.List;',
+      'import java.util.*;',
+      'public class SpecDaisy extends Daisy {',
+      '  public static void main(String[] args) {',
+      '    System.out.println("ok");',
+      '    int badVar = missingVar;',
+      '  }',
+      '}',
+    ].join('\n');
+
+    const merged = mergeJavaFilesForJudge0WithMap(
+      [
+        { name: 'Daisy.java', content: daisyCode },
+        { name: 'SpecDaisy.java', content: specDaisyCode },
+      ],
+      'SpecDaisy'
+    );
+
+    const mergedLines = merged.source.split('\n');
+    const daisyErrorLine = mergedLines.findIndex((l) => l.includes('unknownSymbol')) + 1;
+    const specErrorLine = mergedLines.findIndex((l) => l.includes('missingVar')) + 1;
+    expect(daisyErrorLine).toBeGreaterThan(0);
+    expect(specErrorLine).toBeGreaterThan(daisyErrorLine);
+
+    const rawDiags = parseJavacDiagnostics(
+      `Main.java:${daisyErrorLine}: error: cannot find symbol\nMain.java:${specErrorLine}: error: cannot find symbol`,
+      'Main.java'
+    );
+    const remapped = remapJudge0Diagnostics(rawDiags, merged.lineMap, 'SpecDaisy.java');
+    expect(remapped).toEqual([
+      {
+        file: 'Daisy.java',
+        line: 4,
+        column: 1,
+        severity: 'error',
+        message: 'cannot find symbol',
+      },
+      {
+        file: 'SpecDaisy.java',
+        line: 6,
+        column: 1,
+        severity: 'error',
+        message: 'cannot find symbol',
+      },
+    ]);
   });
 });

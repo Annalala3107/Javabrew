@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
 import fssync from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = String.raw`e:\JavAncode`;
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const prefix = (process.argv[2] || '').replace(/^\/+|\/+$/g, '');
 
 async function loadPlaygroundTemplateIds() {
@@ -100,6 +101,14 @@ async function main() {
   const en = await checkLang('en', validPlaygroundIds);
   const vi = await checkLang('vi', validPlaygroundIds);
   console.log(JSON.stringify({ prefix, en, vi }, null, 2));
+  if (
+    en.brokenImages.length > 0 ||
+    en.brokenLinks.length > 0 ||
+    vi.brokenImages.length > 0 ||
+    vi.brokenLinks.length > 0
+  ) {
+    process.exitCode = 1;
+  }
 }
 
 main().catch((err) => {

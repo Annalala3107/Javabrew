@@ -13,21 +13,29 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'markdown-vendor': ['react-markdown', 'remark-gfm', 'rehype-slug', 'js-yaml'],
-          'highlight-vendor': ['rehype-highlight', 'highlight.js'],
-          'motion-vendor': ['gsap', '@gsap/react'],
-          'codemirror-vendor': [
-            '@codemirror/state',
-            '@codemirror/view',
-            '@codemirror/language',
-            '@codemirror/commands',
-            '@codemirror/autocomplete',
-            '@codemirror/lang-java',
-            '@codemirror/lint',
-            '@lezer/highlight',
-          ],
+        manualChunks(id) {
+          const norm = id.replace(/\\/g, '/');
+          if (!norm.includes('/node_modules/')) return undefined;
+          if (/\/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom)\//.test(norm)) {
+            return 'react-vendor';
+          }
+          if (/\/node_modules\/(@codemirror|@lezer)\//.test(norm)) {
+            return 'codemirror-vendor';
+          }
+          if (/\/node_modules\/(lowlight|highlight\.js)\//.test(norm)) {
+            return 'highlight-vendor';
+          }
+          if (
+            /\/node_modules\/(react-markdown|remark-|rehype-|unified|mdast-|hast-|micromark|js-yaml)\//.test(
+              norm
+            )
+          ) {
+            return 'markdown-vendor';
+          }
+          if (/\/node_modules\/(gsap|@gsap)\//.test(norm)) {
+            return 'motion-vendor';
+          }
+          return undefined;
         },
       },
     },

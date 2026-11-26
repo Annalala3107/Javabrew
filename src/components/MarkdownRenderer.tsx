@@ -10,7 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
-import rehypeHighlight from 'rehype-highlight';
+import { rehypeCodeHighlight } from '../utils/rehypeCodeHighlight';
 import {
   AlertTriangle,
   BookOpen,
@@ -450,7 +450,7 @@ export function MarkdownRenderer({ content, currentRel, compact = false }: Markd
             <ReactMarkdown
               key={`md-${idx}`}
               remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeSlug, [rehypeHighlight, { detect: false, ignoreMissing: true }]]}
+              rehypePlugins={[rehypeSlug, rehypeCodeHighlight]}
               components={markdownComponents}
             >
               {chunk.content}
@@ -466,10 +466,7 @@ export function MarkdownRenderer({ content, currentRel, compact = false }: Markd
               <div className="border-t border-[var(--border-default)] px-4 py-3">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[
-                    rehypeSlug,
-                    [rehypeHighlight, { detect: false, ignoreMissing: true }],
-                  ]}
+                  rehypePlugins={[rehypeSlug, rehypeCodeHighlight]}
                   components={markdownComponents}
                 >
                   {chunk.body}

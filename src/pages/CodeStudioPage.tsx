@@ -5,13 +5,11 @@ import {
   BookOpen,
   CheckCircle2,
   Columns2,
-  Eraser,
   FilePlus2,
   Pause,
   Play,
   RotateCcw,
   Rows2,
-  Settings,
   Share2,
   Target,
   Timer,
@@ -26,8 +24,10 @@ import { CopyCodeButton } from '../components/lucian/CopyCodeButton';
 import { LucianChecklistItem } from '../components/lucian/LucianChecklistItem';
 import { MorphActionButton } from '../components/lucian/MorphActionButton';
 import { SlidingPillTabs } from '../components/lucian/SlidingPillTabs';
-import { StreamingAiBubble } from '../components/lucian/StreamingAiBubble';
 import { StretchySwitch } from '../components/lucian/StretchySwitch';
+import { StudioAiMentorPane, type ChatMessage } from '../components/studio/StudioAiMentorPane';
+import { StudioExamplesDrawer } from '../components/studio/StudioExamplesDrawer';
+import { StudioOutputConsole } from '../components/studio/StudioOutputConsole';
 import { useApp } from '../context/AppContext';
 import {
   askGeminiMentor,
@@ -55,20 +55,11 @@ import {
   validateNewJavaFileName,
   type PlaygroundDrillContext,
   type PlaygroundFile,
-  type PlaygroundTemplateCategory,
   type PlaygroundWorkspaceState,
 } from '../utils/javaPlayground';
 import { evaluatePeCode, type PeDiagnosisCard, type PeEvaluationResult } from '../utils/peEvaluator';
 import { clearPeDraft, readPeDraft, savePeDraft } from '../utils/studioDrafts';
 import { stageFileToSlug } from '../utils/text';
-
-interface ChatMessage {
-  id: string;
-  prompt: string;
-  reply: string;
-  tone: 'ai' | 'offline' | 'error';
-  badgeLabel?: string;
-}
 
 interface CodeStudioPageProps {
   isPlayground?: boolean;
@@ -131,20 +122,6 @@ const LEFT_TAB_OPTIONS = [
   { id: 'theory' as const, label: 'Lý thuyết nhanh' },
 ];
 
-const ENGINE_MODE_OPTIONS = [
-  { id: 'cloud' as const, label: 'OpenJDK 21 + Clean Code' },
-  { id: 'static' as const, label: 'Chỉ Static (Tức thì)' },
-];
-
-const EXAMPLE_CATEGORIES: Array<'Tất cả' | PlaygroundTemplateCategory> = [
-  'Tất cả',
-  'Cơ bản',
-  'OOP',
-  'Collections',
-  'Exception & File I/O',
-  'Thực chiến PE',
-];
-
 export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const { peId } = useParams<{ peId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -152,6 +129,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const navigate = useNavigate();
   const {
     pro192,
+    metaError,
+    retryMeta,
     theme,
     byokKey,
     aiModel,
@@ -184,8 +163,6 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const [showExamplesDrawer, setShowExamplesDrawer] = useState(
     () => playgroundMode && !urlExampleId && !(location.state as PlaygroundRouteState | null)?.playgroundImport?.files?.length
   );
-  const [exampleCategory, setExampleCategory] = useState<'Tất cả' | PlaygroundTemplateCategory>('Tất cả');
-  const [exampleSearch, setExampleSearch] = useState('');
   const [showDiff, setShowDiff] = useState(false);
 
   const [splitOrientation, setSplitOrientation] = useState<'horizontal' | 'vertical'>(readStoredOrientation);
@@ -400,39 +377,6 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     }
   }, [autoRun]);
 
-  // Sync starter/draft immediately when switching PE challenge
-  if (!playgroundMode && activePe && loadedPeId !== activePe.id) {
-    const draft = readPeDraft(activePe.id);
-    const initMain = draft ? draft.mainCode : activePe.starterCode;
-    const initEntity = draft ? draft.entityCode : activePe.entityCode;
-    const isModified =
-      draft !== null &&
-      (draft.mainCode !== activePe.starterCode || draft.entityCode !== activePe.entityCode);
-
-    setLoadedPeId(activePe.id);
-    setMainCode(initMain);
-    setEntityCode(initEntity);
-    setDraftState(isModified ? 'saved' : 'clean');
-    setCheckedCriteria({});
-    setActiveFile('main');
-    setShowDiff(false);
-    setDiagnostics([]);
-    setJumpTarget(null);
-    setCloudTestResults([]);
-    setLastTiming(null);
-    setConsoleStatus('Sẵn sàng biên dịch OpenJDK 21');
-    setConsoleTone('muted');
-    setConsoleOutput(
-      'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để biên dịch & chấm bài thật.'
-    );
-    setRevealedHints({});
-    setChatHistory([]);
-    setPendingPrompt('');
-    lastInteractionIdRef.current = null;
-    setTimerRunning(false);
-    setSecondsLeft(suggestedMinutes * 60);
-  }
-
   // Handle incoming code from "Chạy thử" in lesson/docs pages
   useEffect(() => {
     if (!playgroundMode) return;
@@ -573,6 +517,57 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     }
   };
 
+  // Hydrate PE starter/draft cleanly on PE selection without mutating state during render
+  useEffect(() => {
+    if (playgroundMode || !activePe || loadedPeId === activePe.id) return;
+
+    runAbortRef.current?.abort();
+    if (latestDraftRef.current && latestDraftRef.current.peId !== activePe.id) {
+      flushLatestDraft();
+    }
+
+    const draft = readPeDraft(activePe.id);
+    const initMain = draft ? draft.mainCode : activePe.starterCode;
+    const initEntity = draft ? draft.entityCode : activePe.entityCode;
+    const isModified =
+      draft !== null &&
+      (draft.mainCode !== activePe.starterCode || draft.entityCode !== activePe.entityCode);
+
+    latestDraftRef.current = {
+      peId: activePe.id,
+      main: initMain,
+      entity: initEntity,
+      dirty: false,
+    };
+
+    setLoadedPeId(activePe.id);
+    setMainCode(initMain);
+    setEntityCode(initEntity);
+    setDraftState(isModified ? 'saved' : 'clean');
+    setCheckedCriteria({});
+    setActiveFile('main');
+    setShowDiff(false);
+    setDiagnostics([]);
+    setJumpTarget(null);
+    setCloudTestResults([]);
+    setLastTiming(null);
+    setConsoleStatus('Sẵn sàng biên dịch OpenJDK 21');
+    setConsoleTone('muted');
+    setConsoleOutput(
+      'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để biên dịch & chấm bài thật.'
+    );
+    setRevealedHints({});
+    setChatHistory([]);
+    setPendingPrompt('');
+    lastInteractionIdRef.current = null;
+    setTimerRunning(false);
+    setSecondsLeft(suggestedMinutes * 60);
+
+    const initialEval = evaluatePeCode(activePe.id, initMain, initEntity);
+    setDiagnosisCards(initialEval.diagnosisCards);
+  }, [playgroundMode, activePe, loadedPeId, suggestedMinutes]);
+
+  // Record last visited route for Dashboard resume banner
   useEffect(() => {
     if (playgroundMode) {
       recordVisit({
@@ -585,28 +580,6 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     }
 
     if (!activePe) return;
-    runAbortRef.current?.abort();
-
-    if (latestDraftRef.current && latestDraftRef.current.peId !== activePe.id) {
-      flushLatestDraft();
-    }
-
-    const draft = readPeDraft(activePe.id);
-    const initMain = draft ? draft.mainCode : activePe.starterCode;
-    const initEntity = draft ? draft.entityCode : activePe.entityCode;
-
-    if (!latestDraftRef.current || latestDraftRef.current.peId !== activePe.id) {
-      latestDraftRef.current = {
-        peId: activePe.id,
-        main: initMain,
-        entity: initEntity,
-        dirty: false,
-      };
-    }
-
-    const initialEval = evaluatePeCode(activePe.id, initMain, initEntity);
-    setDiagnosisCards(initialEval.diagnosisCards);
-
     recordVisit({
       path: `/studio/${activePe.id}`,
       title: `${activePe.code}: ${activePe.title}`,
@@ -1694,15 +1667,6 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     ]);
   };
 
-  const statusColorCls =
-    consoleTone === 'green'
-      ? 'text-[var(--success-text)]'
-      : consoleTone === 'red'
-        ? 'text-[var(--danger-text)]'
-        : consoleTone === 'amber'
-          ? 'text-[var(--accent-text)]'
-          : 'text-[var(--text-muted)]';
-
   const pgEntryClass = useMemo(() => {
     const found = playgroundEffectiveFiles.find((f) => hasMainMethod(f.content));
     return (found || playgroundEffectiveFiles[0])?.name.replace(/\.java$/, '') || 'Main';
@@ -1719,21 +1683,32 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     return Array.from(groups.entries());
   }, [challenges]);
 
-  const filteredTemplates = useMemo(() => {
-    const q = exampleSearch.trim().toLowerCase();
-    return PLAYGROUND_TEMPLATES.filter((t) => {
-      if (exampleCategory !== 'Tất cả' && t.category !== exampleCategory) return false;
-      if (!q) return true;
+  if (!playgroundMode && (!activePe || loadedPeId !== activePe.id)) {
+    if (!activePe && metaError) {
       return (
-        t.title.toLowerCase().includes(q) ||
-        t.subtitle.toLowerCase().includes(q) ||
-        t.slotRef.toLowerCase().includes(q) ||
-        t.id.toLowerCase().includes(q)
+        <div
+          role="alert"
+          className="mx-auto my-8 max-w-lg space-y-3 rounded-xl border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-6 text-center text-xs"
+        >
+          <p className="font-semibold text-[var(--danger-text)]">{metaError}</p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={retryMeta}
+              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3.5 py-1.5 font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
+            >
+              Thử lại
+            </button>
+            <Link
+              to="/studio/playground"
+              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3.5 py-1.5 font-semibold text-[var(--text-primary)] hover:border-[var(--accent)]"
+            >
+              Mở JavaBrew Live Lab
+            </Link>
+          </div>
+        </div>
       );
-    });
-  }, [exampleCategory, exampleSearch]);
-
-  if (!playgroundMode && !activePe) {
+    }
     return (
       <div className="mx-auto max-w-4xl p-6 text-center text-xs text-[var(--text-muted)]">
         Đang tải dữ liệu Code Studio…
@@ -2089,210 +2064,51 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   );
 
   const secondaryOutputPane = (
-    <div className="flex flex-1 flex-col gap-2.5 p-3.5 text-xs">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] pb-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold text-[var(--text-primary)]">
-            {playgroundMode ? 'Kết quả chạy (Output)' : 'Console & Kết quả Test PE'}
-          </span>
-          <span
-            title="Biên dịch & chạy thật trên Vercel OpenJDK Sandbox hoặc Piston/Judge0 Fallback."
-            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-xs text-[var(--text-muted)]"
-          >
-            {engineBadgeLabel}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          {!playgroundMode && (
-            <SlidingPillTabs
-              options={ENGINE_MODE_OPTIONS}
-              value={engineMode}
-              onChange={setEngineMode}
-              ariaLabel="Chọn chế độ biên dịch"
-              tone="neutral"
-            />
-          )}
-          <CopyCodeButton
-            code={javacCommand}
-            label="Copy lệnh javac"
-            copiedLabel="Đã chép"
-            ariaLabel="Sao chép lệnh biên dịch javac local"
-            onCopied={() =>
-              pushToast({
-                title: 'Đã chép lệnh javac local',
-                description: javacCommand,
-                tone: 'success',
-              })
-            }
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setConsoleOutput('');
-              setDiagnostics([]);
-              setCloudTestResults([]);
-              setConsoleStatus('Đã xóa Output');
-              setConsoleTone('muted');
-            }}
-            aria-label="Xóa output console"
-            className="inline-flex min-h-[28px] items-center gap-1 rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-          >
-            <Eraser className="h-3 w-3" aria-hidden="true" />
-            <span>Xóa</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={`font-mono font-medium ${statusColorCls}`}>{consoleStatus}</span>
-        <div className="flex flex-wrap items-center gap-2">
-          {lastTiming && (
-            <span className="font-mono text-xs text-[var(--text-dim)]">
-              {lastTiming.engineLabel} · javac {lastTiming.compileMs}ms · jvm {lastTiming.runMs}ms
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setShowStdin((s) => !s)}
-            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-          >
-            {showStdin ? 'Ẩn stdin' : '+ Nhập stdin'}
-          </button>
-        </div>
-      </div>
-
-      {showStdin && (
-        <div className="space-y-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-2.5">
-          <label
-            htmlFor="studio-stdin-box"
-            className="block font-medium text-[var(--text-secondary)]"
-          >
-            Dữ liệu đầu vào chuẩn (<code className="font-mono">stdin</code>) cho{' '}
-            <code className="font-mono">Scanner(System.in)</code>:
-          </label>
-          <textarea
-            id="studio-stdin-box"
-            rows={2}
-            value={stdinInput}
-            onChange={(e) => {
-              const nextStdin = e.target.value;
-              setStdinInput(nextStdin);
-              if (playgroundMode) {
-                schedulePlaygroundSave({
-                  files: playgroundFiles,
-                  activeFileId: pgActiveFileId,
-                  stdin: nextStdin,
-                  sourceLabel: pgSourceLabel,
-                });
-              }
-            }}
-            onBlur={() => {
-              if (playgroundMode) flushPlaygroundDraft();
-            }}
-            spellCheck={false}
-            placeholder="Ví dụ: An&#10;9.25…"
-            className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-code)] p-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          />
-        </div>
-      )}
-
-      {/* Clickable javac compiler diagnostics */}
-      {diagnostics.length > 0 && (
-        <div
-          aria-label="Danh sách lỗi biên dịch javac"
-          className="space-y-1.5 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-2.5"
-        >
-          <div className="font-semibold text-[var(--danger-text)]">
-            Chẩn đoán javac ({diagnostics.length}) — bấm để nhảy tới dòng:
-          </div>
-          <div className="space-y-1">
-            {diagnostics.map((diag, idx) => (
-              <button
-                key={`${diag.file}-${diag.line}-${idx}`}
-                type="button"
-                onClick={() => handleJumpToDiagnostic(diag)}
-                className="flex w-full items-start gap-2 rounded px-2 py-1 text-left font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/70"
-              >
-                <span
-                  className={
-                    diag.severity === 'error'
-                      ? 'shrink-0 font-semibold text-[var(--danger-text)]'
-                      : 'shrink-0 font-semibold text-[var(--accent-text)]'
-                  }
-                >
-                  {diag.file}:{diag.line}:{diag.column}
-                </span>
-                <span className="break-words text-[var(--text-secondary)]">
-                  {diag.message}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Structured OpenJDK test case results (PE mode) */}
-      {!playgroundMode && cloudTestResults.length > 0 && (
-        <div
-          aria-label="Kết quả từng Test Case OpenJDK 21"
-          className="grid grid-cols-1 gap-2"
-        >
-          {cloudTestResults.map((tc) => (
-            <div
-              key={tc.id}
-              className={[
-                'space-y-1 rounded-lg border p-2.5',
-                tc.passed
-                  ? 'border-[var(--success)]/40 bg-[var(--success-soft)]'
-                  : 'border-[var(--danger)]/40 bg-[var(--danger-soft)]',
-              ].join(' ')}
-            >
-              <div className="flex items-center justify-between font-mono font-semibold">
-                <span
-                  className={
-                    tc.passed ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'
-                  }
-                >
-                  {tc.passed ? '✔' : '✕'} {tc.id}
-                </span>
-                <span className="text-[var(--text-dim)]">{tc.durationMs}ms</span>
-              </div>
-              <div className="font-medium text-[var(--text-primary)]">{tc.name}</div>
-              {!tc.passed && (
-                <div className="space-y-0.5 font-mono text-xs text-[var(--text-muted)]">
-                  {tc.expected && <div>Kỳ vọng: {tc.expected}</div>}
-                  {tc.actual && <div>Thực tế: {tc.actual}</div>}
-                  {tc.error && <div className="text-[var(--danger-text)]">{tc.error}</div>}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <pre
-        data-testid="studio-output-terminal"
-        className="min-h-[180px] flex-1 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)] p-3.5 font-mono text-[13px] leading-relaxed text-[var(--text-primary)]"
-      >
-        {consoleOutput || '(Output trống)'}
-      </pre>
-
-      <p className="text-xs text-[var(--text-dim)]">
-        {playgroundMode ? (
-          <>
-            JavaBrew Live Lab · OpenJDK Sandbox &amp; Fallback Runner. Lệnh máy local:{' '}
-            <code className="text-[var(--text-muted)]">{javacCommand}</code>
-          </>
-        ) : (
-          <>
-            Dual-Track Hybrid: kiểm thử <strong>OpenJDK (--release 8)</strong> song song{' '}
-            <strong>Static Policy &amp; Clean-Code Coach</strong>. Lệnh máy local:{' '}
-            <code className="text-[var(--text-muted)]">{javacCommand}</code>
-          </>
-        )}
-      </p>
-    </div>
+    <StudioOutputConsole
+      playgroundMode={playgroundMode}
+      engineBadgeLabel={engineBadgeLabel}
+      engineMode={engineMode}
+      onEngineModeChange={setEngineMode}
+      javacCommand={javacCommand}
+      onCopiedCommand={() =>
+        pushToast({
+          title: 'Đã chép lệnh javac local',
+          description: javacCommand,
+          tone: 'success',
+        })
+      }
+      onClearOutput={() => {
+        setConsoleOutput('');
+        setDiagnostics([]);
+        setCloudTestResults([]);
+        setConsoleStatus('Đã xóa Output');
+        setConsoleTone('muted');
+      }}
+      consoleStatus={consoleStatus}
+      consoleTone={consoleTone}
+      consoleOutput={consoleOutput}
+      lastTiming={lastTiming}
+      showStdin={showStdin}
+      onToggleStdin={() => setShowStdin((s) => !s)}
+      stdinInput={stdinInput}
+      onStdinChange={(nextStdin) => {
+        setStdinInput(nextStdin);
+        if (playgroundMode) {
+          schedulePlaygroundSave({
+            files: playgroundFiles,
+            activeFileId: pgActiveFileId,
+            stdin: nextStdin,
+            sourceLabel: pgSourceLabel,
+          });
+        }
+      }}
+      onStdinBlur={() => {
+        if (playgroundMode) flushPlaygroundDraft();
+      }}
+      diagnostics={diagnostics}
+      onJumpToDiagnostic={handleJumpToDiagnostic}
+      cloudTestResults={cloudTestResults}
+    />
   );
 
   return (
@@ -2524,103 +2340,11 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         {(!playgroundMode || showExamplesDrawer) && (
           <aside className="w-full shrink-0 space-y-3 border-b border-[var(--border-default)] bg-[var(--bg-surface)]/50 p-4 text-xs lg:w-72 lg:border-b-0 lg:border-r">
             {playgroundMode ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--text-primary)]">
-                      JavaBrew Live Lab ({PLAYGROUND_TEMPLATES.length} mẫu)
-                    </div>
-                    <p className="text-[var(--text-muted)]">Chọn mẫu để nạp vào Split-Pane</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowExamplesDrawer(false)}
-                    aria-label="Đóng danh sách mẫu"
-                    className="rounded border border-[var(--border-default)] px-2 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <input
-                  type="search"
-                  value={exampleSearch}
-                  onChange={(e) => setExampleSearch(e.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-label="Tìm mẫu Java theo tên hoặc Slot"
-                  placeholder="Tìm theo Slot (vd: Slot 09) hoặc từ khóa…"
-                  className="min-h-[38px] sm:min-h-[34px] w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-                />
-
-                <div className="flex flex-wrap gap-1">
-                  {EXAMPLE_CATEGORIES.map((cat) => {
-                    const active = exampleCategory === cat;
-                    return (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setExampleCategory(cat)}
-                        className={[
-                          'rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors',
-                          active
-                            ? 'border-[var(--accent)] bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
-                            : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                        ].join(' ')}
-                      >
-                        {cat}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="max-h-[480px] space-y-1.5 overflow-y-auto overscroll-contain pr-1">
-                  {filteredTemplates.length === 0 ? (
-                    <div className="space-y-2 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-canvas)] p-3 text-center text-[var(--text-muted)]">
-                      <div>Không tìm thấy mẫu khớp "{exampleSearch}".</div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setExampleSearch('');
-                          setExampleCategory('Tất cả');
-                        }}
-                        className="rounded border border-[var(--border-default)] px-2.5 py-1 text-[11px] font-medium text-[var(--accent-text)] hover:border-[var(--accent)]"
-                      >
-                        Xóa bộ lọc
-                      </button>
-                    </div>
-                  ) : (
-                    filteredTemplates.map((tpl) => {
-                      const isSelected = activeExampleId === tpl.id;
-                      return (
-                        <button
-                          key={tpl.id}
-                          type="button"
-                          onClick={() => handleSelectPlaygroundTemplate(tpl.id)}
-                          className={[
-                            'w-full rounded-lg border p-2.5 text-left transition-colors',
-                            isSelected
-                              ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                              : 'border-[var(--border-default)] bg-[var(--bg-canvas)] hover:border-[var(--accent)]',
-                          ].join(' ')}
-                        >
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="font-semibold text-[var(--text-primary)]">
-                              {tpl.title}
-                            </span>
-                            <span className="shrink-0 rounded bg-[var(--bg-surface)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--accent-text)]">
-                              {tpl.slotRef}
-                            </span>
-                          </div>
-                          <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-                            {tpl.subtitle}
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
+              <StudioExamplesDrawer
+                activeExampleId={activeExampleId}
+                onSelectTemplate={handleSelectPlaygroundTemplate}
+                onClose={() => setShowExamplesDrawer(false)}
+              />
             ) : (
               <>
                 <SlidingPillTabs
@@ -2724,188 +2448,33 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
         {/* Right Drawer: AI Code Mentor */}
         {showAiPane && (
-          <aside className="flex w-full shrink-0 flex-col justify-between gap-3 border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-xs lg:w-80 lg:border-l lg:border-t-0">
-            <div className="max-h-[460px] space-y-3 overflow-y-auto overscroll-contain pr-1">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] pb-2.5">
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <span className="flex items-center gap-1 font-bold text-[var(--info-text)]">
-                    ✨ AI Code Mentor
-                  </span>
-                  {byokKey ? (
-                    <span className="rounded border border-[var(--info)]/35 bg-[var(--info-soft)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--info-text)]">
-                      {aiModel}
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setIsSettingsOpen(true)}
-                      className="inline-flex items-center gap-1 rounded border border-[var(--border-default)] bg-[var(--bg-canvas)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent-text)]"
-                    >
-                      <Settings className="h-2.5 w-2.5" aria-hidden="true" />
-                      <span>Cài đặt Key</span>
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-1">
-                  {chatHistory.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setChatHistory([]);
-                        lastInteractionIdRef.current = null;
-                      }}
-                      className="rounded border border-[var(--border-default)] px-2 py-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                    >
-                      Xóa chat
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowAiPane(false)}
-                    aria-label="Ẩn AI Code Mentor"
-                    className="rounded border border-[var(--border-default)] px-2 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {playgroundMode ? (
-                  <div className="space-y-2 rounded-xl border border-[var(--info)]/35 bg-[var(--info-soft)] p-3">
-                    <div className="font-semibold text-[var(--info-text)]">
-                      ☕ Trợ lý JavaBrew Live Lab
-                    </div>
-                    <p className="leading-relaxed text-[var(--text-secondary)]">
-                      Đang chỉnh sửa <code className="font-mono">{activeFileName}</code>. Bạn có thể
-                      tạo thêm class OOP qua nút <strong>+ Thêm tệp</strong>, nhập dữ liệu đầu vào
-                      với <strong>+ Nhập stdin</strong> hoặc hỏi AI bên dưới.
-                    </p>
-                  </div>
-                ) : (
-                  diagnosisCards.map((card) => {
-                    const toneClasses =
-                      card.tone === 'sky'
-                        ? 'border-[var(--info)]/35 bg-[var(--info-soft)]'
-                        : card.tone === 'green'
-                          ? 'border-[var(--success)]/35 bg-[var(--success-soft)]'
-                          : 'border-[var(--warning)]/35 bg-[var(--warning-soft)]';
-                    const headingColor =
-                      card.tone === 'sky'
-                        ? 'text-[var(--info-text)]'
-                        : card.tone === 'green'
-                          ? 'text-[var(--success-text)]'
-                          : 'text-[var(--accent-text)]';
-                    const hintOpen = Boolean(revealedHints[card.id]);
-
-                    return (
-                      <div
-                        key={card.id}
-                        className={`space-y-2 rounded-xl border p-3 ${toneClasses}`}
-                      >
-                        <div className={`font-semibold ${headingColor}`}>{card.title}</div>
-                        <p className="leading-relaxed text-[var(--text-secondary)]">
-                          {card.description}
-                        </p>
-
-                        {card.tone === 'sky' && card.hintCode && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setRevealedHints((prev) => ({
-                                  ...prev,
-                                  [card.id]: !prev[card.id],
-                                }))
-                              }
-                              className="min-h-[34px] w-full rounded-lg border border-[var(--info)]/40 bg-[var(--bg-canvas)] py-1.5 font-medium text-[var(--info-text)]"
-                            >
-                              {hintOpen ? 'Ẩn gợi ý (Lớp 2)' : 'Xem gợi ý cách sửa (Lớp 2)'}
-                            </button>
-                            {hintOpen && (
-                              <pre className="whitespace-pre-wrap rounded border border-[var(--border-default)] bg-[var(--bg-canvas)] p-2 font-mono text-xs text-[var(--text-primary)]">
-                                {card.hintCode}
-                              </pre>
-                            )}
-                          </>
-                        )}
-
-                        {card.tone === 'amber' && (
-                          <button
-                            type="button"
-                            onClick={() => setShowDiff(true)}
-                            className="min-h-[34px] w-full rounded-lg bg-[var(--accent)] py-1.5 font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
-                          >
-                            So sánh Trước / Sau (Diff)
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-
-                {chatHistory.map((msg) => (
-                  <StreamingAiBubble
-                    key={msg.id}
-                    prompt={msg.prompt}
-                    reply={msg.reply}
-                    tone={msg.tone}
-                    badgeLabel={msg.badgeLabel}
-                    onOpenSettings={() => setIsSettingsOpen(true)}
-                  />
-                ))}
-
-                {aiBusy && pendingPrompt && (
-                  <StreamingAiBubble prompt={pendingPrompt} thinking badgeLabel={aiModel} />
-                )}
-              </div>
-            </div>
-
-            {/* Ask AI Input */}
-            <div className="space-y-2 border-t border-[var(--border-default)] pt-2">
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => void sendAiPrompt('Giải thích đoạn code này giúp em')}
-                  className="min-h-[32px] rounded border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  Giải thích code
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void sendAiPrompt('Làm sao tối ưu ngắn hơn nữa?')}
-                  className="min-h-[32px] rounded border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  Cách tối ưu?
-                </button>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void sendAiPrompt(chatInput);
-                }}
-                className="flex gap-1.5"
-              >
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-label="Hỏi AI Mentor về mã nguồn Java"
-                  placeholder="Hỏi AI về code của bạn…"
-                  className="min-h-[40px] sm:min-h-[36px] flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--info)] focus-visible:outline-2 focus-visible:outline-[var(--info)]"
-                />
-                <button
-                  type="submit"
-                  disabled={aiBusy}
-                  className="min-h-[40px] sm:min-h-[36px] rounded-lg bg-[var(--info)] px-3 py-1.5 font-bold text-[#1C1917] disabled:opacity-50"
-                >
-                  {aiBusy ? '…' : 'Gửi'}
-                </button>
-              </form>
-            </div>
-          </aside>
+          <StudioAiMentorPane
+            playgroundMode={playgroundMode}
+            activeFileName={activeFileName}
+            byokKey={byokKey}
+            aiModel={aiModel}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            chatHistory={chatHistory}
+            onClearChat={() => {
+              setChatHistory([]);
+              lastInteractionIdRef.current = null;
+            }}
+            onClose={() => setShowAiPane(false)}
+            diagnosisCards={diagnosisCards}
+            revealedHints={revealedHints}
+            onToggleHint={(cardId) =>
+              setRevealedHints((prev) => ({
+                ...prev,
+                [cardId]: !prev[cardId],
+              }))
+            }
+            onOpenDiff={() => setShowDiff(true)}
+            aiBusy={aiBusy}
+            pendingPrompt={pendingPrompt}
+            chatInput={chatInput}
+            onChatInputChange={setChatInput}
+            onSendPrompt={(prompt) => void sendAiPrompt(prompt)}
+          />
         )}
       </div>
     </div>

@@ -16,26 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <script>
-      (function () {
-        try {
-          var t = localStorage.getItem('javabrew:theme');
-          var root = document.documentElement;
-          var meta = document.querySelector('meta[name="theme-color"]');
-          if (t === 'light') {
-            root.classList.remove('dark');
-            root.classList.add('light');
-            root.setAttribute('data-theme', 'light');
-            if (meta) meta.setAttribute('content', '#faf8f5');
-          } else {
-            root.classList.add('dark');
-            root.classList.remove('light');
-            root.setAttribute('data-theme', 'dark');
-            if (meta) meta.setAttribute('content', '#121110');
-          }
-        } catch (e) {}
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body class="antialiased min-h-screen">
     <div id="root"></div>

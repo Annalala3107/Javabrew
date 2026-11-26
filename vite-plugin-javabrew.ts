@@ -12,7 +12,14 @@ const MIME_TYPES: Record<string, string> = {
 function createStaticMountHandler(rootDir: string): Connect.NextHandleFunction {
   return (req, res, next) => {
     if (!req.url) return next();
-    const pathname = decodeURIComponent(req.url.split('?')[0]);
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(req.url.split('?')[0]);
+    } catch {
+      res.statusCode = 400;
+      res.end('Bad Request');
+      return;
+    }
 
     let subPath: string | null = null;
     if (pathname.startsWith('/content/')) {

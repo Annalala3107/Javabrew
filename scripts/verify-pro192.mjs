@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = String.raw`e:\JavAncode`;
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PRO_DIR = path.join(ROOT, 'content', 'vi', 'pro192');
 const SLOTS_DIR = path.join(PRO_DIR, 'slots');
 const META_PATH = path.join(ROOT, 'metadata', 'pro192.json');
