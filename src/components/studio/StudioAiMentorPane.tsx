@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Settings, Square } from 'lucide-react';
-import type { AiServerStatus } from '../../services/aiMentorService';
+import type { AiMentorStyle, AiServerStatus } from '../../services/aiMentorService';
 import type { PeDiagnosisCard } from '../../utils/peEvaluator';
 import { StreamingAiBubble } from '../lucian/StreamingAiBubble';
 
@@ -21,6 +21,9 @@ interface StudioAiMentorPaneProps {
   byokKey: string;
   aiModel: string;
   aiServerStatus: AiServerStatus | null;
+  mentorStyle: AiMentorStyle;
+  onMentorStyleChange: (style: AiMentorStyle) => void;
+  onAskCleanCodeReview?: () => void;
   hasDiagnostics: boolean;
   hasFailedTests: boolean;
   onOpenSettings: () => void;
@@ -45,6 +48,9 @@ export function StudioAiMentorPane({
   byokKey,
   aiModel,
   aiServerStatus,
+  mentorStyle,
+  onMentorStyleChange,
+  onAskCleanCodeReview,
   hasDiagnostics,
   hasFailedTests,
   onOpenSettings,
@@ -125,6 +131,42 @@ export function StudioAiMentorPane({
               ✕
             </button>
           </div>
+        </div>
+
+        {/* Socratic vs Deep Mentor Mode */}
+        <div
+          role="group"
+          aria-label="Chế độ sư phạm AI Mentor"
+          className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-1"
+        >
+          <button
+            type="button"
+            disabled={aiBusy}
+            aria-pressed={mentorStyle === 'socratic'}
+            onClick={() => onMentorStyleChange('socratic')}
+            className={[
+              'rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-60',
+              mentorStyle === 'socratic'
+                ? 'bg-[var(--info)] text-[#1C1917]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+            ].join(' ')}
+          >
+            🎓 Gia sư (Socratic)
+          </button>
+          <button
+            type="button"
+            disabled={aiBusy}
+            aria-pressed={mentorStyle === 'deep'}
+            onClick={() => onMentorStyleChange('deep')}
+            className={[
+              'rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-60',
+              mentorStyle === 'deep'
+                ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+            ].join(' ')}
+          >
+            🔬 Giải thích sâu
+          </button>
         </div>
 
         <div className="space-y-3">
@@ -259,6 +301,16 @@ export function StudioAiMentorPane({
           >
             Cách tối ưu?
           </button>
+          {!playgroundMode && onAskCleanCodeReview && (
+            <button
+              type="button"
+              disabled={aiBusy}
+              onClick={onAskCleanCodeReview}
+              className="min-h-[32px] rounded border border-[var(--info)]/40 bg-[var(--info-soft)] px-2.5 py-1 font-medium text-[var(--info-text)] transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              ✨ Chấm Clean Code PE
+            </button>
+          )}
         </div>
         <form
           onSubmit={(e) => {

@@ -11,6 +11,7 @@ interface StreamingAiBubbleProps {
   thinking?: boolean;
   streaming?: boolean;
   liveStreamed?: boolean;
+  allowJavaRun?: boolean;
   tone?: 'ai' | 'offline' | 'error';
   badgeLabel?: string;
   onOpenSettings?: () => void;
@@ -23,6 +24,7 @@ export function StreamingAiBubble({
   thinking = false,
   streaming = false,
   liveStreamed = false,
+  allowJavaRun = false,
   tone = 'ai',
   badgeLabel,
   onOpenSettings,
@@ -161,7 +163,12 @@ export function StreamingAiBubble({
           ) : (
             <>
               <div className="u086-w">
-                <MarkdownRenderer content={shownText} currentRel="studio/ai-mentor.md" compact />
+                <MarkdownRenderer
+                  content={shownText}
+                  currentRel="studio/ai-mentor.md"
+                  compact
+                  allowJavaRun={allowJavaRun}
+                />
                 {isActivelyStreaming && <span className="u086-caret" aria-hidden="true" />}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">

@@ -33,6 +33,7 @@ interface MarkdownRendererProps {
   content: string;
   currentRel: string;
   compact?: boolean;
+  allowJavaRun?: boolean;
 }
 
 function extractNodeText(node: ReactNode): string {
@@ -48,10 +49,12 @@ function CodeBlock({
   children,
   currentRel,
   compact = false,
+  allowJavaRun,
 }: {
   children?: ReactNode;
   currentRel: string;
   compact?: boolean;
+  allowJavaRun?: boolean;
 }) {
   const { pushToast } = useApp();
   const navigate = useNavigate();
@@ -66,7 +69,8 @@ function CodeBlock({
   }
 
   const rawCode = extractNodeText(children).replace(/\n$/, '');
-  const isRunnableJava = !compact && language.toLowerCase() === 'java' && rawCode.trim().length >= 8;
+  const isRunnableJava =
+    (allowJavaRun ?? !compact) && language.toLowerCase() === 'java' && rawCode.trim().length >= 8;
 
   const handleTryInPlayground = () => {
     const prepared = prepareJavaPlaygroundFiles(rawCode, currentRel);
@@ -255,7 +259,12 @@ function splitDetailsBlocks(md: string): MarkdownChunk[] {
   return chunks;
 }
 
-export function MarkdownRenderer({ content, currentRel, compact = false }: MarkdownRendererProps) {
+export function MarkdownRenderer({
+  content,
+  currentRel,
+  compact = false,
+  allowJavaRun,
+}: MarkdownRendererProps) {
   const { openPdfPreview } = useApp();
   const [zoomedImg, setZoomedImg] = useState<{ src: string; alt: string } | null>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
@@ -271,7 +280,7 @@ export function MarkdownRenderer({ content, currentRel, compact = false }: Markd
   const markdownComponents: Components = {
             pre({ children }) {
               return (
-                <CodeBlock currentRel={currentRel} compact={compact}>
+                <CodeBlock currentRel={currentRel} compact={compact} allowJavaRun={allowJavaRun}>
                   {children}
                 </CodeBlock>
               );

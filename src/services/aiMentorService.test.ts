@@ -7,7 +7,14 @@ import {
   extractInteractionReply,
   GEMINI_API_REVISION,
   GEMINI_INTERACTIONS_ENDPOINT,
+  generateSlotFeQuiz,
+  readCachedSlotQuiz,
+  readMentorStyle,
+  saveCachedSlotQuiz,
+  saveMentorStyle,
   streamAiMentor,
+  streamExerciseGrade,
+  streamLearnTutor,
   testGeminiApiKey,
   type AiMentorContext,
 } from './aiMentorService';
@@ -345,5 +352,163 @@ describe('aiMentorService (Gemini Interactions API + Offline Mentor)', () => {
       model: 'gemini-4-hydrogen',
       source: 'byok',
     });
+  });
+
+  it('supports streamLearnTutor, streamExerciseGrade, generateSlotFeQuiz, and localStorage helpers', async () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+      removeItem: (k: string) => {
+        store.delete(k);
+      },
+      clear: () => store.clear(),
+    });
+
+    expect(readMentorStyle()).toBe('socratic');
+    saveMentorStyle('deep');
+    expect(readMentorStyle()).toBe('deep');
+
+    const encoder = new TextEncoder();
+    const makeStreamRes = (text: string, cached = false) =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                `event: meta\ndata: ${JSON.stringify({
+                  source: 'server',
+                  model: 'gemini-3.5-flash-lite',
+                  remaining: 25,
+                  limit: 30,
+                  ...(cached ? { cached: true } : {}),
+                })}\n\n`
+              )
+            );
+            controller.enqueue(encoder.encode(`event: delta\ndata: ${JSON.stringify({ text })}\n\n`));
+            controller.enqueue(
+              encoder.encode(
+                `event: done\ndata: ${JSON.stringify({
+                  source: 'server',
+                  model: 'gemini-3.5-flash-lite',
+                  remaining: 25,
+                  limit: 30,
+                  ...(cached ? { cached: true } : {}),
+                })}\n\n`
+              )
+            );
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } }
+      );
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const parsed = JSON.parse(String(init?.body || '{}')) as { action?: string };
+        if (parsed.action === 'learn') {
+          return makeStreamRes('5 ý chính:\n- Tính đóng gói', true);
+        }
+        if (parsed.action === 'grade-exercise') {
+          return makeStreamRes('**Đánh giá: 9/10**\nChuẩn OOP.');
+        }
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            cached: true,
+            source: 'server',
+            model: 'gemini-3.5-flash-lite',
+            remaining: 25,
+            limit: 30,
+            quiz: {
+              slot: 2,
+              title: 'Slot 2',
+              generatedAt: '2026-11-26',
+              questions: [
+                {
+                  id: 'q1',
+                  question: 'Câu 1',
+                  options: ['A', 'B', 'C', 'D'],
+                  correctIndex: 0,
+                  explanation: 'Đúng vì A.',
+                  topicTag: 'OOP',
+                },
+                {
+                  id: 'q2',
+                  question: 'Câu 2',
+                  options: ['A', 'B', 'C', 'D'],
+                  correctIndex: 1,
+                  explanation: 'Đúng vì B.',
+                  topicTag: 'OOP',
+                },
+                {
+                  id: 'q3',
+                  question: 'Câu 3',
+                  options: ['A', 'B', 'C', 'D'],
+                  correctIndex: 2,
+                  explanation: 'Đúng vì C.',
+                  topicTag: 'OOP',
+                },
+              ],
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      })
+    );
+
+    const learnRes = await streamLearnTutor({
+      model: 'gemini-3.5-flash-lite',
+      prompt: 'Tóm tắt',
+      learnContext: {
+        kind: 'pro192',
+        itemKey: 'pro192:slots/slot-02',
+        title: 'Slot 2',
+        lang: 'vi',
+        intent: 'summarize',
+      },
+    });
+    expect(learnRes.ok).toBe(true);
+    if (learnRes.ok) {
+      expect(learnRes.cached).toBe(true);
+      expect(learnRes.reply).toContain('Tính đóng gói');
+    }
+
+    const gradeRes = await streamExerciseGrade({
+      model: 'gemini-3.5-flash-lite',
+      exerciseContext: {
+        exerciseId: '2.1',
+        slot: 2,
+        title: 'Bài 2.1',
+        promptMd: 'Đề',
+        solutionMd: 'Đáp án',
+        userAnswer: 'class Demo {}',
+      },
+    });
+    expect(gradeRes.ok).toBe(true);
+    if (gradeRes.ok) {
+      expect(gradeRes.reply).toContain('9/10');
+    }
+
+    const quizRes = await generateSlotFeQuiz({
+      model: 'gemini-3.5-flash-lite',
+      quizContext: { slot: 2, title: 'Slot 2' },
+    });
+    expect(quizRes.ok).toBe(true);
+    if (quizRes.ok) {
+      expect(quizRes.quiz.questions).toHaveLength(3);
+      saveCachedSlotQuiz(2, {
+        quiz: quizRes.quiz,
+        selectedAnswers: { q1: 0 },
+        submitted: true,
+        score: 1,
+        updatedAt: '2026-11-26',
+      });
+      const cached = readCachedSlotQuiz(2);
+      expect(cached?.score).toBe(1);
+    }
   });
 });

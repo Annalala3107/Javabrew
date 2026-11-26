@@ -32,8 +32,11 @@ import { StudioOutputConsole } from '../components/studio/StudioOutputConsole';
 import { useApp } from '../context/AppContext';
 import {
   buildOfflineMentorReply,
+  readMentorStyle,
+  saveMentorStyle,
   streamAiMentor,
   type AiMentorContext,
+  type AiMentorStyle,
 } from '../services/aiMentorService';
 import {
   checkJavaSandboxHealth,
@@ -305,6 +308,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const [pendingPrompt, setPendingPrompt] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
+  const [mentorStyle, setMentorStyle] = useState<AiMentorStyle>(readMentorStyle);
   const [charLimitHitNonce, setCharLimitHitNonce] = useState(0);
 
   const draftTimerRef = useRef<number>(0);
@@ -1645,13 +1649,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     }
   };
 
-  const sendAiPrompt = async (promptText: string) => {
-    const cleanPrompt = promptText.trim();
-    if (!cleanPrompt || aiBusy) return;
-    if (!playgroundMode && !activePe) return;
-    setChatInput('');
-
-    const filesForContext: Array<{ name: string; content: string }> = playgroundMode
+  const getFilesForAiContext = (): Array<{ name: string; content: string }> =>
+    playgroundMode
       ? playgroundEffectiveFiles.map((f) => ({ name: f.name, content: f.content }))
       : [
           { name: mainFileName, content: mainCode },
@@ -1660,6 +1659,21 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
             ? [{ name: activePe.interfaceFileName, content: activePe.interfaceCode }]
             : []),
         ];
+
+  const handleMentorStyleChange = (nextStyle: AiMentorStyle) => {
+    setMentorStyle(nextStyle);
+    saveMentorStyle(nextStyle);
+    lastInteractionIdRef.current = null;
+  };
+
+  const sendAiPrompt = async (promptText: string, opts?: { overrideStyle?: AiMentorStyle }) => {
+    const cleanPrompt = promptText.trim();
+    if (!cleanPrompt || aiBusy) return;
+    if (!playgroundMode && !activePe) return;
+    setChatInput('');
+
+    const filesForContext = getFilesForAiContext();
+    const effectiveStyle = opts?.overrideStyle ?? mentorStyle;
 
     const context: AiMentorContext = {
       mode: playgroundMode ? 'playground' : 'pe',
@@ -1708,6 +1722,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         const res = await streamAiMentor({
           apiKey: byokKey || undefined,
           model: targetModel,
+          mentorStyle: effectiveStyle,
           prompt: cleanPrompt,
           context,
           previousInteractionId: lastInteractionIdRef.current,
@@ -1829,6 +1844,48 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         badgeLabel: 'Gợi ý cục bộ',
       },
     ]);
+  };
+
+  const handleAskDiagnostic = (diag: JavaDiagnostic) => {
+    setShowAiPane(true);
+    const files = getFilesForAiContext();
+    const matchedFile =
+      files.find((f) => f.name.toLowerCase() === diag.file.toLowerCase()) || files[0];
+    let snippetNote = '';
+    if (matchedFile) {
+      const lines = matchedFile.content.split(/\r?\n/);
+      const start = Math.max(0, diag.line - 6);
+      const end = Math.min(lines.length, diag.line + 5);
+      const numbered = lines
+        .slice(start, end)
+        .map((line, i) => `${start + i + 1}: ${line}`)
+        .join('\n');
+      snippetNote = `\nĐoạn code quanh dòng ${diag.line} trong ${matchedFile.name}:\n\`\`\`java\n${numbered}\n\`\`\``;
+    }
+    void sendAiPrompt(
+      `Giải thích lỗi javac tại ${diag.file}:${diag.line}:${diag.column}: "${diag.message}" và chỉ cách sửa.${snippetNote}`
+    );
+  };
+
+  const handleAskFailedTest = (tc: JavaTestCaseResult) => {
+    setShowAiPane(true);
+    const details = [
+      `Tại sao ${tc.id} (${tc.name}) bị FAIL?`,
+      tc.expected ? `- Kỳ vọng: ${tc.expected}` : '',
+      tc.actual ? `- Thực tế: ${tc.actual}` : '',
+      tc.error ? `- Ghi chú: ${tc.error}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    void sendAiPrompt(details);
+  };
+
+  const handleAskCleanCodeReview = () => {
+    setShowAiPane(true);
+    void sendAiPrompt(
+      'Hãy chấm điểm Clean Code theo tiêu chí thi PE PRO192 (tương thích JDK 8, bỏ package, xử lý null/chuỗi rỗng, chuẩn định dạng toString/số thực và đặt tên biến/hàm) và chỉ ra chỗ cần cải thiện.',
+      { overrideStyle: 'deep' }
+    );
   };
 
   const pgEntryClass = useMemo(() => {
@@ -2302,6 +2359,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       diagnostics={diagnostics}
       onJumpToDiagnostic={handleJumpToDiagnostic}
       cloudTestResults={cloudTestResults}
+      aiBusy={aiBusy}
+      onAskDiagnostic={handleAskDiagnostic}
+      onAskFailedTest={handleAskFailedTest}
     />
   );
 
@@ -2699,6 +2759,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
             byokKey={byokKey}
             aiModel={aiModel}
             aiServerStatus={aiServerStatus}
+            mentorStyle={mentorStyle}
+            onMentorStyleChange={handleMentorStyleChange}
+            onAskCleanCodeReview={handleAskCleanCodeReview}
             hasDiagnostics={diagnostics.length > 0}
             hasFailedTests={cloudTestResults.some((t) => !t.passed)}
             onOpenSettings={() => setIsSettingsOpen(true)}

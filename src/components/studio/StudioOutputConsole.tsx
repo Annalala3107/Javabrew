@@ -28,6 +28,9 @@ interface StudioOutputConsoleProps {
   diagnostics: JavaDiagnostic[];
   onJumpToDiagnostic: (diag: JavaDiagnostic) => void;
   cloudTestResults: JavaTestCaseResult[];
+  aiBusy?: boolean;
+  onAskDiagnostic?: (diag: JavaDiagnostic) => void;
+  onAskFailedTest?: (tc: JavaTestCaseResult) => void;
 }
 
 export function StudioOutputConsole({
@@ -50,6 +53,9 @@ export function StudioOutputConsole({
   diagnostics,
   onJumpToDiagnostic,
   cloudTestResults,
+  aiBusy = false,
+  onAskDiagnostic,
+  onAskFailedTest,
 }: StudioOutputConsoleProps) {
   const statusColorCls =
     consoleTone === 'green'
@@ -155,23 +161,38 @@ export function StudioOutputConsole({
           </div>
           <div className="space-y-1">
             {diagnostics.map((diag, idx) => (
-              <button
+              <div
                 key={`${diag.file}-${diag.line}-${idx}`}
-                type="button"
-                onClick={() => onJumpToDiagnostic(diag)}
-                className="flex w-full items-start gap-2 rounded px-2 py-1 text-left font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/70"
+                className="flex items-start justify-between gap-2 rounded px-1.5 py-0.5 hover:bg-[var(--bg-surface)]/70"
               >
-                <span
-                  className={
-                    diag.severity === 'error'
-                      ? 'shrink-0 font-semibold text-[var(--danger-text)]'
-                      : 'shrink-0 font-semibold text-[var(--accent-text)]'
-                  }
+                <button
+                  type="button"
+                  onClick={() => onJumpToDiagnostic(diag)}
+                  className="flex min-w-0 flex-1 items-start gap-2 py-0.5 text-left font-mono text-xs text-[var(--text-primary)]"
                 >
-                  {diag.file}:{diag.line}:{diag.column}
-                </span>
-                <span className="break-words text-[var(--text-secondary)]">{diag.message}</span>
-              </button>
+                  <span
+                    className={
+                      diag.severity === 'error'
+                        ? 'shrink-0 font-semibold text-[var(--danger-text)]'
+                        : 'shrink-0 font-semibold text-[var(--accent-text)]'
+                    }
+                  >
+                    {diag.file}:{diag.line}:{diag.column}
+                  </span>
+                  <span className="break-words text-[var(--text-secondary)]">{diag.message}</span>
+                </button>
+                {onAskDiagnostic && (
+                  <button
+                    type="button"
+                    disabled={aiBusy}
+                    onClick={() => onAskDiagnostic(diag)}
+                    aria-label={`Hỏi AI về lỗi dòng ${diag.line}`}
+                    className="shrink-0 rounded border border-[var(--info)]/40 bg-[var(--info-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--info-text)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    ✨ Hỏi AI
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -190,7 +211,7 @@ export function StudioOutputConsole({
                   : 'border-[var(--danger)]/40 bg-[var(--danger-soft)]',
               ].join(' ')}
             >
-              <div className="flex items-center justify-between font-mono font-semibold">
+              <div className="flex items-center justify-between gap-2 font-mono font-semibold">
                 <span
                   className={
                     tc.passed ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'
@@ -198,7 +219,19 @@ export function StudioOutputConsole({
                 >
                   {tc.passed ? '✔' : '✕'} {tc.id}
                 </span>
-                <span className="text-[var(--text-dim)]">{tc.durationMs}ms</span>
+                <div className="flex items-center gap-2">
+                  {!tc.passed && onAskFailedTest && (
+                    <button
+                      type="button"
+                      disabled={aiBusy}
+                      onClick={() => onAskFailedTest(tc)}
+                      className="rounded border border-[var(--warning)]/45 bg-[var(--warning-soft)] px-2 py-0.5 font-sans text-[11px] font-semibold text-[var(--accent-text)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      ✨ Tại sao {tc.id} fail?
+                    </button>
+                  )}
+                  <span className="text-[var(--text-dim)]">{tc.durationMs}ms</span>
+                </div>
               </div>
               <div className="font-medium text-[var(--text-primary)]">{tc.name}</div>
               {!tc.passed && (
