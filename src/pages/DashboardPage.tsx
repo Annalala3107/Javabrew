@@ -438,6 +438,16 @@ export function DashboardPage() {
             </span>
             <span className="text-[var(--accent-text)]">Mở →</span>
           </Link>
+
+          <Link
+            to="/notes"
+            className="flex items-center justify-between rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-2 text-[var(--text-secondary)] transition-colors hover:border-[var(--info)] hover:text-[var(--info-text)]"
+          >
+            <span className="truncate font-medium">
+              📝 Sổ tay: {Object.keys(progress.notes).length} ghi chú · {progress.bookmarks.length} đã lưu
+            </span>
+            <span className="shrink-0 text-[var(--info-text)]">Xem →</span>
+          </Link>
         </div>
       </div>
     </div>

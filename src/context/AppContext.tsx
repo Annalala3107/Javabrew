@@ -208,8 +208,10 @@ interface AppContextValue {
   markPeStatus: (peId: number, status: 'pass' | 'in-progress') => void;
   toggleBookmark: (key: string) => void;
   saveNote: (key: string, value: string) => void;
+  deleteNote: (key: string) => void;
   addMistake: (item: Omit<MistakeItem, 'id' | 'createdAt'>) => void;
   toggleMistakeResolved: (id: string) => void;
+  deleteMistake: (id: string) => void;
   recordVisit: (visit: NonNullable<LearningProgress['lastVisited']>) => void;
   resetProgress: (includeDrafts?: boolean) => void;
   exportProgressJson: () => string;
@@ -496,10 +498,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveNote = useCallback((key: string, value: string) => {
-    setProgress((prev) => ({
-      ...prev,
-      notes: { ...prev.notes, [key]: value },
-    }));
+    setProgress((prev) => {
+      if (!value.trim()) {
+        if (!(key in prev.notes)) return prev;
+        const nextNotes = { ...prev.notes };
+        delete nextNotes[key];
+        return { ...prev, notes: nextNotes };
+      }
+      return {
+        ...prev,
+        notes: { ...prev.notes, [key]: value },
+      };
+    });
+  }, []);
+
+  const deleteNote = useCallback((key: string) => {
+    setProgress((prev) => {
+      if (!(key in prev.notes)) return prev;
+      const nextNotes = { ...prev.notes };
+      delete nextNotes[key];
+      return { ...prev, notes: nextNotes };
+    });
   }, []);
 
   const addMistake = useCallback((item: Omit<MistakeItem, 'id' | 'createdAt'>) => {
@@ -527,6 +546,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       mistakes: prev.mistakes.map((m) =>
         m.id === id ? { ...m, resolved: !m.resolved } : m
       ),
+    }));
+  }, []);
+
+  const deleteMistake = useCallback((id: string) => {
+    setProgress((prev) => ({
+      ...prev,
+      mistakes: prev.mistakes.filter((m) => m.id !== id),
     }));
   }, []);
 
@@ -701,8 +727,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markPeStatus,
       toggleBookmark,
       saveNote,
+      deleteNote,
       addMistake,
       toggleMistakeResolved,
+      deleteMistake,
       recordVisit,
       resetProgress,
       exportProgressJson,
@@ -750,8 +778,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markPeStatus,
       toggleBookmark,
       saveNote,
+      deleteNote,
       addMistake,
       toggleMistakeResolved,
+      deleteMistake,
       recordVisit,
       resetProgress,
       exportProgressJson,

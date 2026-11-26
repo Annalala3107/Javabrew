@@ -1785,4 +1785,441 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     expect(await screen.findByText(/Không tìm thấy đề PE “999”/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Về Kho Đề PE/i })).toHaveAttribute('href', '/pe');
   });
+
+  it('supports Socratic/Deep mentor toggle and 1-click javac diagnostic, TC fail, and Clean Code actions in Code Studio', async () => {
+    const encoder = new TextEncoder();
+    let sandboxPostCount = 0;
+    const capturedAiRequests: Array<{ mentorStyle?: string; prompt?: string }> = [];
+
+    installFetchMock(
+      (method) => {
+        if (method === 'GET') {
+          return new Response(
+            JSON.stringify({ available: true, runtime: 'OpenJDK 21 (Vercel Sandbox)', region: 'sin1' }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        sandboxPostCount += 1;
+        if (sandboxPostCount === 1) {
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              phase: 'compile',
+              jdkVersion: 'javac 21.0.5',
+              compileMs: 120,
+              runMs: 0,
+              exitCode: 1,
+              stdout: '',
+              stderr: "Daisy.java:1: error: ';' expected",
+              diagnostics: [
+                {
+                  file: 'Daisy.java',
+                  line: 1,
+                  column: 18,
+                  severity: 'error',
+                  message: "';' expected",
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            phase: 'run',
+            jdkVersion: 'javac 21.0.5',
+            compileMs: 110,
+            runMs: 35,
+            exitCode: 1,
+            timedOut: false,
+            stdout: 'daisy3',
+            stderr: '',
+            diagnostics: [],
+            testResults: [
+              {
+                id: 'TC1',
+                name: 'setData() loai bo ky tu so',
+                passed: false,
+                durationMs: 3,
+                expected: 'daisy',
+                actual: 'daisy3',
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      },
+      (method, bodyText) => {
+        if (method === 'GET') {
+          return new Response(
+            JSON.stringify({
+              available: true,
+              mode: 'server',
+              defaultModel: 'gemini-3.5-flash-lite',
+              dailyLimit: 30,
+              remaining: 30,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        const parsed = JSON.parse(bodyText || '{}') as { mentorStyle?: string; prompt?: string };
+        capturedAiRequests.push({ mentorStyle: parsed.mentorStyle, prompt: parsed.prompt });
+        const replyText = `Phản hồi (${parsed.mentorStyle}) #${capturedAiRequests.length}`;
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode(
+                  'event: meta\ndata: {"source":"server","model":"gemini-3.5-flash-lite","remaining":29,"limit":30}\n\n'
+                )
+              );
+              controller.enqueue(
+                encoder.encode(`event: delta\ndata: ${JSON.stringify({ text: replyText })}\n\n`)
+              );
+              controller.enqueue(
+                encoder.encode(
+                  'event: done\ndata: {"interactionId":"int_socratic_1","model":"gemini-3.5-flash-lite","source":"server","remaining":29,"limit":30}\n\n'
+                )
+              );
+              controller.close();
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } }
+        );
+      }
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/studio/2']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const socraticBtn = await screen.findByRole('button', { name: /🎓 Gia sư \(Socratic\)/i });
+    const deepBtn = screen.getByRole('button', { name: /🔬 Giải thích sâu/i });
+    expect(socraticBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(deepBtn).toHaveAttribute('aria-pressed', 'false');
+
+    // 1. Trigger compile diagnostic -> click 1-click ✨ Hỏi AI
+    fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
+    const askDiagBtn = await screen.findByRole('button', { name: /Hỏi AI về lỗi dòng 1/i });
+    fireEvent.click(askDiagBtn);
+
+    expect(await screen.findByText(/Phản hồi \(socratic\) #1/i)).toBeInTheDocument();
+    expect(capturedAiRequests[0].mentorStyle).toBe('socratic');
+    expect(capturedAiRequests[0].prompt).toContain("';' expected");
+
+    // 2. Switch to Deep mode -> trigger failed TC -> click ✨ Tại sao TC1 fail?
+    fireEvent.click(deepBtn);
+    expect(deepBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(localStorage.getItem('javabrew:ai_mentor_style')).toBe('deep');
+
+    fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
+    const askTcBtn = await screen.findByRole('button', { name: /✨ Tại sao TC1 fail\?/i });
+    fireEvent.click(askTcBtn);
+    expect(await screen.findByText(/Phản hồi \(deep\) #2/i)).toBeInTheDocument();
+    expect(capturedAiRequests[1].prompt).toContain('TC1');
+
+    // 3. Click ✨ Chấm Clean Code PE
+    fireEvent.click(screen.getByRole('button', { name: /✨ Chấm Clean Code PE/i }));
+    expect(await screen.findByText(/Phản hồi \(deep\) #3/i)).toBeInTheDocument();
+    expect(capturedAiRequests[2].prompt).toContain('Clean Code');
+  });
+
+  it('opens LearnPage AI Reading Tutor drawer, caches summary, and enables runnable Java blocks', async () => {
+    const encoder = new TextEncoder();
+
+    installFetchMock(undefined, (method, bodyText) => {
+      if (method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            available: true,
+            mode: 'server',
+            defaultModel: 'gemini-3.5-flash-lite',
+            dailyLimit: 30,
+            remaining: 30,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      const parsed = JSON.parse(bodyText || '{}') as {
+        action?: string;
+        learnContext?: { intent?: string };
+      };
+      const isSummary = parsed.learnContext?.intent === 'summarize';
+      const replyText = isSummary
+        ? '- Ý 1: JVM chạy bytecode\n- Ý 2: Đóng gói dữ liệu'
+        : 'Ví dụ minh họa:\n\n```java\npublic class Main {\n  public static void main(String[] args) {\n    System.out.println("Live!");\n  }\n}\n```';
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                `event: meta\ndata: ${JSON.stringify({
+                  source: 'server',
+                  model: 'gemini-3.5-flash-lite',
+                  remaining: isSummary ? 30 : 29,
+                  limit: 30,
+                  ...(isSummary ? { cached: true } : {}),
+                })}\n\n`
+              )
+            );
+            controller.enqueue(
+              encoder.encode(`event: delta\ndata: ${JSON.stringify({ text: replyText })}\n\n`)
+            );
+            controller.enqueue(
+              encoder.encode(
+                `event: done\ndata: ${JSON.stringify({
+                  source: 'server',
+                  model: 'gemini-3.5-flash-lite',
+                  remaining: isSummary ? 30 : 29,
+                  limit: 30,
+                  ...(isSummary ? { cached: true } : {}),
+                })}\n\n`
+              )
+            );
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } }
+      );
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/pro192/slots/slot-01']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByText(/Lý thuyết Slot 1\./i);
+
+    fireEvent.click(screen.getByRole('button', { name: /✨ AI Bài học/i }));
+    const drawer = await screen.findByRole('dialog', { name: /AI Trợ lý bài học/i });
+
+    fireEvent.click(within(drawer).getByRole('button', { name: /📝 Tóm tắt 5 ý cốt lõi/i }));
+    expect(await within(drawer).findByText(/JVM chạy bytecode/i)).toBeInTheDocument();
+    expect(within(drawer).getByText(/Cache · 0 lượt/i)).toBeInTheDocument();
+
+    fireEvent.click(within(drawer).getByRole('button', { name: /☕ Ví dụ Java chạy thử/i }));
+    expect(
+      await within(drawer).findByRole('button', {
+        name: /Chạy thử đoạn mã Java trong Code Studio Playground/i,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it('grades ExerciseBlock answers via AI and completes 5-question Slot FE Mini-Quiz', async () => {
+    const encoder = new TextEncoder();
+
+    installFetchMock(undefined, (method, bodyText) => {
+      if (method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            available: true,
+            mode: 'server',
+            defaultModel: 'gemini-3.5-flash-lite',
+            dailyLimit: 30,
+            remaining: 30,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      const parsed = JSON.parse(bodyText || '{}') as { action?: string };
+      if (parsed.action === 'slot-quiz') {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            cached: false,
+            source: 'server',
+            model: 'gemini-3.5-flash-lite',
+            remaining: 28,
+            limit: 30,
+            quiz: {
+              slot: 1,
+              title: 'Tổng quan Java & OOP',
+              generatedAt: '2026-11-26',
+              questions: [
+                {
+                  id: 'q1',
+                  question: 'Lệnh nào biên dịch file Java thành bytecode?',
+                  codeSnippet: 'javac Main.java',
+                  options: ['java', 'javac', 'javadoc', 'jar'],
+                  correctIndex: 1,
+                  explanation: 'javac biên dịch .java thành .class bytecode.',
+                  topicTag: 'JDK',
+                },
+                {
+                  id: 'q2',
+                  question: 'Thành phần nào thực thi bytecode?',
+                  options: ['JVM', 'CSS', 'DOM', 'SQL'],
+                  correctIndex: 0,
+                  explanation: 'JVM nạp và chạy bytecode độc lập nền tảng.',
+                  topicTag: 'JVM',
+                },
+                {
+                  id: 'q3',
+                  question: 'Chuẩn phiên bản Java môn PRO192 là gì?',
+                  options: ['JDK 5', 'JDK 8', 'JDK 23', 'JDK 1.1'],
+                  correctIndex: 1,
+                  explanation: 'Đề thi PRO192 chấm theo chuẩn JDK 8.',
+                  topicTag: 'PRO192',
+                },
+              ],
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                'event: meta\ndata: {"source":"server","model":"gemini-3.5-flash-lite","remaining":29,"limit":30}\n\n'
+              )
+            );
+            controller.enqueue(
+              encoder.encode(
+                'event: delta\ndata: {"text":"**Đánh giá: 9/10** — Nắm rất chắc bytecode."}\n\n'
+              )
+            );
+            controller.enqueue(
+              encoder.encode(
+                'event: done\ndata: {"source":"server","model":"gemini-3.5-flash-lite","remaining":29,"limit":30}\n\n'
+              )
+            );
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } }
+      );
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/pro192/slots/slot-01']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByText(/Lý thuyết Slot 1\./i);
+
+    // ExerciseBlock AI grader
+    fireEvent.click(screen.getByRole('button', { name: /✨ Tự làm & AI chấm/i }));
+    const draftBox = await screen.findByLabelText(/Câu trả lời thử cho Bài 1\.1/i);
+    fireEvent.change(draftBox, { target: { value: 'javac tạo file bytecode .class chạy trên JVM' } });
+    fireEvent.click(screen.getByRole('button', { name: /✨ AI chấm & nhận xét/i }));
+
+    expect(await screen.findByText(/Nắm rất chắc bytecode\./i)).toBeInTheDocument();
+    const markDoneBtn = screen.getByRole('button', {
+      name: /✔ Đánh dấu đã hoàn thành Bài 1\.1/i,
+    });
+    fireEvent.click(markDoneBtn);
+
+    // Slot Mini-Quiz FE
+    fireEvent.click(screen.getByRole('button', { name: /✨ Sinh Mini-Quiz FE \(5 câu\)/i }));
+    expect(await screen.findByText(/Câu 1: Lệnh nào biên dịch file Java thành bytecode\?/i)).toBeInTheDocument();
+
+    const radios = screen.getAllByRole('radio');
+    fireEvent.click(radios[1]); // q1 -> B (javac)
+    fireEvent.click(radios[4]); // q2 -> A (JVM)
+    fireEvent.click(radios[9]); // q3 -> B (JDK 8)
+
+    fireEvent.click(screen.getByRole('button', { name: /✔ Nộp bài & xem giải thích/i }));
+    expect(await screen.findByText(/Kết quả: 3\/3/i)).toBeInTheDocument();
+    expect(screen.getByText(/javac biên dịch \.java thành \.class bytecode\./i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🔁 Làm lại bộ này/i })).toBeInTheDocument();
+  });
+
+  it('manages Notes, Bookmarks, Mistakes, and Markdown export in /notes Study Notebook', async () => {
+    localStorage.setItem(
+      'javabrew:progress',
+      JSON.stringify({
+        completedArticles: [],
+        completedSlots: [1],
+        solvedExercises: [],
+        completedDrills: [],
+        completedPe: [],
+        bookmarks: ['docs:java/basis/bigdecimal.md'],
+        notes: {
+          'pro192:slots/slot-01': 'Nhớ default package khi thi PE.',
+          'docs:java/basis/bigdecimal.md': 'Dùng String constructor cho BigDecimal.',
+        },
+        mistakes: [
+          {
+            id: 'm-1',
+            type: 'runtime',
+            title: 'NullPointerException ở setName()',
+            detail: 'Chưa kiểm tra null trước trim().',
+            peId: 1,
+            createdAt: '2026-11-26T10:00:00Z',
+            resolved: false,
+          },
+        ],
+        peStatus: {},
+        lastVisited: null,
+      })
+    );
+
+    const createObjSpy = vi.fn(() => 'blob:mock-md-url');
+    const revokeObjSpy = vi.fn();
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: createObjSpy, revokeObjectURL: revokeObjSpy }));
+    const anchorClickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/notes']}>
+          <AppProvider>
+            <AppRoutes />
+          </AppProvider>
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText(/Slot 01: Tổng quan Java/i)).toBeInTheDocument();
+      expect(screen.getByText(/Nhớ default package khi thi PE\./i)).toBeInTheDocument();
+
+      // Search filters notes
+      const searchBox = screen.getByLabelText(/Tìm trong Sổ tay học tập/i);
+      fireEvent.change(searchBox, { target: { value: 'BigDecimal' } });
+      expect(screen.queryByText(/Nhớ default package khi thi PE\./i)).not.toBeInTheDocument();
+      expect(screen.getByText(/Dùng String constructor cho BigDecimal\./i)).toBeInTheDocument();
+      fireEvent.change(searchBox, { target: { value: '' } });
+
+      // Inline edit first note
+      const editBtns = screen.getAllByRole('button', { name: /^Sửa$/i });
+      fireEvent.click(editBtns[0]);
+      const editTextarea = screen.getByLabelText(/Chỉnh sửa ghi chú cho Slot 01/i);
+      fireEvent.change(editTextarea, { target: { value: 'Đã cập nhật ghi chú Slot 01.' } });
+      fireEvent.click(screen.getByRole('button', { name: /^Lưu thay đổi$/i }));
+      expect(await screen.findByText(/Đã cập nhật ghi chú Slot 01\./i)).toBeInTheDocument();
+
+      // Export Markdown
+      fireEvent.click(screen.getByRole('button', { name: /⬇ Xuất Markdown \(\.md\)/i }));
+      expect(createObjSpy).toHaveBeenCalledTimes(1);
+      expect(anchorClickSpy).toHaveBeenCalledTimes(1);
+
+      // Bookmarks tab
+      fireEvent.click(screen.getByRole('tab', { name: /🔖 Đã lưu/i }));
+      expect(
+        await screen.findByText(/Giải thích chi tiết về Đa hình và BigDecimal/i)
+      ).toBeInTheDocument();
+
+      // Mistakes tab
+      fireEvent.click(screen.getByRole('tab', { name: /⚠️ Lỗi cần tránh/i }));
+      expect(await screen.findByText(/NullPointerException ở setName\(\)/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Đánh dấu đã sửa/i }));
+      expect(await screen.findByText(/Chưa ghi nhận|Không có lỗi nào khớp/i)).toBeInTheDocument();
+    } finally {
+      anchorClickSpy.mockRestore();
+    }
+  });
 });

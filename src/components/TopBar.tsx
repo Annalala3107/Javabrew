@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   },
   { to: '/pe', label: 'Luyện PE', match: (p: string) => p.startsWith('/pe') },
   { to: '/studio', label: 'Code Studio', match: (p: string) => p.startsWith('/studio') },
+  { to: '/notes', label: 'Sổ tay', match: (p: string) => p.startsWith('/notes') },
 ];
 
 export function TopBar() {
