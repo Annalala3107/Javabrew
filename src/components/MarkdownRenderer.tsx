@@ -1,8 +1,8 @@
 import {
   Children,
   isValidElement,
-  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { CopyCodeButton } from './lucian/CopyCodeButton';
 import { useApp } from '../context/AppContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { prepareJavaPlaygroundFiles, savePlaygroundWorkspace } from '../utils/javaPlayground';
 import { resolveMarkdownHref } from '../utils/markdown';
 
@@ -257,15 +258,13 @@ function splitDetailsBlocks(md: string): MarkdownChunk[] {
 export function MarkdownRenderer({ content, currentRel, compact = false }: MarkdownRendererProps) {
   const { openPdfPreview } = useApp();
   const [zoomedImg, setZoomedImg] = useState<{ src: string; alt: string } | null>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!zoomedImg) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setZoomedImg(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [zoomedImg]);
+  useModalA11y({
+    open: Boolean(zoomedImg),
+    containerRef: lightboxRef,
+    onClose: () => setZoomedImg(null),
+  });
 
   const chunks = useMemo(() => splitDetailsBlocks(content), [content]);
 
@@ -491,7 +490,8 @@ export function MarkdownRenderer({ content, currentRel, compact = false }: Markd
           onClick={() => setZoomedImg(null)}
         >
           <div
-            className="relative max-h-[90vh] max-w-[92vw] overflow-auto rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-overlay)]"
+            ref={lightboxRef}
+            className="relative max-h-[90vh] max-w-[92vw] overflow-auto overscroll-contain rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-overlay)]"
             onClick={(e) => e.stopPropagation()}
           >
             <button

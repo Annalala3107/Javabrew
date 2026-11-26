@@ -2,6 +2,7 @@ import yaml from 'js-yaml';
 import type {
   FrontmatterMeta,
   PeChallenge,
+  Pro192CodingDrill,
   Pro192Exercise,
   TocHeading,
 } from '../types/content';
@@ -111,7 +112,88 @@ export function preprocessMarkdown(body: string): string {
   return out.join('\n');
 }
 
-export function parseMarkdownDocument(raw: string): ParsedMarkdown {
+export interface ParseMarkdownOptions {
+  stripLeadingH1?: boolean;
+  deduplicateGalleryImages?: boolean;
+}
+
+function stripLeadingH1Line(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const out: string[] = [];
+  let inFence = false;
+  let fenceChar = '';
+  let stripped = false;
+  let seenH2 = false;
+  let skipFollowingBlanks = false;
+
+  for (const line of lines) {
+    const fm = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fm) {
+      if (!inFence) {
+        inFence = true;
+        fenceChar = fm[1][0];
+      } else if (fm[1][0] === fenceChar) {
+        inFence = false;
+      }
+      skipFollowingBlanks = false;
+      out.push(line);
+      continue;
+    }
+
+    if (!inFence && !stripped && !seenH2) {
+      if (/^##+\s+/.test(line)) {
+        seenH2 = true;
+      } else if (/^#\s+\S/.test(line)) {
+        stripped = true;
+        skipFollowingBlanks = true;
+        continue;
+      }
+    }
+
+    if (skipFollowingBlanks && line.trim() === '') {
+      continue;
+    }
+    skipFollowingBlanks = false;
+    out.push(line);
+  }
+
+  return out.join('\n');
+}
+
+function deduplicateGalleryDetails(markdown: string): string {
+  const galleryRegex = /<details>\s*<summary>([^<]*🖼️[^<]*)<\/summary>([\s\S]*?)<\/details>/g;
+  return markdown.replace(galleryRegex, (_full, summaryText: string, body: string, offset: number) => {
+    const beforeSlice = markdown.slice(0, offset);
+    const seenUrls = new Set<string>();
+    for (const m of beforeSlice.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) {
+      seenUrls.add(m[1].trim());
+    }
+
+    const keptLines: string[] = [];
+    for (const m of body.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) {
+      const url = m[1].trim();
+      if (!seenUrls.has(url)) {
+        seenUrls.add(url);
+        keptLines.push(m[0]);
+      }
+    }
+
+    if (keptLines.length === 0) {
+      return '';
+    }
+
+    const updatedSummary = summaryText.replace(
+      /\(\d+\s*ảnh\)/i,
+      `(${keptLines.length} ảnh)`
+    );
+    return `<details>\n<summary>${updatedSummary}</summary>\n\n${keptLines.join('\n\n')}\n\n</details>`;
+  });
+}
+
+export function parseMarkdownDocument(
+  raw: string,
+  options?: ParseMarkdownOptions
+): ParsedMarkdown {
   let body = raw;
   const meta: FrontmatterMeta = { tags: [] };
 
@@ -135,7 +217,13 @@ export function parseMarkdownDocument(raw: string): ParsedMarkdown {
     body = raw.slice(fmMatch[0].length);
   }
 
-  const normalizedBody = preprocessMarkdown(body);
+  let normalizedBody = preprocessMarkdown(body);
+  if (options?.stripLeadingH1) {
+    normalizedBody = stripLeadingH1Line(normalizedBody);
+  }
+  if (options?.deduplicateGalleryImages) {
+    normalizedBody = deduplicateGalleryDetails(normalizedBody);
+  }
   const headings = extractHeadings(normalizedBody);
 
   return {
@@ -239,11 +327,47 @@ export function resolveMarkdownHref(
 
 export type StageSegment =
   | { type: 'markdown'; content: string }
-  | { type: 'exercise'; exercise: Pro192Exercise };
+  | { type: 'exercise'; exercise: Pro192Exercise }
+  | { type: 'drill'; drill: Pro192CodingDrill };
+
+function collectSectionLines(
+  lines: string[],
+  startIndex: number,
+  isBoundary: (line: string) => boolean
+): { blockLines: string[]; nextIndex: number } {
+  const blockLines: string[] = [];
+  let i = startIndex;
+  let innerFence = false;
+  let innerFenceChar = '';
+
+  while (i < lines.length) {
+    const cur = lines[i];
+    const curFm = cur.match(/^\s*(`{3,}|~{3,})/);
+    if (curFm) {
+      if (!innerFence) {
+        innerFence = true;
+        innerFenceChar = curFm[1][0];
+      } else if (curFm[1][0] === innerFenceChar) {
+        innerFence = false;
+      }
+      blockLines.push(cur);
+      i++;
+      continue;
+    }
+
+    if (!innerFence && isBoundary(cur)) {
+      break;
+    }
+    blockLines.push(cur);
+    i++;
+  }
+
+  return { blockLines, nextIndex: i };
+}
 
 /**
- * Splits a PRO192 stage markdown body into alternating markdown prose segments
- * and interactive exercise blocks (with prompt vs hidden-by-default solution).
+ * Splits a PRO192 stage markdown body into alternating markdown prose segments,
+ * interactive exercise blocks, and Live Lab coding drills.
  */
 export function splitPro192StageContent(markdownBody: string): StageSegment[] {
   const lines = markdownBody.split(/\r?\n/);
@@ -253,7 +377,24 @@ export function splitPro192StageContent(markdownBody: string): StageSegment[] {
   let fenceChar = '';
 
   const exHeaderRegex = /^#{3,4}\s+Bài(?:\s+tập)?\s+(\d+)\.(\d+)\s*[:：]?\s*(.*)$/;
+  const drillHeaderRegex = /^####\s+(?:(🟢|🟡|🔴)\s*)?Thực hành\s+(\d+[A-Z])\s*[:：]\s*(.+)$/;
   const stopSectionRegex = /^##\s+/;
+
+  const isBlockBoundary = (cur: string) =>
+    exHeaderRegex.test(cur) ||
+    drillHeaderRegex.test(cur) ||
+    stopSectionRegex.test(cur) ||
+    /^#\s+/.test(cur) ||
+    /^###\s+/.test(cur) ||
+    /^---\s*$/.test(cur);
+
+  const flushMarkdownBuffer = () => {
+    if (buffer.length > 0) {
+      const text = buffer.join('\n').trim();
+      if (text) segments.push({ type: 'markdown', content: text });
+      buffer = [];
+    }
+  };
 
   let i = 0;
   while (i < lines.length) {
@@ -274,51 +415,14 @@ export function splitPro192StageContent(markdownBody: string): StageSegment[] {
     if (!inFence) {
       const exMatch = line.match(exHeaderRegex);
       if (exMatch) {
-        if (buffer.length > 0) {
-          const text = buffer.join('\n').trim();
-          if (text) segments.push({ type: 'markdown', content: text });
-          buffer = [];
-        }
-
+        flushMarkdownBuffer();
         const slot = Number(exMatch[1]);
         const indexInSlot = Number(exMatch[2]);
         const title = exMatch[3].trim();
-        const exLines: string[] = [];
-        i++;
+        const { blockLines, nextIndex } = collectSectionLines(lines, i + 1, isBlockBoundary);
+        i = nextIndex;
 
-        let innerFence = false;
-        let innerFenceChar = '';
-        while (i < lines.length) {
-          const cur = lines[i];
-          const curFm = cur.match(/^\s*(`{3,}|~{3,})/);
-          if (curFm) {
-            if (!innerFence) {
-              innerFence = true;
-              innerFenceChar = curFm[1][0];
-            } else if (curFm[1][0] === innerFenceChar) {
-              innerFence = false;
-            }
-            exLines.push(cur);
-            i++;
-            continue;
-          }
-
-          if (!innerFence) {
-            if (
-              exHeaderRegex.test(cur) ||
-              stopSectionRegex.test(cur) ||
-              /^#\s+/.test(cur) ||
-              /^###\s+/.test(cur) ||
-              /^---\s*$/.test(cur)
-            ) {
-              break;
-            }
-          }
-          exLines.push(cur);
-          i++;
-        }
-
-        const rawExBody = exLines.join('\n').trim();
+        const rawExBody = blockLines.join('\n').trim();
         const detailsMarker = /<details>\s*<summary>[\s\S]*?<\/summary>([\s\S]*?)<\/details>/i;
         const detailsMatch = rawExBody.match(detailsMarker);
         const solMarker = /^([*-]\s+\*\*(?:Đáp án\s*&\s*)?Lời giải chi tiết:\*\*|\*Lời giải chi tiết:\*)/im;
@@ -332,7 +436,6 @@ export function splitPro192StageContent(markdownBody: string): StageSegment[] {
         } else if (solMatch && solMatch.index !== undefined) {
           promptMd = rawExBody.slice(0, solMatch.index).trim();
           solutionMd = rawExBody.slice(solMatch.index + solMatch[0].length).trim();
-          // Strip leading bullet indentation if solution lines are indented under `* **Lời giải chi tiết:**`
           solutionMd = solutionMd
             .split(/\r?\n/)
             .map((l) => l.replace(/^ {2}/, ''))
@@ -353,17 +456,68 @@ export function splitPro192StageContent(markdownBody: string): StageSegment[] {
         });
         continue;
       }
+
+      const drillMatch = line.match(drillHeaderRegex);
+      if (drillMatch) {
+        flushMarkdownBuffer();
+        const badgeEmoji = drillMatch[1] || '';
+        const id = drillMatch[2].trim();
+        const slot = Number(id.match(/^\d+/)?.[0]) || 1;
+        const title = drillMatch[3].trim();
+        const level: 'basic' | 'advanced' =
+          badgeEmoji === '🟢' || (!badgeEmoji && id.endsWith('A')) ? 'basic' : 'advanced';
+
+        const { blockLines, nextIndex } = collectSectionLines(lines, i + 1, isBlockBoundary);
+        i = nextIndex;
+
+        const rawBody = blockLines.join('\n').trim();
+        const detailsMatch = rawBody.match(
+          /<details>\s*<summary>[\s\S]*?<\/summary>([\s\S]*?)<\/details>/i
+        );
+        const promptMd =
+          detailsMatch && detailsMatch.index !== undefined
+            ? rawBody.slice(0, detailsMatch.index).trim()
+            : rawBody;
+        const solutionMd = detailsMatch ? detailsMatch[1].trim() : '';
+
+        const goalMatch = promptMd.match(/^-\s*\*\*Mục tiêu:\*\*\s*(.+)$/im);
+        const goal = goalMatch ? goalMatch[1].trim() : title;
+
+        const expectedMatch = promptMd.match(
+          /\*\*Expected Output:\*\*([\s\S]*?)(?=```|\n-\s*🔗|\n####|$)/i
+        );
+        const expectedOutputLines = (expectedMatch?.[1] || '')
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => /^[-*]\s+/.test(l) && !l.includes('🔗'))
+          .map((l) => l.replace(/^[-*]\s+/, '').trim().replace(/^`([\s\S]*)`$/, '$1'));
+
+        const labMatch = promptMd.match(/\/studio\/playground\?example=([A-Za-z0-9-]+)/);
+        const codeMatch = promptMd.match(/```java\s*\r?\n([\s\S]*?)```/i);
+
+        segments.push({
+          type: 'drill',
+          drill: {
+            id,
+            slot,
+            level,
+            title,
+            goal,
+            expectedOutputLines,
+            starterCode: codeMatch ? codeMatch[1].trimEnd() : '',
+            labExampleId: labMatch ? labMatch[1] : undefined,
+            solutionMd,
+          },
+        });
+        continue;
+      }
     }
 
     buffer.push(line);
     i++;
   }
 
-  if (buffer.length > 0) {
-    const text = buffer.join('\n').trim();
-    if (text) segments.push({ type: 'markdown', content: text });
-  }
-
+  flushMarkdownBuffer();
   return segments;
 }
 

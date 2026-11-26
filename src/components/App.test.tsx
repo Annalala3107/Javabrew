@@ -1,11 +1,13 @@
 import { undo } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '../App';
 import { AppProvider } from '../context/AppContext';
 import type { NavigationData, Pro192Data, SearchIndexData } from '../types/content';
+import { savePeDraft } from '../utils/studioDrafts';
+import { ErrorBoundary } from './ErrorBoundary';
 import { ExerciseBlock } from './ExerciseBlock';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { StreamingAiBubble } from './lucian/StreamingAiBubble';
@@ -185,6 +187,25 @@ const MOCK_SEARCH: SearchIndexData = {
       meta: 'Q1–Q2 · 25 phút',
     },
   ],
+  totalPlaygroundTemplates: 1,
+  totalSlides: 1,
+  playgroundTemplates: [
+    {
+      id: 'slot-09-lab',
+      title: 'Slot 09 Lab: Xử lý Chuỗi Java',
+      subtitle: 'trim, substring và split',
+      category: 'Cơ bản',
+      slotRef: 'Slot 09',
+    },
+  ],
+  slides: [
+    {
+      title: 'Get Start',
+      pdfUrl: '/media/pro192/resources/Get%20Start.pdf',
+      pptxUrl: '/media/pro192/slides/Get%20Start.pptx',
+      slots: [1, 2],
+    },
+  ],
 };
 
 function installFetchMock(
@@ -226,7 +247,7 @@ function installFetchMock(
       }
       if (url.endsWith('/content/vi/pro192/slots/slot-01.md')) {
         return new Response(
-          '# Slot 01: Tổng quan Java\n\n## 2. Lý thuyết cốt lõi\n\nLý thuyết Slot 1.\n\n<details>\n<summary>📚 Đọc thêm: Lịch sử Java</summary>\n\nNgôn ngữ ban đầu là Oak.\n\n</details>\n\n```java\nSystem.out.println("Hello Slot 1");\n```\n\n## 4. Luyện tập Chủ động\n\n### Bài 1.1: Vai trò Bytecode\n\n**Đề bài:** `javac` tạo ra gì?\n\n<details>\n<summary>👁️ Hiện đáp án &amp; lời giải chi tiết</summary>\n\nTạo file `.class`.\n\n</details>',
+          '# Slot 01: Tổng quan Java\n\n## 2. Lý thuyết cốt lõi\n\nLý thuyết Slot 1.\n\n<details>\n<summary>📚 Đọc thêm: Lịch sử Java</summary>\n\nNgôn ngữ ban đầu là Oak.\n\n</details>\n\n```java\nSystem.out.println("Hello Slot 1");\n```\n\n## 4. Luyện tập Chủ động\n\n### Bài 1.1: Vai trò Bytecode\n\n**Đề bài:** `javac` tạo ra gì?\n\n<details>\n<summary>👁️ Hiện đáp án &amp; lời giải chi tiết</summary>\n\nTạo file `.class`.\n\n</details>\n\n### 💻 Luyện Code Thực hành (JavaBrew Live Lab)\n\n#### 🟢 Thực hành 1A: In thẻ sinh viên\n- **Mục tiêu:** In dòng Hello Slot 1\n- **Expected Output:**\n  - `Hello Slot 1`\n\n```java\npublic class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello Slot 1");\n  }\n}\n```\n\n<details>\n<summary>👁️ Hiện lời giải chuẩn</summary>\n\nGiải thích chi tiết lời giải.\n\n</details>',
           { status: 200 }
         );
       }
@@ -363,6 +384,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /So sánh Bản Tối ưu \(Diff\)/i }));
     fireEvent.click(screen.getByRole('button', { name: /Áp dụng đoạn code tối ưu này/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận ghi đè code hiện tại/i }));
     fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
 
     expect(
@@ -1014,5 +1036,259 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     } finally {
       vi.stubGlobal('fetch', baseFetch);
     }
+  });
+
+  it('syncs document.title and calls window.scrollTo via RouteEnhancer across routes', async () => {
+    const origScrollTo = window.scrollTo;
+    const scrollSpy = vi.fn();
+    window.scrollTo = scrollSpy as unknown as typeof window.scrollTo;
+
+    try {
+      const { unmount } = render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <AppProvider>
+            <AppRoutes />
+          </AppProvider>
+        </MemoryRouter>
+      );
+      await waitFor(() => expect(document.title).toBe('Dashboard — JavaBrew'));
+      expect(scrollSpy).toHaveBeenCalled();
+      unmount();
+
+      render(
+        <MemoryRouter initialEntries={['/pro192/slots/slot-01']}>
+          <AppProvider>
+            <AppRoutes />
+          </AppProvider>
+        </MemoryRouter>
+      );
+      await waitFor(() =>
+        expect(document.title).toBe('Slot 1: Tổng quan Java — JavaBrew PRO192')
+      );
+    } finally {
+      window.scrollTo = origScrollTo;
+    }
+  });
+
+  it('renders ErrorBoundary fallback (#090) when a child component throws', () => {
+    const origErr = console.error;
+    console.error = vi.fn();
+    function BrokenChild(): never {
+      throw new Error('ChunkLoadError mock');
+    }
+
+    try {
+      render(
+        <ErrorBoundary>
+          <BrokenChild />
+        </ErrorBoundary>
+      );
+      expect(screen.getByText('Không thể tải trang hiện tại')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Tải lại trang/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Về Dashboard/i })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Chi tiết kỹ thuật/i }));
+      expect(screen.getByText('ChunkLoadError mock')).toBeInTheDocument();
+    } finally {
+      console.error = origErr;
+    }
+  });
+
+  it('exports Backup JSON v2 with PE drafts and resets inline without window.confirm', async () => {
+    savePeDraft(1, '// my custom crocus', '');
+    let capturedBlob: Blob | null = null;
+    const origCreateObjectUrl = URL.createObjectURL;
+    const origRevokeObjectUrl = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn((b: Blob) => {
+      capturedBlob = b;
+      return 'blob:mock';
+    }) as unknown as typeof URL.createObjectURL;
+    URL.revokeObjectURL = vi.fn();
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <AppProvider>
+            <AppRoutes />
+          </AppProvider>
+        </MemoryRouter>
+      );
+
+      fireEvent.click(await screen.findByRole('button', { name: /Cài đặt AI Key/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Xuất JSON/i }));
+      expect(capturedBlob).not.toBeNull();
+      const exportedText = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(capturedBlob!);
+      });
+      const parsed = JSON.parse(exportedText) as {
+        version: number;
+        drafts?: { pe?: Record<string, { mainCode: string }> };
+      };
+      expect(parsed.version).toBe(2);
+      expect(parsed.drafts?.pe?.['1']?.mainCode).toBe('// my custom crocus');
+
+      fireEvent.click(screen.getByRole('button', { name: /Đặt lại/i }));
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: /Xóa luôn toàn bộ code nháp/i })
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Xác nhận đặt lại/i }));
+      expect(localStorage.getItem('javabrew:pe_draft:1')).toBeNull();
+    } finally {
+      URL.createObjectURL = origCreateObjectUrl;
+      URL.revokeObjectURL = origRevokeObjectUrl;
+    }
+  });
+
+  it('supports token-based SearchModal with Live Lab, Slide PDF open, combobox A11y, and scroll lock', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: /Cài đặt AI Key/i });
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+
+    const combo = await screen.findByRole('combobox', { name: /Nhập từ khóa tìm kiếm/i });
+    expect(document.body.style.overflow).toBe('hidden');
+
+    fireEvent.change(combo, { target: { value: 'da hinh bigdecimal' } });
+    expect(
+      await screen.findByText(/Giải thích chi tiết về Đa hình và BigDecimal/i)
+    ).toBeInTheDocument();
+
+    const firstOpt = screen.getAllByRole('option')[0];
+    expect(firstOpt.querySelector('button')).toBeNull();
+
+    fireEvent.change(combo, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Slide \(1\)/i }));
+    fireEvent.click(await screen.findByText('Slide: Get Start'));
+
+    expect(
+      await screen.findByRole('dialog', { name: /Xem tài liệu PDF: Get Start/i })
+    ).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => {
+      expect(document.body.style.overflow).not.toBe('hidden');
+    });
+  });
+
+  it('connects CodingDrillBlock on Slot 01 to JavaBrew Live Lab and auto-verifies Expected Output', async () => {
+    installFetchMock((method) => {
+      if (method === 'GET') {
+        return new Response(JSON.stringify({ available: true, runtime: 'OpenJDK 21' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          available: true,
+          ok: true,
+          phase: 'run',
+          jdkVersion: 'OpenJDK 21',
+          compileMs: 25,
+          runMs: 12,
+          exitCode: 0,
+          timedOut: false,
+          stdout: 'Hello Slot 1\n',
+          stderr: '',
+          diagnostics: [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/pro192/slots/slot-01']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const openLabBtn = await screen.findByRole('button', { name: /Mở trong JavaBrew Live Lab/i });
+    fireEvent.click(openLabBtn);
+
+    const drillCard = await screen.findByTestId('live-lab-drill-card');
+    expect(drillCard.textContent).toContain('In dòng Hello Slot 1');
+
+    fireEvent.click(screen.getByRole('button', { name: /▶ Run Code/i }));
+    expect(await screen.findByText(/✔ Output khớp Expected Output!/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Đánh dấu hoàn thành Thực hành 1A/i }));
+    expect(
+      screen.getByRole('button', { name: /✔ Đã hoàn thành Thực hành 1A/i })
+    ).toBeInTheDocument();
+  });
+
+  it('renders Line Diff viewer (#127) with entity tab, 2-step confirm, and Undo restore', async () => {
+    render(
+      <MemoryRouter initialEntries={['/studio/2']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /So sánh Bản Tối ưu \(Diff\)/i }));
+    expect(await screen.findByText(/So sánh từng dòng \(Diff\)/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '2 Cột' }));
+    const diffTablist = screen.getByRole('tablist', { name: 'Tệp đang so sánh' });
+    fireEvent.click(within(diffTablist).getByRole('tab', { name: 'Daisy.java' }));
+    expect(screen.getByText(/khớp với bản chuẩn đề bài/i)).toBeInTheDocument();
+
+    fireEvent.click(within(diffTablist).getByRole('tab', { name: 'SpecDaisy.java' }));
+    fireEvent.click(screen.getByRole('button', { name: /Áp dụng đoạn code tối ưu này/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận ghi đè code hiện tại/i }));
+
+    const undoBtn = await screen.findByRole('button', { name: 'Hoàn tác' });
+    fireEvent.click(undoBtn);
+
+    const ed = screen.getByLabelText(/Trình soạn thảo mã nguồn Java/i);
+    const view = EditorView.findFromDOM(ed)!;
+    expect(view.state.doc.toString()).not.toContain('String color');
+  });
+
+  it('provides ThemeToggleButton (#219) on Landing & TopBar and limits VI|EN bar to /docs', async () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const toLightBtn = await screen.findByRole('button', { name: /Chuyển sang giao diện Sáng/i });
+    fireEvent.click(toLightBtn);
+    expect(document.documentElement.classList.contains('light')).toBe(true);
+    unmount();
+
+    const { unmount: unmountDash } = render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+    await screen.findByRole('button', { name: /Chuyển sang giao diện Tối/i });
+    expect(screen.queryByRole('group', { name: 'Ngôn ngữ JavaGuide' })).not.toBeInTheDocument();
+    unmountDash();
+
+    render(
+      <MemoryRouter initialEntries={['/docs/java/basis/bigdecimal.md']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+    expect(
+      await screen.findByRole('group', { name: 'Ngôn ngữ JavaGuide' })
+    ).toBeInTheDocument();
   });
 });

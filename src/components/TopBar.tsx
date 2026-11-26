@@ -8,6 +8,7 @@ import {
   useMobileHeaderMenuId,
 } from './lucian/AppMobileHeaderNav';
 import { CommandKButton } from './lucian/CommandKButton';
+import { ThemeToggleButton } from './lucian/ThemeToggleButton';
 import { Logo } from './Logo';
 
 const NAV_ITEMS = [
@@ -87,31 +88,36 @@ export function TopBar() {
         <div className="flex items-center gap-1.5 sm:gap-2">
           <CommandKButton onClick={() => setIsSearchOpen(true)} />
 
-          <div
-            role="group"
-            aria-label="Ngôn ngữ JavaGuide"
-            className="inline-flex items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-0.5"
-          >
-            {(['vi', 'en'] as const).map((code) => {
-              const active = lang === code;
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => setLang(code)}
-                  aria-pressed={active}
-                  className={[
-                    'min-h-[36px] rounded-md px-2.5 py-1 text-xs font-bold uppercase transition-colors sm:min-h-[32px]',
-                    active
-                      ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                  ].join(' ')}
-                >
-                  {code}
-                </button>
-              );
-            })}
-          </div>
+          {location.pathname.startsWith('/docs') && (
+            <div
+              role="group"
+              aria-label="Ngôn ngữ JavaGuide"
+              title="Ngôn ngữ tài liệu JavaGuide (VI / EN)"
+              className="inline-flex items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-0.5"
+            >
+              {(['vi', 'en'] as const).map((code) => {
+                const active = lang === code;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setLang(code)}
+                    aria-pressed={active}
+                    className={[
+                      'min-h-[36px] rounded-md px-2.5 py-1 text-xs font-bold uppercase transition-colors sm:min-h-[32px]',
+                      active
+                        ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                    ].join(' ')}
+                  >
+                    {code}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <ThemeToggleButton />
 
           <button
             type="button"

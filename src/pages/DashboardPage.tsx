@@ -26,6 +26,8 @@ export function DashboardPage() {
 
   const totalSlots = pro192?.course.totalSlots ?? 30;
   const doneSlots = progress.completedSlots.length;
+  const doneDrills = progress.completedDrills.length;
+  const totalDrills = 60;
   const proPct = Math.round((doneSlots / totalSlots) * 100);
 
   const totalArticles = navigation?.totalArticles ?? 354;
@@ -153,9 +155,14 @@ export function DashboardPage() {
                 Bấm ô tròn để cập nhật tiến độ (không gạch ngang để dễ ôn lại)
               </p>
             </div>
-            <span className="font-mono text-xs font-semibold tabular-nums text-[var(--accent)]">
-              {doneSlots}/{totalSlots} ({proPct}%)
-            </span>
+            <div className="flex flex-col items-end gap-0.5 text-right">
+              <span className="font-mono text-xs font-semibold tabular-nums text-[var(--accent)]">
+                {doneSlots}/{totalSlots} ({proPct}%)
+              </span>
+              <span className="font-mono text-[11px] tabular-nums text-[var(--info-text)]">
+                Thực hành Live Lab: {doneDrills}/{totalDrills}
+              </span>
+            </div>
           </div>
 
           <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-default)]">

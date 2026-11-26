@@ -152,4 +152,59 @@ describe('Real PRO192 data integrity', () => {
       expect(ch.solutionMd.length).toBeGreaterThan(50);
     }
   });
+
+  it('parses all 60 coding drills across the 30 real slot files with goals, Expected Output, starter code, and solutions', () => {
+    const slotsDir = path.join(ROOT, 'content', 'vi', 'pro192', 'slots');
+    const slotFiles = fs
+      .readdirSync(slotsDir)
+      .filter((f) => /^slot-\d{2}\.md$/.test(f))
+      .sort();
+
+    const allDrills = [];
+    for (const file of slotFiles) {
+      const raw = fs.readFileSync(path.join(slotsDir, file), 'utf8');
+      const parsed = parseMarkdownDocument(raw, {
+        stripLeadingH1: true,
+        deduplicateGalleryImages: true,
+      });
+      expect(parsed.headings.some((h) => h.level === 1)).toBe(false);
+      const drills = splitPro192StageContent(parsed.body)
+        .filter((s) => s.type === 'drill')
+        .map((s) => s.drill);
+      expect(drills).toHaveLength(2);
+      allDrills.push(...drills);
+    }
+
+    expect(allDrills).toHaveLength(60);
+    for (const drill of allDrills) {
+      expect(drill.id).toMatch(/^\d+[AB]$/);
+      expect(drill.title.length).toBeGreaterThan(2);
+      expect(drill.goal.length).toBeGreaterThan(5);
+      expect(drill.expectedOutputLines.length).toBeGreaterThan(0);
+      expect(drill.starterCode.length).toBeGreaterThan(20);
+      expect(drill.solutionMd.length).toBeGreaterThan(20);
+    }
+  });
+});
+
+describe('Markdown P1 deduplication options', () => {
+  it('strips duplicate leading H1 and deduplicates repeated gallery images when enabled', () => {
+    const raw = `# Slot 01: Intro\n\n## 2. Theory\n\n![JVM](/media/pro192/images/JVM.png)\n\n<details>\n<summary>🖼️ Thư viện sơ đồ trực quan từ Slide gốc (2 ảnh)</summary>\n\n![JVM](/media/pro192/images/JVM.png)\n\n![Heap](/media/pro192/images/Heap.png)\n\n</details>`;
+    const parsed = parseMarkdownDocument(raw, {
+      stripLeadingH1: true,
+      deduplicateGalleryImages: true,
+    });
+    expect(parsed.body).not.toContain('# Slot 01: Intro');
+    expect(parsed.headings[0]?.text).toBe('2. Theory');
+    expect(parsed.body).toContain('(1 ảnh)');
+    expect(parsed.body).toContain('![Heap](/media/pro192/images/Heap.png)');
+    expect(parsed.body.match(/\/media\/pro192\/images\/JVM\.png/g)).toHaveLength(1);
+
+    const allDup = `# Title\n\n![Only](/a.png)\n\n<details>\n<summary>🖼️ Thư viện sơ đồ trực quan từ Slide gốc (1 ảnh)</summary>\n\n![Only](/a.png)\n\n</details>`;
+    const cleaned = parseMarkdownDocument(allDup, {
+      stripLeadingH1: true,
+      deduplicateGalleryImages: true,
+    });
+    expect(cleaned.body).not.toContain('<details>');
+  });
 });

@@ -24,6 +24,7 @@ import {
   RefreshCw,
   Search,
 } from 'lucide-react';
+import { CodingDrillBlock } from '../components/CodingDrillBlock';
 import { ExerciseBlock } from '../components/ExerciseBlock';
 import { BookmarkRibbonButton } from '../components/lucian/BookmarkRibbonButton';
 import { ReadingProgressFab } from '../components/lucian/ReadingProgressFab';
@@ -212,9 +213,18 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
     };
   }, [isReaderView, mode, slug, docRel, lang, reloadTick]);
 
-  const parsed = useMemo(() => (rawMd ? parseMarkdownDocument(rawMd) : null), [rawMd]);
+  const parsed = useMemo(
+    () =>
+      rawMd
+        ? parseMarkdownDocument(rawMd, {
+            stripLeadingH1: true,
+            deduplicateGalleryImages: mode === 'pro192',
+          })
+        : null,
+    [rawMd, mode]
+  );
   const companionParsed = useMemo(
-    () => (companionMd ? parseMarkdownDocument(companionMd) : null),
+    () => (companionMd ? parseMarkdownDocument(companionMd, { stripLeadingH1: true }) : null),
     [companionMd]
   );
 
@@ -259,6 +269,10 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   );
   const stageExercises = useMemo(
     () => proSegments.filter((s) => s.type === 'exercise').map((s) => s.exercise),
+    [proSegments]
+  );
+  const stageDrills = useMemo(
+    () => proSegments.filter((s) => s.type === 'drill').map((s) => s.drill),
     [proSegments]
   );
 
@@ -480,6 +494,9 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
 
   const solvedInStage = stageExercises.filter((ex) =>
     progress.solvedExercises.includes(ex.id)
+  ).length;
+  const doneDrillsInStage = stageDrills.filter((d) =>
+    progress.completedDrills.includes(d.id)
   ).length;
 
   const normTreeFilter = normalizeSearchText(treeFilter);
@@ -1465,15 +1482,26 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                         <span className="font-semibold text-[var(--text-muted)]">
                           Nhảy nhanh Slot &amp; đánh dấu hoàn thành:
                         </span>
-                        {stageExercises.length > 0 && (
-                          <div className="flex items-center gap-2">
-                            <span className="tabular-nums text-[var(--text-muted)]">
-                              Bài tập:{' '}
-                              <strong className="text-[var(--text-primary)]">
-                                {solvedInStage}
-                              </strong>
-                              /{stageExercises.length}
-                            </span>
+                        {(stageExercises.length > 0 || stageDrills.length > 0) && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {stageExercises.length > 0 && (
+                              <span className="tabular-nums text-[var(--text-muted)]">
+                                Bài tập:{' '}
+                                <strong className="text-[var(--text-primary)]">
+                                  {solvedInStage}
+                                </strong>
+                                /{stageExercises.length}
+                              </span>
+                            )}
+                            {stageDrills.length > 0 && (
+                              <span className="tabular-nums text-[var(--text-muted)]">
+                                Thực hành:{' '}
+                                <strong className="text-[var(--info-text)]">
+                                  {doneDrillsInStage}
+                                </strong>
+                                /{stageDrills.length}
+                              </span>
+                            )}
                             <button
                               type="button"
                               onClick={() => setForceRevealAll(true)}
@@ -1631,10 +1659,17 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                               content={seg.content}
                               currentRel={`pro192/${slug}.md`}
                             />
-                          ) : (
+                          ) : seg.type === 'exercise' ? (
                             <ExerciseBlock
                               key={`ex-${seg.exercise.id}`}
                               exercise={seg.exercise}
+                              currentRel={`pro192/${slug}.md`}
+                              forceReveal={forceRevealAll}
+                            />
+                          ) : (
+                            <CodingDrillBlock
+                              key={`drill-${seg.drill.id}`}
+                              drill={seg.drill}
                               currentRel={`pro192/${slug}.md`}
                               forceReveal={forceRevealAll}
                             />

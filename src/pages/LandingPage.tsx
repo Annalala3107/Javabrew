@@ -16,6 +16,7 @@ import { GridBeamHeroBg } from '../components/lucian/GridBeamHeroBg';
 import { InteractiveHeroDemo } from '../components/lucian/InteractiveHeroDemo';
 import { MobileLandingMenu } from '../components/lucian/MobileLandingMenu';
 import { ScrollTimeline, type TimelineStep } from '../components/lucian/ScrollTimeline';
+import { ThemeToggleButton } from '../components/lucian/ThemeToggleButton';
 import { TypewriterKeyword } from '../components/lucian/TypewriterKeyword';
 import { useApp } from '../context/AppContext';
 import { useRevealSection } from '../hooks/useMotion';
@@ -120,6 +121,7 @@ export function LandingPage() {
           </nav>
 
           <div className="flex shrink-0 items-center gap-2">
+            <ThemeToggleButton />
             <Link
               to="/dashboard"
               className="inline-flex min-h-[40px] items-center rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"

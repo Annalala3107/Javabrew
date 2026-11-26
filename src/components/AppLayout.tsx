@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { PdfPreviewModal } from './PdfPreviewModal';
+import { RouteEnhancer } from './RouteEnhancer';
 import { SearchModal } from './SearchModal';
 import { SettingsModal } from './SettingsModal';
 import { TopBar } from './TopBar';
@@ -14,6 +15,7 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
+      <RouteEnhancer />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-[var(--accent)] focus:px-3 focus:py-2 focus:text-xs font-bold focus:text-[var(--accent-contrast)]"

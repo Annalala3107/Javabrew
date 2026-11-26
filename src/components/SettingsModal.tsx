@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { useApp, type ByokPersistMode } from '../context/AppContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   AI_MENTOR_MODELS,
   testGeminiApiKey,
@@ -41,7 +42,16 @@ export function SettingsModal() {
   const [testingKey, setTestingKey] = useState(false);
   const [keyStatus, setKeyStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetIncludeDrafts, setResetIncludeDrafts] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useModalA11y({
+    open: isSettingsOpen,
+    containerRef: dialogRef,
+    onClose: () => setIsSettingsOpen(false),
+  });
 
   useEffect(() => {
     if (isSettingsOpen) {
@@ -51,6 +61,8 @@ export function SettingsModal() {
       setKeyStatus(null);
       setTestingKey(false);
       setStatusMsg(null);
+      setConfirmReset(false);
+      setResetIncludeDrafts(false);
     }
   }, [isSettingsOpen, byokKey, byokPersist, aiModel]);
 
@@ -116,7 +128,10 @@ export function SettingsModal() {
         if (e.target === e.currentTarget) setIsSettingsOpen(false);
       }}
     >
-      <div className="max-h-[90vh] w-full max-w-md space-y-4 overflow-y-auto overscroll-contain rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] p-5 text-xs shadow-[var(--shadow-overlay)]">
+      <div
+        ref={dialogRef}
+        className="max-h-[90vh] w-full max-w-md space-y-4 overflow-y-auto overscroll-contain rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] p-5 text-xs shadow-[var(--shadow-overlay)]"
+      >
         <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-2.5">
           <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
             <Settings className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
@@ -288,22 +303,27 @@ export function SettingsModal() {
 
         {/* Backup & Reset */}
         <div className="space-y-2 border-t border-[var(--border-default)] pt-3">
-          <div className="font-semibold text-[var(--text-primary)]">Sao lưu &amp; dữ liệu học tập:</div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold text-[var(--text-primary)]">
+              Sao lưu &amp; dữ liệu học tập:
+            </span>
+            <span className="text-[11px] text-[var(--text-dim)]">JSON v2 (+ code nháp PE/Lab)</span>
+          </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={handleExport}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+              className="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Xuất JSON</span>
             </button>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+              className="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
             >
-              <Upload className="h-3.5 w-3.5" />
+              <Upload className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Nhập JSON</span>
             </button>
             <input
@@ -313,20 +333,65 @@ export function SettingsModal() {
               onChange={handleImport}
               className="hidden"
             />
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Đặt lại toàn bộ tiến độ, bookmark và ghi chú đã lưu?')) {
-                  resetProgress();
-                  setStatusMsg('Đã đặt lại tiến độ học tập.');
-                }
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--danger-text)] hover:border-[var(--danger)]"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>Đặt lại</span>
-            </button>
+            {!confirmReset && (
+              <button
+                type="button"
+                onClick={() => setConfirmReset(true)}
+                className="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--danger-text)] hover:border-[var(--danger)]"
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Đặt lại</span>
+              </button>
+            )}
           </div>
+
+          {confirmReset && (
+            <div
+              role="alert"
+              className="space-y-2 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-3"
+            >
+              <p className="font-semibold text-[var(--danger-text)]">
+                Xác nhận đặt lại toàn bộ tiến độ, bookmark và ghi chú?
+              </p>
+              <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[var(--text-primary)]">
+                <input
+                  type="checkbox"
+                  checked={resetIncludeDrafts}
+                  onChange={(e) => setResetIncludeDrafts(e.target.checked)}
+                  className="accent-[var(--danger)]"
+                />
+                <span>Xóa luôn toàn bộ code nháp PE &amp; JavaBrew Live Lab</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetProgress(resetIncludeDrafts);
+                    setConfirmReset(false);
+                    setStatusMsg(
+                      resetIncludeDrafts
+                        ? 'Đã đặt lại tiến độ và xóa toàn bộ code nháp.'
+                        : 'Đã đặt lại tiến độ học tập.'
+                    );
+                  }}
+                  className="min-h-[32px] rounded-md bg-[var(--danger)] px-3 py-1 font-bold text-white hover:opacity-90"
+                >
+                  Xác nhận đặt lại
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmReset(false);
+                    setResetIncludeDrafts(false);
+                  }}
+                  className="min-h-[32px] rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          )}
+
           {statusMsg && <p className="text-xs text-[var(--success-text)]">{statusMsg}</p>}
         </div>
 

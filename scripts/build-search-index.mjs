@@ -151,6 +151,46 @@ async function main() {
     }
   }
 
+  // Index 45 JavaBrew Live Lab templates without bundling source bodies
+  const templateMetaRegex =
+    /\{\s*id:\s*'([^']+)',\s*title:\s*'([^']+)',\s*subtitle:\s*'([^']+)',\s*category:\s*'([^']+)',\s*slotRef:\s*'([^']+)'/g;
+  const playgroundTemplates = [];
+  for (const relSrc of ['src/utils/javaPlayground.ts', 'src/utils/slotLabTemplates.ts']) {
+    const srcText = await fs.readFile(path.join(ROOT, relSrc), 'utf8');
+    for (const m of srcText.matchAll(templateMetaRegex)) {
+      playgroundTemplates.push({
+        id: m[1],
+        title: m[2],
+        subtitle: m[3],
+        category: m[4],
+        slotRef: m[5],
+      });
+    }
+  }
+  if (playgroundTemplates.length < 45) {
+    throw new Error(
+      `Expected at least 45 playgroundTemplates, got ${playgroundTemplates.length}`
+    );
+  }
+
+  // Index 14 Slide PDFs paired with PPTX and PRO192 Slots
+  const slideSet = new Set(pro.assets?.slides || []);
+  const slides = [];
+  for (const pdfUrl of pro.assets?.resources || []) {
+    if (!pdfUrl.toLowerCase().endsWith('.pdf')) continue;
+    const baseName = decodeURIComponent(path.posix.basename(pdfUrl, '.pdf'));
+    const candidatePptx = `/media/pro192/slides/${encodeURIComponent(baseName)}.pptx`;
+    const matchedSlots = (pro.slots || [])
+      .filter((s) => s.slidePdf === pdfUrl)
+      .map((s) => s.slot);
+    slides.push({
+      title: baseName,
+      pdfUrl,
+      pptxUrl: slideSet.has(candidatePptx) ? candidatePptx : undefined,
+      slots: matchedSlots,
+    });
+  }
+
   await fs.mkdir(OUT_DIR, { recursive: true });
   await fs.writeFile(
     OUT_FILE,
@@ -159,6 +199,8 @@ async function main() {
       totalArticles: articles.length,
       totalExercises: exercises.length,
       totalPeChallenges: peChallenges.length,
+      totalPlaygroundTemplates: playgroundTemplates.length,
+      totalSlides: slides.length,
       articles,
       pro192Slots: pro.slots.map((s) => ({
         slot: s.slot,
@@ -168,12 +210,14 @@ async function main() {
       })),
       pro192Exercises: exercises,
       peChallenges,
+      playgroundTemplates,
+      slides,
     }),
     'utf8'
   );
 
   console.log(
-    `Built search-index.json: ${articles.length} articles, ${pro.slots.length} slots, ${exercises.length} exercises, ${peChallenges.length} PE challenges.`
+    `Built search-index.json: ${articles.length} articles, ${pro.slots.length} slots, ${exercises.length} exercises, ${peChallenges.length} PE challenges, ${playgroundTemplates.length} Live Lab templates, ${slides.length} slides.`
   );
 }
 

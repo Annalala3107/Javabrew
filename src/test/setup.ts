@@ -16,6 +16,13 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
   });
 }
 
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'scrollTo', {
+    writable: true,
+    value: () => {},
+  });
+}
+
 if (typeof globalThis.IntersectionObserver === 'undefined') {
   class MockIntersectionObserver implements IntersectionObserver {
     readonly root: Element | Document | null = null;

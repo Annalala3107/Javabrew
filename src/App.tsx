@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
-import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { SkeletonCard } from './components/lucian/SkeletonCard';
 import { AppProvider } from './context/AppContext';
 import { LandingPage } from './pages/LandingPage';
@@ -40,26 +41,29 @@ function NotFoundPage() {
 }
 
 export function AppRoutes() {
+  const navigate = useNavigate();
   return (
-    <Suspense fallback={<RouteLoader />}>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/pro192" element={<LearnPage mode="pro192" />} />
-          <Route path="/pro192/pe-challenges" element={<Navigate to="/pe" replace />} />
-          <Route path="/pro192/*" element={<LearnPage mode="pro192" />} />
-          <Route path="/docs" element={<LearnPage mode="docs" />} />
-          <Route path="/docs/*" element={<LearnPage mode="docs" />} />
-          <Route path="/resources" element={<LearnPage mode="resources" />} />
-          <Route path="/pe" element={<PeHubPage />} />
-          <Route path="/studio" element={<CodeStudioPage />} />
-          <Route path="/studio/playground" element={<CodeStudioPage isPlayground />} />
-          <Route path="/studio/:peId" element={<CodeStudioPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
-    </Suspense>
+    <ErrorBoundary onGoHome={() => navigate('/dashboard')}>
+      <Suspense fallback={<RouteLoader />}>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/pro192" element={<LearnPage mode="pro192" />} />
+            <Route path="/pro192/pe-challenges" element={<Navigate to="/pe" replace />} />
+            <Route path="/pro192/*" element={<LearnPage mode="pro192" />} />
+            <Route path="/docs" element={<LearnPage mode="docs" />} />
+            <Route path="/docs/*" element={<LearnPage mode="docs" />} />
+            <Route path="/resources" element={<LearnPage mode="resources" />} />
+            <Route path="/pe" element={<PeHubPage />} />
+            <Route path="/studio" element={<CodeStudioPage />} />
+            <Route path="/studio/playground" element={<CodeStudioPage isPlayground />} />
+            <Route path="/studio/:peId" element={<CodeStudioPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 

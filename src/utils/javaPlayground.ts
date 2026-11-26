@@ -24,11 +24,21 @@ export interface PlaygroundTemplate {
   files: PlaygroundFile[];
 }
 
+export interface PlaygroundDrillContext {
+  id: string;
+  slot: number;
+  title: string;
+  goal: string;
+  expectedOutputLines: string[];
+  backUrl: string;
+}
+
 export interface PlaygroundWorkspaceState {
   files: PlaygroundFile[];
   activeFileId: string;
   stdin: string;
   sourceLabel?: string;
+  drillContext?: PlaygroundDrillContext;
 }
 
 export const MAX_PLAYGROUND_FILES = 5;
@@ -991,15 +1001,93 @@ export function readPlaygroundWorkspace(): PlaygroundWorkspaceState | null {
       typeof parsed.activeFileId === 'string' && files.some((f) => f.id === parsed.activeFileId)
         ? parsed.activeFileId
         : files[0].id;
+    const drillContext =
+      parsed.drillContext &&
+      typeof parsed.drillContext === 'object' &&
+      typeof parsed.drillContext.id === 'string' &&
+      typeof parsed.drillContext.title === 'string' &&
+      typeof parsed.drillContext.goal === 'string' &&
+      typeof parsed.drillContext.backUrl === 'string' &&
+      Array.isArray(parsed.drillContext.expectedOutputLines)
+        ? {
+            id: parsed.drillContext.id,
+            slot: Number(parsed.drillContext.slot) || 1,
+            title: parsed.drillContext.title,
+            goal: parsed.drillContext.goal,
+            expectedOutputLines: parsed.drillContext.expectedOutputLines.map(String),
+            backUrl: parsed.drillContext.backUrl,
+          }
+        : undefined;
     return {
       files,
       activeFileId,
       stdin: typeof parsed.stdin === 'string' ? parsed.stdin : '',
       sourceLabel: typeof parsed.sourceLabel === 'string' ? parsed.sourceLabel : undefined,
+      drillContext,
     };
   } catch {
     return null;
   }
+}
+
+function escapeRegExpChar(ch: string): string {
+  return ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function matchesExpectedLine(actualLine: string, expectedPattern: string): boolean {
+  const actual = actualLine.trim();
+  const expected = expectedPattern.trim();
+  if (!expected) return true;
+  if (actual === expected) return true;
+
+  if (expected.includes('...')) {
+    const parts = expected.split('...').map((segment) => {
+      // Allow version placeholders like "21.x..." -> match "21...."
+      const cleanSeg = segment.replace(/\.x$/, '.');
+      return Array.from(cleanSeg).map(escapeRegExpChar).join('');
+    });
+    const pattern = new RegExp(`^${parts.join('.*')}$`);
+    return pattern.test(actual);
+  }
+
+  return false;
+}
+
+export function evaluateExpectedOutput(
+  stdout: string,
+  expectedLines: string[]
+): {
+  matched: boolean;
+  firstMismatch?: { lineIndex: number; expected: string; actual: string };
+} {
+  const normalizedExpected = expectedLines.map((l) => l.trim()).filter(Boolean);
+  if (normalizedExpected.length === 0) {
+    return { matched: stdout.trim().length > 0 };
+  }
+
+  const actualLines = stdout
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((l) => l.trimEnd());
+  while (actualLines.length > 0 && actualLines[0].trim() === '') actualLines.shift();
+  while (actualLines.length > 0 && actualLines[actualLines.length - 1].trim() === '') actualLines.pop();
+
+  for (let i = 0; i < normalizedExpected.length; i++) {
+    const exp = normalizedExpected[i];
+    const act = actualLines[i] ?? '';
+    if (!matchesExpectedLine(act, exp)) {
+      return {
+        matched: false,
+        firstMismatch: {
+          lineIndex: i + 1,
+          expected: exp,
+          actual: act || '(trống)',
+        },
+      };
+    }
+  }
+
+  return { matched: true };
 }
 
 export function savePlaygroundWorkspace(state: PlaygroundWorkspaceState): void {

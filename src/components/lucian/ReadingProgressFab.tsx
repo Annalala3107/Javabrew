@@ -1,5 +1,5 @@
 // Lucian UX/UI Prompt #450 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#450
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { HelpCircle, X } from 'lucide-react';
 import { getPrefersReducedMotion } from '../../hooks/useMotion';
 import './lucian-450.css';
@@ -12,6 +12,16 @@ export function ReadingProgressFab({ focusMode = false }: ReadingProgressFabProp
   const [progress, setProgress] = useState(0);
   const [flying, setFlying] = useState(false);
   const [open, setOpen] = useState(false);
+  const openBtnRef = useRef<HTMLButtonElement>(null);
+
+  const closePanel = (restoreFocus = false) => {
+    setOpen(false);
+    if (restoreFocus) {
+      window.setTimeout(() => {
+        openBtnRef.current?.focus({ preventScroll: true });
+      }, 0);
+    }
+  };
 
   useEffect(() => {
     let raf = 0;
@@ -72,13 +82,14 @@ export function ReadingProgressFab({ focusMode = false }: ReadingProgressFabProp
       {!focusMode && (
         <div className="u450-fab">
           <button
+            ref={openBtnRef}
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Mở phím tắt & mẹo học"
             aria-expanded={open}
             className="u450-open"
           >
-            <HelpCircle className="h-5 w-5" />
+            <HelpCircle className="h-5 w-5" aria-hidden="true" />
           </button>
 
           <div
@@ -89,7 +100,7 @@ export function ReadingProgressFab({ focusMode = false }: ReadingProgressFabProp
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.stopPropagation();
-                setOpen(false);
+                closePanel(true);
               }
             }}
           >
@@ -97,11 +108,12 @@ export function ReadingProgressFab({ focusMode = false }: ReadingProgressFabProp
               <span className="font-bold text-[var(--accent-text)]">Phím tắt &amp; Mẹo học</span>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                tabIndex={open ? 0 : -1}
+                onClick={() => closePanel(true)}
                 aria-label="Đóng bảng phím tắt"
                 className="rounded p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
             <ul className="space-y-1.5 text-[var(--text-secondary)]">

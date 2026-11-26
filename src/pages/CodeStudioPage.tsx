@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  ArrowLeft,
   BookOpen,
+  CheckCircle2,
   Columns2,
   Eraser,
   FilePlus2,
@@ -11,9 +13,12 @@ import {
   Rows2,
   Settings,
   Share2,
+  Target,
   Timer,
   Trash2,
+  X,
 } from 'lucide-react';
+import { CodeDiffView } from '../components/CodeDiffView';
 import { JavaCodeEditor, MAX_CODE_CHARS, type JumpTarget } from '../components/JavaCodeEditor';
 import { TryitSplitPane } from '../components/TryitSplitPane';
 import { CodeCharLimitMeter } from '../components/lucian/CodeCharLimitMeter';
@@ -43,10 +48,12 @@ import {
   cloneTemplateFiles,
   decodePlaygroundShareParam,
   encodePlaygroundShareParam,
+  evaluateExpectedOutput,
   findPlaygroundTemplate,
   readPlaygroundWorkspace,
   savePlaygroundWorkspace,
   validateNewJavaFileName,
+  type PlaygroundDrillContext,
   type PlaygroundFile,
   type PlaygroundTemplateCategory,
   type PlaygroundWorkspaceState,
@@ -70,6 +77,7 @@ interface CodeStudioPageProps {
 interface PlaygroundRouteState {
   playgroundImport?: PlaygroundWorkspaceState;
   note?: string;
+  drillContext?: PlaygroundDrillContext;
 }
 
 const STORAGE_ORIENTATION = 'javabrew:studio_orientation';
@@ -150,6 +158,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     progress,
     setIsSettingsOpen,
     markPeStatus,
+    toggleDrillCompleted,
     addMistake,
     recordVisit,
     pushToast,
@@ -268,6 +277,14 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const [playgroundFiles, setPlaygroundFiles] = useState<PlaygroundFile[]>(initialPg.files);
   const [pgActiveFileId, setPgActiveFileId] = useState<string>(initialPg.activeFileId);
   const [pgSourceLabel, setPgSourceLabel] = useState<string | undefined>(initialPg.sourceLabel);
+  const [activeDrillContext, setActiveDrillContext] = useState<PlaygroundDrillContext | null>(() => {
+    const routeState = location.state as PlaygroundRouteState | null;
+    return routeState?.drillContext || routeState?.playgroundImport?.drillContext || initialPg.drillContext || null;
+  });
+  const [drillMatchResult, setDrillMatchResult] = useState<{
+    matched: boolean;
+    firstMismatch?: { lineIndex: number; expected: string; actual: string };
+  } | null>(null);
   const [pgImportBanner, setPgImportBanner] = useState<string | null>(() => {
     const routeState = location.state as PlaygroundRouteState | null;
     return routeState?.note || null;
@@ -425,18 +442,25 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
     appliedImportKeyRef.current = location.key;
     const incoming = routeState.playgroundImport;
+    const incomingDrill = routeState.drillContext || incoming.drillContext || null;
     window.clearTimeout(pgDraftTimerRef.current);
     setPlaygroundFiles(incoming.files);
     setPgActiveFileId(incoming.activeFileId || incoming.files[0].id);
     setStdinInput(incoming.stdin || '');
     setShowStdin(Boolean(incoming.stdin));
     setPgSourceLabel(incoming.sourceLabel);
+    setActiveDrillContext(incomingDrill);
+    setDrillMatchResult(null);
     setPgImportBanner(routeState.note || 'Đã nạp đoạn mã từ bài học vào Java Playground.');
     setActiveExampleId(null);
     setShowExamplesDrawer(false);
     setPgDraftState('saved');
-    latestPgRef.current = { state: incoming, dirty: false };
-    savePlaygroundWorkspace(incoming);
+    const persistedImport: PlaygroundWorkspaceState = {
+      ...incoming,
+      drillContext: incomingDrill || undefined,
+    };
+    latestPgRef.current = { state: persistedImport, dirty: false };
+    savePlaygroundWorkspace(persistedImport);
 
     setShowDiff(false);
     setDiagnostics([]);
@@ -478,6 +502,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         setStdinInput(cloned.template.stdin);
         setShowStdin(cloned.template.stdin.length > 0);
         setPgSourceLabel(cloned.template.title);
+        setActiveDrillContext(null);
+        setDrillMatchResult(null);
         setPgImportBanner(cloned.template.subtitle);
         setActiveExampleId(cloned.template.id);
         setPgDraftState('clean');
@@ -502,6 +528,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         setStdinInput(decoded.stdin);
         setShowStdin(decoded.stdin.length > 0);
         setPgSourceLabel(decoded.sourceLabel);
+        setActiveDrillContext(null);
+        setDrillMatchResult(null);
         setPgImportBanner('Đã nạp mã nguồn từ liên kết chia sẻ.');
         setActiveExampleId(null);
         setPgDraftState('saved');
@@ -596,16 +624,20 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   }, []);
 
   const schedulePlaygroundSave = (nextState: PlaygroundWorkspaceState, immediate = false) => {
-    latestPgRef.current = { state: nextState, dirty: !immediate };
+    const mergedState: PlaygroundWorkspaceState =
+      'drillContext' in nextState || !activeDrillContext
+        ? nextState
+        : { ...nextState, drillContext: activeDrillContext };
+    latestPgRef.current = { state: mergedState, dirty: !immediate };
     window.clearTimeout(pgDraftTimerRef.current);
     if (immediate) {
-      savePlaygroundWorkspace(nextState);
+      savePlaygroundWorkspace(mergedState);
       setPgDraftState('saved');
       return;
     }
     setPgDraftState('saving');
     pgDraftTimerRef.current = window.setTimeout(() => {
-      savePlaygroundWorkspace(nextState);
+      savePlaygroundWorkspace(mergedState);
       latestPgRef.current.dirty = false;
       setPgDraftState('saved');
     }, 180);
@@ -637,6 +669,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       activeFileId: fileId,
       stdin: stdinInput,
       sourceLabel: pgSourceLabel,
+      drillContext: activeDrillContext || undefined,
     });
   };
 
@@ -844,6 +877,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setDiagnostics([]);
     setCloudTestResults([]);
     setLastTiming(null);
+    setDrillMatchResult(null);
     setConsoleStatus('☕ Đang biên dịch & chạy trên OpenJDK Sandbox...');
     setConsoleTone('amber');
     setConsoleOutput('Đang khởi chạy biên dịch javac và thực thi trên JVM...');
@@ -899,6 +933,11 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       }
 
       if (res.exitCode === 0) {
+        if (activeDrillContext) {
+          setDrillMatchResult(
+            evaluateExpectedOutput(res.stdout, activeDrillContext.expectedOutputLines)
+          );
+        }
         setConsoleStatus(`✔ Biên dịch & Chạy thật thành công (${res.compileMs + res.runMs}ms)`);
         setConsoleTone('green');
         return true;
@@ -1272,8 +1311,10 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       activeFileId: pgActiveFileId,
       stdin: stdinInput,
       sourceLabel: pgSourceLabel,
+      drillContext: activeDrillContext || undefined,
     };
     const prevExampleId = activeExampleId;
+    const prevDrillContext = activeDrillContext;
     const { template, files } = cloneTemplateFiles(templateId);
 
     appliedQueryKeyRef.current = `ex:${template.id}`;
@@ -1283,6 +1324,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setStdinInput(template.stdin);
     setShowStdin(template.stdin.length > 0);
     setPgSourceLabel(template.title);
+    setActiveDrillContext(null);
+    setDrillMatchResult(null);
     setPgImportBanner(template.subtitle);
     setActiveExampleId(template.id);
     setDiagnostics([]);
@@ -1296,6 +1339,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         activeFileId: files[0].id,
         stdin: template.stdin,
         sourceLabel: template.title,
+        drillContext: undefined,
       },
       true
     );
@@ -1312,6 +1356,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       undoLabel: 'Hoàn tác',
       onUndo: () => {
         setActiveExampleId(prevExampleId);
+        setActiveDrillContext(prevDrillContext);
         setPlaygroundFiles(prevState.files);
         setPgActiveFileId(prevState.activeFileId);
         setStdinInput(prevState.stdin);
@@ -1367,14 +1412,21 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
   const handleApplyCleanCode = () => {
     if (!activePe) return;
+    const prevMain = mainCode;
+    const prevEntity = entityCode;
+    const nextEntity = hasEntityFile ? activePe.entityCode : entityCode;
+
     setMainCode(activePe.cleanCode);
-    savePeDraft(activePe.id, activePe.cleanCode, entityCode);
+    if (hasEntityFile) {
+      setEntityCode(nextEntity);
+    }
+    savePeDraft(activePe.id, activePe.cleanCode, nextEntity);
     setDraftState('saved');
     if (latestDraftRef.current) {
       latestDraftRef.current = {
         peId: activePe.id,
         main: activePe.cleanCode,
-        entity: entityCode,
+        entity: nextEntity,
         dirty: false,
       };
     }
@@ -1382,7 +1434,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setShowDiff(false);
     setDiagnostics([]);
     setCloudTestResults([]);
-    const res = evaluatePeCode(activePe.id, activePe.cleanCode, entityCode);
+    const res = evaluatePeCode(activePe.id, activePe.cleanCode, nextEntity);
     setDiagnosisCards(res.diagnosisCards);
     setConsoleStatus('Đã áp dụng bản tối ưu ✨');
     setConsoleTone('green');
@@ -1393,6 +1445,51 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       title: 'Đã áp dụng Clean Code',
       description: 'Nháp của bạn đã được cập nhật tự động.',
       tone: 'success',
+      undoLabel: 'Hoàn tác',
+      onUndo: () => {
+        setMainCode(prevMain);
+        setEntityCode(prevEntity);
+        savePeDraft(activePe.id, prevMain, prevEntity);
+        setDraftState('saved');
+        latestDraftRef.current = {
+          peId: activePe.id,
+          main: prevMain,
+          entity: prevEntity,
+          dirty: false,
+        };
+        setDiagnosisCards(evaluatePeCode(activePe.id, prevMain, prevEntity).diagnosisCards);
+      },
+    });
+  };
+
+  const handleRestoreEntityCode = () => {
+    if (!activePe || !hasEntityFile) return;
+    const prevEntity = entityCode;
+    setEntityCode(activePe.entityCode);
+    savePeDraft(activePe.id, mainCode, activePe.entityCode);
+    setDraftState('saved');
+    latestDraftRef.current = {
+      peId: activePe.id,
+      main: mainCode,
+      entity: activePe.entityCode,
+      dirty: false,
+    };
+    setDiagnostics([]);
+    pushToast({
+      title: `Đã khôi phục ${entityFileName} gốc đề bài`,
+      tone: 'info',
+      undoLabel: 'Hoàn tác',
+      onUndo: () => {
+        setEntityCode(prevEntity);
+        savePeDraft(activePe.id, mainCode, prevEntity);
+        setDraftState('saved');
+        latestDraftRef.current = {
+          peId: activePe.id,
+          main: mainCode,
+          entity: prevEntity,
+          dirty: false,
+        };
+      },
     });
   };
 
@@ -1405,7 +1502,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         activeFileId: pgActiveFileId,
         stdin: stdinInput,
         sourceLabel: pgSourceLabel,
+        drillContext: activeDrillContext || undefined,
       };
+      const prevDrillContext = activeDrillContext;
       const targetId = activeExampleId || PLAYGROUND_TEMPLATES[0].id;
       const { template, files } = cloneTemplateFiles(targetId);
       window.clearTimeout(pgDraftTimerRef.current);
@@ -1415,6 +1514,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       setStdinInput(template.stdin);
       setShowStdin(template.stdin.length > 0);
       setPgSourceLabel(template.title);
+      setActiveDrillContext(null);
+      setDrillMatchResult(null);
       setPgImportBanner(null);
       setPgDraftState('clean');
       latestPgRef.current = {
@@ -1432,6 +1533,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         tone: 'info',
         undoLabel: 'Hoàn tác',
         onUndo: () => {
+          setActiveDrillContext(prevDrillContext);
           setPlaygroundFiles(prevState.files);
           setPgActiveFileId(prevState.activeFileId);
           setStdinInput(prevState.stdin);
@@ -1631,9 +1733,6 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     });
   }, [exampleCategory, exampleSearch]);
 
-  const currentLineCount = mainCode.split(/\r?\n/).length;
-  const cleanLineCount = activePe ? activePe.cleanCode.split(/\r?\n/).length : 0;
-
   if (!playgroundMode && !activePe) {
     return (
       <div className="mx-auto max-w-4xl p-6 text-center text-xs text-[var(--text-muted)]">
@@ -1662,6 +1761,10 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
           ? '☕ Đang kiểm tra Sandbox'
           : '⚡ Static Pattern Evaluator (Fallback)';
 
+  const isActiveDrillDone = activeDrillContext
+    ? progress.completedDrills.includes(activeDrillContext.id)
+    : false;
+
   const primaryEditorPane = (
     <>
       {playgroundMode && pgSourceLabel && (
@@ -1685,6 +1788,104 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
             >
               Đổi mẫu khác ({PLAYGROUND_TEMPLATES.length})
             </button>
+          )}
+        </div>
+      )}
+
+      {playgroundMode && activeDrillContext && (
+        <div
+          data-testid="live-lab-drill-card"
+          className="space-y-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-xs"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Target className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+              <span className="font-bold text-[var(--text-primary)]">
+                Thực hành {activeDrillContext.id}: {activeDrillContext.title}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                to={activeDrillContext.backUrl}
+                className="inline-flex min-h-[28px] items-center gap-1 rounded border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2 py-0.5 font-medium text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+              >
+                <ArrowLeft className="h-3 w-3" aria-hidden="true" />
+                <span>Quay lại Slot {activeDrillContext.slot}</span>
+              </Link>
+              <button
+                type="button"
+                aria-label="Đóng thẻ mục tiêu thực hành"
+                onClick={() => {
+                  setActiveDrillContext(null);
+                  setDrillMatchResult(null);
+                  schedulePlaygroundSave(
+                    {
+                      files: playgroundFiles,
+                      activeFileId: pgActiveFileId,
+                      stdin: stdinInput,
+                      sourceLabel: pgSourceLabel,
+                      drillContext: undefined,
+                    },
+                    true
+                  );
+                }}
+                className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+
+          <p className="text-[var(--text-secondary)]">
+            <strong className="text-[var(--text-primary)]">Mục tiêu:</strong>{' '}
+            {activeDrillContext.goal}
+          </p>
+
+          {activeDrillContext.expectedOutputLines.length > 0 && (
+            <div className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)] px-2.5 py-2">
+              <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
+                Expected Output
+              </div>
+              <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-[var(--success-text)]">
+                {activeDrillContext.expectedOutputLines.join('\n')}
+              </pre>
+            </div>
+          )}
+
+          {drillMatchResult && (
+            <div
+              role="status"
+              className={
+                drillMatchResult.matched
+                  ? 'flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--success)]/35 bg-[var(--success-soft)] px-2.5 py-1.5 text-[var(--success-text)]'
+                  : 'rounded-lg border border-[var(--warning)]/35 bg-[var(--warning-soft)] px-2.5 py-1.5 text-[var(--accent-text)]'
+              }
+            >
+              {drillMatchResult.matched ? (
+                <>
+                  <span className="inline-flex items-center gap-1.5 font-bold">
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>✔ Output khớp Expected Output!</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleDrillCompleted(activeDrillContext.id)}
+                    aria-pressed={isActiveDrillDone}
+                    className="min-h-[30px] rounded-md bg-[var(--success)] px-2.5 py-1 text-xs font-bold text-[#1C1917] hover:opacity-90"
+                  >
+                    {isActiveDrillDone
+                      ? `✔ Đã hoàn thành Thực hành ${activeDrillContext.id}`
+                      : `Đánh dấu hoàn thành Thực hành ${activeDrillContext.id}`}
+                  </button>
+                </>
+              ) : (
+                <span>
+                  ⚠ Dòng {drillMatchResult.firstMismatch?.lineIndex ?? 1} chưa khớp — Kỳ vọng:{' '}
+                  <code>{drillMatchResult.firstMismatch?.expected}</code> · Thực tế:{' '}
+                  <code>{drillMatchResult.firstMismatch?.actual}</code>
+                </span>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -1862,7 +2063,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                 {activeCode.split(/\r?\n/).length} dòng
               </span>
               <span className="hidden font-mono text-[var(--text-dim)] xl:inline">
-                Ctrl+Enter để chạy
+                Ctrl+Enter chạy · Esc → Tab thoát
               </span>
             </div>
             <CodeCharLimitMeter
@@ -1873,42 +2074,16 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
           </div>
         </>
       ) : (
-        <div className="grid min-h-[320px] flex-1 grid-cols-1 gap-3 overflow-auto p-4 text-xs md:grid-cols-2">
-          <div className="space-y-2 rounded-lg border border-[var(--danger)]/40 bg-[var(--bg-surface)] p-3">
-            <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-1.5">
-              <span className="font-semibold text-[var(--danger-text)]">Code hiện tại</span>
-              <span className="font-mono tabular-nums text-[var(--text-dim)]">
-                {currentLineCount} dòng
-              </span>
-            </div>
-            <pre className="whitespace-pre-wrap font-mono leading-relaxed text-[var(--text-secondary)]">
-              {mainCode}
-            </pre>
-          </div>
-
-          <div className="flex flex-col justify-between space-y-2 rounded-lg border border-[var(--success)]/50 bg-[var(--bg-surface)] p-3">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-1.5">
-                <span className="font-semibold text-[var(--success-text)]">
-                  Gợi ý Clean Code (Tối ưu)
-                </span>
-                <span className="font-mono tabular-nums text-[var(--text-dim)]">
-                  {cleanLineCount} dòng
-                </span>
-              </div>
-              <pre className="whitespace-pre-wrap font-mono leading-relaxed text-[var(--text-primary)]">
-                {activePe!.cleanCode}
-              </pre>
-            </div>
-            <button
-              type="button"
-              onClick={handleApplyCleanCode}
-              className="min-h-[38px] w-full rounded-lg bg-[var(--success)] py-2 font-bold text-[#1C1917] transition-opacity hover:opacity-90"
-            >
-              ✔ Áp dụng đoạn code tối ưu này
-            </button>
-          </div>
-        </div>
+        <CodeDiffView
+          mainFileName={mainFileName}
+          currentMain={mainCode}
+          cleanMain={activePe!.cleanCode}
+          entityFileName={hasEntityFile ? entityFileName : undefined}
+          currentEntity={entityCode}
+          cleanEntity={activePe!.entityCode}
+          onApplyCleanCode={handleApplyCleanCode}
+          onRestoreEntityCode={handleRestoreEntityCode}
+        />
       )}
     </>
   );

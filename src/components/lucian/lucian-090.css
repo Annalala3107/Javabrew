@@ -1,0 +1,246 @@
+/* Lucian UX/UI Prompt #090 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#090 */
+.u090 {
+  position: relative;
+  width: min(100%, 440px);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--ux-surface);
+  box-shadow: 0 0 0 1px var(--ux-line-2), 0 24px 48px -24px var(--ux-shadow-strong);
+  overflow: hidden;
+}
+
+.u090-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+}
+
+.u090-h i {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--ux-surface-2);
+  color: var(--ux-ink-2);
+  flex-shrink: 0;
+}
+
+.u090-h b {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ux-ink);
+}
+
+.u090-pill {
+  margin-left: auto;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--ux-danger) 14%, transparent);
+  color: var(--danger-text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.u090-pill::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.u090-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 18px 4px 14px;
+}
+
+.u090-plug {
+  width: 220px;
+  max-width: 100%;
+  height: 70px;
+  overflow: visible;
+}
+
+.u090-cord {
+  fill: none;
+  stroke: var(--ux-ink-3);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.u090-pr {
+  stroke: var(--ux-ink-2);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+}
+
+.u090-bd {
+  fill: var(--ux-ink);
+}
+
+.u090-hole {
+  stroke: var(--ux-surface);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.u090-led {
+  fill: var(--ux-danger);
+}
+
+.u090-L {
+  transform: translateX(-10px);
+  transition: transform 0.55s var(--ux-spring);
+}
+
+.u090-R {
+  transform: translateX(8px);
+  transition: transform 0.55s var(--ux-spring);
+}
+
+.u090-spark {
+  stroke: var(--ux-warn);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+
+.u090-t {
+  margin: 14px 0 0;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--ux-ink);
+}
+
+.u090-s {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ux-ink-2);
+}
+
+.u090-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  margin-top: 10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ux-ink-2);
+}
+
+.u090-more:hover {
+  color: var(--ux-ink);
+  background: var(--ux-surface-2);
+}
+
+.u090-more svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.3s var(--ux-ease);
+}
+
+.u090-more[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.u090-det {
+  display: grid;
+  grid-template-rows: 0fr;
+  width: 100%;
+  transition: grid-template-rows 0.35s var(--ux-ease);
+}
+
+.u090-more[aria-expanded='true'] + .u090-det {
+  grid-template-rows: 1fr;
+}
+
+.u090-det > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.u090-det code {
+  display: block;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--ux-surface-2);
+  text-align: left;
+  font: 600 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ux-ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.u090-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.u090-go {
+  flex: 1 1 160px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ux-accent);
+  color: var(--ux-accent-ink);
+  font-size: 13px;
+  font-weight: 700;
+  transition: transform 0.3s var(--ux-spring), opacity 0.2s;
+}
+
+.u090-go:hover {
+  opacity: 0.92;
+}
+
+.u090-go:active {
+  transform: scale(0.97);
+}
+
+.u090-sec {
+  flex: 1 1 140px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--ux-line-2);
+  border-radius: 14px;
+  background: var(--ux-surface-2);
+  color: var(--ux-ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.u090-sec:hover {
+  border-color: var(--ux-accent);
+}

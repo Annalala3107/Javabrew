@@ -1,0 +1,68 @@
+/* Lucian UX/UI Prompt #127 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#127 */
+.u127 {
+  width: 100%;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ux-ink);
+  border-left: 3px solid var(--ux-line-2);
+  background: var(--ux-surface);
+  border-radius: 10px;
+}
+
+.u127 .code {
+  font: 12.5px/1.7 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  overflow-x: auto;
+}
+
+.u127 .line {
+  display: grid;
+  grid-template-columns: 36px 36px 20px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ux-line) 55%, transparent);
+}
+
+.u127 .ln {
+  user-select: none;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--ux-ink-3);
+}
+
+.u127 .sig {
+  user-select: none;
+  text-align: center;
+  font-weight: 700;
+}
+
+.u127 .minus {
+  background: color-mix(in srgb, var(--ux-danger) 11%, var(--ux-surface));
+  color: var(--ux-ink);
+}
+
+.u127 .minus .sig {
+  color: var(--danger-text);
+}
+
+.u127 .plus {
+  background: color-mix(in srgb, var(--ux-mint) 14%, var(--ux-surface));
+  color: var(--ux-ink);
+}
+
+.u127 .plus .sig {
+  color: var(--success-text);
+}
+
+.u127 .txt {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u127 * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

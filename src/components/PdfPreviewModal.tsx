@@ -1,18 +1,19 @@
-import { useEffect } from 'react';
+import { useRef } from 'react';
 import { Download, ExternalLink, FileText, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 export function PdfPreviewModal() {
   const { pdfPreview, closePdfPreview } = useApp();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!pdfPreview) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closePdfPreview();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [pdfPreview, closePdfPreview]);
+  useModalA11y({
+    open: Boolean(pdfPreview),
+    containerRef: dialogRef,
+    initialFocusRef: closeBtnRef,
+    onClose: closePdfPreview,
+  });
 
   if (!pdfPreview) return null;
 
@@ -26,22 +27,25 @@ export function PdfPreviewModal() {
         if (e.target === e.currentTarget) closePdfPreview();
       }}
     >
-      <div className="flex h-[88vh] w-full max-w-5xl flex-col overflow-hidden overscroll-contain rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-[var(--shadow-overlay)]">
+      <div
+        ref={dialogRef}
+        className="flex h-[88vh] w-full max-w-5xl flex-col overflow-hidden overscroll-contain rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-[var(--shadow-overlay)]"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
-            <FileText className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+            <FileText className="h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden="true" />
             <h2 className="truncate text-sm font-semibold text-[var(--text-primary)]">
               {pdfPreview.title}
             </h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <a
               href={pdfPreview.pdfUrl}
               download
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
+              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Tải PDF</span>
             </a>
 
@@ -49,9 +53,9 @@ export function PdfPreviewModal() {
               <a
                 href={pdfPreview.pptxUrl}
                 download
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
+                className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent)]"
               >
-                <Download className="h-3.5 w-3.5" />
+                <Download className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Tải PPTX</span>
               </a>
             )}
@@ -60,21 +64,35 @@ export function PdfPreviewModal() {
               href={pdfPreview.pdfUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              className="inline-flex min-h-[38px] items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             >
-              <ExternalLink className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Mở tab mới</span>
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Mở tab mới</span>
             </a>
 
             <button
+              ref={closeBtnRef}
               type="button"
               onClick={closePdfPreview}
               aria-label="Đóng trình xem PDF"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
+        </div>
+
+        {/* Mobile fallback notice for iOS Safari / Android browsers with limited inline iframe PDF support */}
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--border-default)] bg-[var(--info-soft)] px-3 py-2 text-xs text-[var(--info-text)] sm:hidden">
+          <span>Nếu khung xem bên dưới không cuộn được trên điện thoại:</span>
+          <a
+            href={pdfPreview.pdfUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 rounded-md bg-[var(--accent)] px-2.5 py-1.5 font-bold text-[var(--accent-contrast)]"
+          >
+            Mở toàn màn hình
+          </a>
         </div>
 
         <div className="flex-1 bg-[var(--bg-canvas)]">

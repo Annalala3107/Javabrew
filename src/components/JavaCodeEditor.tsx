@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import {
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+  completionStatus,
+} from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { java } from '@codemirror/lang-java';
 import {
@@ -24,6 +30,7 @@ import {
 } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 import type { JavaDiagnostic } from '../services/javaCompilerService';
+import { javaCompletionSource } from '../utils/javaCompletions';
 
 export const MAX_CODE_CHARS = 10_000;
 
@@ -126,6 +133,10 @@ function buildEditorTheme(mode: 'dark' | 'light', minHeight: number) {
           borderRadius: '8px',
           fontSize: '12px',
         },
+        '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : 'rgba(180, 83, 9, 0.14)',
+          color: isDark ? '#fafaf9' : '#1c1917',
+        },
       },
       { dark: isDark }
     ),
@@ -154,6 +165,7 @@ export function JavaCodeEditor({
   const themeCompartmentRef = useRef(new Compartment());
   const stateCacheRef = useRef<Map<string, EditorState>>(new Map());
   const activeDocKeyRef = useRef<string>(docKey);
+  const tabEscapedRef = useRef(false);
 
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
@@ -184,6 +196,7 @@ export function JavaCodeEditor({
         highlightActiveLine(),
         java(),
         indentUnit.of('    '),
+        autocompletion({ override: [javaCompletionSource], activateOnTyping: true }),
         lintGutter(),
         EditorState.transactionFilter.of((tr) => {
           if (!tr.docChanged) return tr;
@@ -223,11 +236,32 @@ export function JavaCodeEditor({
               return true;
             },
           },
+          {
+            key: 'Escape',
+            run: (view) => {
+              if (completionStatus(view.state)) {
+                return false;
+              }
+              tabEscapedRef.current = true;
+              return false;
+            },
+          },
+          ...completionKeymap,
           ...closeBracketsKeymap,
           ...defaultKeymap,
           ...historyKeymap,
           ...foldKeymap,
-          indentWithTab,
+          {
+            key: 'Tab',
+            run: (view) => {
+              if (tabEscapedRef.current) {
+                tabEscapedRef.current = false;
+                return false;
+              }
+              return indentWithTab.run ? indentWithTab.run(view) : false;
+            },
+            shift: indentWithTab.shift,
+          },
         ]),
         EditorView.contentAttributes.of({
           'aria-label': ariaLabel,
@@ -239,7 +273,14 @@ export function JavaCodeEditor({
           }
         }),
         EditorView.domEventHandlers({
+          keydown: (event) => {
+            if (event.key !== 'Escape' && event.key !== 'Tab') {
+              tabEscapedRef.current = false;
+            }
+            return false;
+          },
           blur: () => {
+            tabEscapedRef.current = false;
             onBlurRef.current?.();
             return false;
           },

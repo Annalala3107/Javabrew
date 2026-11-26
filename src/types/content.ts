@@ -155,15 +155,34 @@ export interface SearchPeEntry {
   meta: string;
 }
 
+export interface SearchPlaygroundEntry {
+  id: string;
+  title: string;
+  subtitle: string;
+  category: string;
+  slotRef: string;
+}
+
+export interface SearchSlideEntry {
+  title: string;
+  pdfUrl: string;
+  pptxUrl?: string;
+  slots: number[];
+}
+
 export interface SearchIndexData {
   generatedAt: string;
   totalArticles: number;
   totalExercises: number;
   totalPeChallenges: number;
+  totalPlaygroundTemplates?: number;
+  totalSlides?: number;
   articles: SearchArticleEntry[];
   pro192Slots: SearchSlotEntry[];
   pro192Exercises: SearchExerciseEntry[];
   peChallenges: SearchPeEntry[];
+  playgroundTemplates?: SearchPlaygroundEntry[];
+  slides?: SearchSlideEntry[];
 }
 
 export interface TocHeading {
@@ -187,6 +206,18 @@ export interface Pro192Exercise {
   indexInSlot: number;
   title: string;
   promptMd: string;
+  solutionMd: string;
+}
+
+export interface Pro192CodingDrill {
+  id: string;
+  slot: number;
+  level: 'basic' | 'advanced';
+  title: string;
+  goal: string;
+  expectedOutputLines: string[];
+  starterCode: string;
+  labExampleId?: string;
   solutionMd: string;
 }
 
@@ -214,6 +245,7 @@ export interface LearningProgress {
   completedArticles: string[];
   completedSlots: number[];
   solvedExercises: string[];
+  completedDrills: string[];
   completedPe: string[];
   bookmarks: string[];
   notes: Record<string, string>;

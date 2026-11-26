@@ -22,6 +22,16 @@ import {
   isValidAiMentorModel,
   type AiMentorModel,
 } from '../services/aiMentorService';
+import {
+  clearPlaygroundWorkspace,
+  readPlaygroundWorkspace,
+  savePlaygroundWorkspace,
+} from '../utils/javaPlayground';
+import {
+  clearAllPeDrafts,
+  exportAllPeDrafts,
+  importAllPeDrafts,
+} from '../utils/studioDrafts';
 
 export type ByokPersistMode = 'session' | 'local';
 
@@ -52,6 +62,7 @@ const DEFAULT_PROGRESS: LearningProgress = {
   completedArticles: [],
   completedSlots: [],
   solvedExercises: [],
+  completedDrills: [],
   completedPe: [],
   bookmarks: [],
   notes: {},
@@ -112,6 +123,7 @@ function sanitizeProgress(raw: unknown): LearningProgress {
     completedArticles: Array.isArray(parsed.completedArticles) ? parsed.completedArticles : [],
     completedSlots: Array.isArray(parsed.completedSlots) ? parsed.completedSlots : [],
     solvedExercises: Array.isArray(parsed.solvedExercises) ? parsed.solvedExercises : [],
+    completedDrills: Array.isArray(parsed.completedDrills) ? parsed.completedDrills.map(String) : [],
     completedPe: Array.isArray(parsed.completedPe) ? parsed.completedPe : [],
     bookmarks: Array.isArray(parsed.bookmarks) ? parsed.bookmarks : [],
     notes: parsed.notes && typeof parsed.notes === 'object' ? parsed.notes : {},
@@ -164,6 +176,7 @@ interface AppContextValue {
   toggleArticleCompleted: (rel: string) => void;
   toggleSlotCompleted: (slot: number) => void;
   toggleExerciseSolved: (exId: string) => void;
+  toggleDrillCompleted: (drillId: string) => void;
   togglePeCompleted: (peId: string) => void;
   markPeStatus: (peId: number, status: 'pass' | 'in-progress') => void;
   toggleBookmark: (key: string) => void;
@@ -171,7 +184,7 @@ interface AppContextValue {
   addMistake: (item: Omit<MistakeItem, 'id' | 'createdAt'>) => void;
   toggleMistakeResolved: (id: string) => void;
   recordVisit: (visit: NonNullable<LearningProgress['lastVisited']>) => void;
-  resetProgress: () => void;
+  resetProgress: (includeDrafts?: boolean) => void;
   exportProgressJson: () => string;
   importProgressJson: (raw: string) => boolean;
   isSearchOpen: boolean;
@@ -362,6 +375,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const toggleDrillCompleted = useCallback((drillId: string) => {
+    setProgress((prev) => ({
+      ...prev,
+      completedDrills: toggleStringItem(prev.completedDrills, drillId),
+    }));
+  }, []);
+
   const togglePeCompleted = useCallback((peId: string) => {
     setProgress((prev) => {
       const nextCompleted = toggleStringItem(prev.completedPe, peId);
@@ -452,17 +472,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const resetProgress = useCallback(() => {
+  const resetProgress = useCallback((includeDrafts = false) => {
     setProgress(DEFAULT_PROGRESS);
+    if (includeDrafts) {
+      clearAllPeDrafts();
+      clearPlaygroundWorkspace();
+    }
   }, []);
 
   const exportProgressJson = useCallback(() => {
-    return JSON.stringify(progress, null, 2);
+    return JSON.stringify(
+      {
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        progress,
+        drafts: {
+          pe: exportAllPeDrafts(),
+          playground: readPlaygroundWorkspace(),
+        },
+      },
+      null,
+      2
+    );
   }, [progress]);
 
   const importProgressJson = useCallback((raw: string): boolean => {
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(raw) as Record<string, unknown> | null;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return false;
+      }
+
+      if (parsed.version === 2 && parsed.progress && typeof parsed.progress === 'object') {
+        setProgress(sanitizeProgress(parsed.progress));
+        const drafts = parsed.drafts as
+          | { pe?: Record<string, unknown>; playground?: Record<string, unknown> | null }
+          | undefined;
+        if (drafts?.pe && typeof drafts.pe === 'object') {
+          importAllPeDrafts(drafts.pe);
+        }
+        if (drafts?.playground && typeof drafts.playground === 'object') {
+          const pg = drafts.playground as {
+            files?: Array<{ id?: unknown; name?: unknown; content?: unknown }>;
+            activeFileId?: unknown;
+            stdin?: unknown;
+            sourceLabel?: unknown;
+          };
+          if (Array.isArray(pg.files) && pg.files.length > 0) {
+            const validFiles = pg.files
+              .filter(
+                (f): f is { id: string; name: string; content: string } =>
+                  Boolean(f) &&
+                  typeof f.id === 'string' &&
+                  typeof f.name === 'string' &&
+                  typeof f.content === 'string'
+              )
+              .slice(0, 5);
+            if (validFiles.length > 0) {
+              savePlaygroundWorkspace({
+                files: validFiles,
+                activeFileId:
+                  typeof pg.activeFileId === 'string' &&
+                  validFiles.some((f) => f.id === pg.activeFileId)
+                    ? pg.activeFileId
+                    : validFiles[0].id,
+                stdin: typeof pg.stdin === 'string' ? pg.stdin : '',
+                sourceLabel: typeof pg.sourceLabel === 'string' ? pg.sourceLabel : undefined,
+              });
+            }
+          }
+        }
+        return true;
+      }
+
       setProgress(sanitizeProgress(parsed));
       return true;
     } catch {
@@ -543,6 +625,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleArticleCompleted,
       toggleSlotCompleted,
       toggleExerciseSolved,
+      toggleDrillCompleted,
       togglePeCompleted,
       markPeStatus,
       toggleBookmark,
@@ -589,6 +672,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleArticleCompleted,
       toggleSlotCompleted,
       toggleExerciseSolved,
+      toggleDrillCompleted,
       togglePeCompleted,
       markPeStatus,
       toggleBookmark,
