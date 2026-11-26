@@ -153,9 +153,9 @@ public void log(int code, String tag) { }
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
 #### 🟢 Thực hành 11A: UML -> Java Code — Chuyển Sơ đồ Lớp sang Code Chuẩn
 - **Mục tiêu:** Đọc bảng UML (`-id: String`, `-gpa: double`, `+isHonors(): boolean`) và cài đặt đúng kiểu trả về sau dấu hai chấm `:`.
@@ -219,11 +219,11 @@ public class Main {
 
 ---
 
-#### 🟡 Thực hành 11B: W3Schools Method Overloading — Nạp chồng `area()` theo Danh sách Tham số
+#### 🟡 Thực hành 11B: Method Overloading — Nạp chồng `area()` theo Danh sách Tham số
 - **Mục tiêu:** Viết các phiên bản nạp chồng `area(...)` khác nhau về danh sách tham số (hình vuông, hình chữ nhật, hình tròn).
 - **Expected Output:**
   - `16.00 | 15.00 | 12.57`
-- 🔗 [Mở bài lab Slot 11 trên Code Studio Tryit](/studio/playground?example=slot-11-lab)
+- 🔗 [Mở bài lab Slot 11 trên JavaBrew Live Lab](/studio/playground?example=slot-11-lab)
 
 ```java
 public class Main {

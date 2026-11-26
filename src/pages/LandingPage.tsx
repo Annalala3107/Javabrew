@@ -144,7 +144,7 @@ export function LandingPage() {
                 className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--accent-text)]"
               >
                 <span className="h-2 w-2 rounded-full bg-[var(--success)]" />
-                <span>PRO192 Giáo trình trường × JavaGuide · Đọc Offline</span>
+                <span>PRO192 Giáo trình trường × JavaGuide · Học liệu nội bộ</span>
               </div>
 
               <h1
@@ -177,9 +177,9 @@ export function LandingPage() {
                 </Link>
                 <Link
                   to="/studio/playground?example=demo-intro"
-                  className="inline-flex min-h-[44px] items-center rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-4 py-2.5 text-xs font-medium text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                  className="inline-flex min-h-[44px] items-center rounded-lg border border-[var(--success)]/35 bg-[var(--success-soft)] px-4 py-2.5 text-xs font-medium text-[var(--success-text)] transition-opacity hover:opacity-90"
                 >
-                  ☕ Java Tryit (W3Schools)
+                  ☕ JavaBrew Live Lab
                 </Link>
               </div>
 

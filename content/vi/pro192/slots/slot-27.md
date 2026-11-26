@@ -245,11 +245,11 @@ Tại sao Dòng 2 không in ra các con số mà lại in ra chuỗi dạng `[I@
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 27A: W3Schools Advanced Sorting — `Comparable<T>` theo Giá tăng dần
+#### 🟢 Thực hành 27A: Advanced Sorting — `Comparable<T>` theo Giá tăng dần
 - **Mục tiêu:** Cho lớp `BookItem` cài đặt `Comparable<BookItem>` dùng `Integer.compare(this.price, other.price)`.
 - **Expected Output:**
   - `[(Beta,20), (Gamma,35), (Alpha,50)]`
@@ -326,7 +326,7 @@ public class Main {
 - **Mục tiêu:** Tách chỉ số các phần tử có chữ thường trong `name`, sắp xếp riêng nhóm đó tăng theo `price` rồi gán trả về đúng các chỉ số cũ (`JAVA` và `OOP` đứng yên).
 - **Expected Output:**
   - `[(Beta,20), (JAVA,99), (Alpha,50)]`
-- 🔗 [Mở bài lab Slot 27 trên Code Studio Tryit](/studio/playground?example=slot-27-lab)
+- 🔗 [Mở bài lab Slot 27 trên JavaBrew Live Lab](/studio/playground?example=slot-27-lab)
 
 ```java
 import java.util.*;

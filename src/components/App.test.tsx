@@ -1,3 +1,4 @@
+import { undo } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -7,6 +8,7 @@ import { AppProvider } from '../context/AppContext';
 import type { NavigationData, Pro192Data, SearchIndexData } from '../types/content';
 import { ExerciseBlock } from './ExerciseBlock';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { StreamingAiBubble } from './lucian/StreamingAiBubble';
 
 const MOCK_NAV: NavigationData = {
   generatedAt: '2026-11-24T00:00:00Z',
@@ -246,6 +248,7 @@ function installFetchMock(
 describe('JavaBrew Night Coffee Lab UI', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     installFetchMock();
   });
 
@@ -259,7 +262,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     );
 
     expect(await screen.findByText(/Night Coffee Lab/i)).toBeInTheDocument();
-    expect(screen.getByText(/StudentManager\.java · PE 01/i)).toBeInTheDocument();
+    expect(screen.getByText(/Crocus\.java · PE1-Q1/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Cài đặt AI Key/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('link', { name: /Vào Dashboard ngay/i }));
@@ -356,13 +359,20 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
-    expect(await screen.findByText('0/3 Test Cases Passed')).toBeInTheDocument();
+    expect(await screen.findByText('0/3 Tiêu chí cấu trúc (Static Preview)')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /So sánh Bản Tối ưu \(Diff\)/i }));
     fireEvent.click(screen.getByRole('button', { name: /Áp dụng đoạn code tối ưu này/i }));
     fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
 
-    expect(await screen.findByText('✔ 3/3 Test Cases PASSED!')).toBeInTheDocument();
+    expect(
+      await screen.findByText('✔ 3/3 Tiêu chí cấu trúc (Static Preview — chưa chạy JVM)')
+    ).toBeInTheDocument();
+    const savedProgress = JSON.parse(localStorage.getItem('javabrew:progress') || '{}') as {
+      peStatus?: Record<string, string>;
+    };
+    expect(savedProgress.peStatus?.['1']).toBe('in-progress');
+    expect(savedProgress.peStatus?.['1']).not.toBe('pass');
 
     fireEvent.click(screen.getByRole('button', { name: 'Cách tối ưu?' }));
     expect(screen.getByText(/Bạn hỏi: “Làm sao tối ưu ngắn hơn nữa\?”/)).toBeInTheDocument();
@@ -492,7 +502,20 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     const keyInp = screen.getByLabelText(/Gemini API Key/i);
     fireEvent.change(keyInp, { target: { value: 'AIzaTest123' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu cấu hình/i }));
+    expect(sessionStorage.getItem('javabrew:byok_key')).toBe('AIzaTest123');
+    expect(localStorage.getItem('javabrew:byok_key')).toBeNull();
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Cài đặt AI Key/i }));
+    const persistCheckbox = screen.getByRole('checkbox', { name: /Ghi nhớ API Key/i });
+    expect(persistCheckbox).not.toBeChecked();
+    fireEvent.click(persistCheckbox);
+    fireEvent.click(screen.getByRole('button', { name: /Lưu cấu hình/i }));
     expect(localStorage.getItem('javabrew:byok_key')).toBe('AIzaTest123');
+    expect(sessionStorage.getItem('javabrew:byok_key')).toBeNull();
   });
 
   it('renders ExerciseBlock, MarkdownRenderer, and Resources PdfPreviewModal cleanly', async () => {
@@ -660,7 +683,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
         </MemoryRouter>
       );
 
-      expect(await screen.findByText(/StudentManager\.java · PE 01/i)).toBeInTheDocument();
+      expect(await screen.findByText(/Crocus\.java · PE1-Q1/i)).toBeInTheDocument();
       expect(screen.getAllByText(/Java OOP/i).length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText(/PASS 3\/3/i)).toBeInTheDocument();
       expect(screen.getByText(/Mới học từ số 0/i)).toBeVisible();
@@ -730,7 +753,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     expect(lastPayload?.files?.map((f) => f.name)).toEqual(['Main.java', 'Helper.java']);
   });
 
-  it('supports W3Schools Tryit split-pane, layout toggle, Auto-Run, and 15 examples in Code Studio', async () => {
+  it('supports JavaBrew Live Lab split-pane, layout toggle, Auto-Run, and 45 examples in Code Studio', async () => {
     const origFetch = globalThis.fetch;
     const runCalls: Array<{ mode?: string; files?: Array<{ name: string; content: string }> }> = [];
 
@@ -762,7 +785,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
             runMs: 14,
             exitCode: 0,
             timedOut: false,
-            stdout: isMulti ? 'Student[SE180001 - An]' : 'Hello JavaBrew Tryit!',
+            stdout: isMulti ? 'Student[SE180001 - An]' : 'Hello JavaBrew Live Lab!',
             stderr: '',
             diagnostics: [],
           }),
@@ -785,8 +808,8 @@ describe('JavaBrew Night Coffee Lab UI', () => {
       expect(splitPane).toHaveAttribute('data-orientation', 'horizontal');
 
       const terminal = screen.getByTestId('studio-output-terminal');
-      expect(await screen.findByText(/Hello JavaBrew Tryit!/i)).toBeInTheDocument();
-      expect(terminal.textContent).toContain('Hello JavaBrew Tryit!');
+      expect(await screen.findByText(/Hello JavaBrew Live Lab!/i)).toBeInTheDocument();
+      expect(terminal.textContent).toContain('Hello JavaBrew Live Lab!');
       expect(runCalls.length).toBeGreaterThanOrEqual(1);
 
       fireEvent.click(screen.getByRole('button', { name: 'Xoay bố cục Ngang hoặc Dọc' }));
@@ -843,6 +866,153 @@ describe('JavaBrew Night Coffee Lab UI', () => {
       );
     } finally {
       vi.stubGlobal('fetch', origFetch);
+    }
+  });
+
+  it('isolates CodeMirror Undo history per file tab when switching SpecDaisy.java and Daisy.java', async () => {
+    render(
+      <MemoryRouter initialEntries={['/studio/2']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    const specTab = await screen.findByRole('tab', { name: 'SpecDaisy.java' });
+    const daisyTab = screen.getByRole('tab', { name: 'Daisy.java' });
+    expect(specTab).toHaveAttribute('aria-selected', 'true');
+
+    const ed1 = screen.getByLabelText(/Trình soạn thảo mã nguồn Java/i);
+    const v1 = EditorView.findFromDOM(ed1)!;
+    await act(async () => {
+      v1.dispatch({ changes: { from: 0, insert: '// edit spec\n' } });
+    });
+
+    fireEvent.click(daisyTab);
+    expect(daisyTab).toHaveAttribute('aria-selected', 'true');
+
+    const ed2 = screen.getByLabelText(/Trình soạn thảo mã nguồn Java/i);
+    const v2 = EditorView.findFromDOM(ed2)!;
+    await act(async () => {
+      v2.dispatch({ changes: { from: 0, insert: '// edit daisy\n' } });
+    });
+
+    fireEvent.click(specTab);
+    expect(specTab).toHaveAttribute('aria-selected', 'true');
+
+    const ed3 = screen.getByLabelText(/Trình soạn thảo mã nguồn Java/i);
+    const v3 = EditorView.findFromDOM(ed3)!;
+    await act(async () => {
+      undo(v3);
+    });
+
+    const docAfterUndo = v3.state.doc.toString();
+    expect(docAfterUndo).toContain('public class SpecDaisy');
+    expect(docAfterUndo).not.toContain('public class Daisy');
+    expect(docAfterUndo).not.toContain('// edit spec');
+  });
+
+  it('blocks package declarations at the Dual-Track Hard Policy Gate before calling /api/java-run', async () => {
+    let postCalls = 0;
+    installFetchMock((method) => {
+      if (method === 'GET') {
+        return new Response(JSON.stringify({ available: true, runtime: 'OpenJDK 21' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      postCalls += 1;
+      return new Response('should not reach server', { status: 500 });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/studio/1']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/☕ OpenJDK 21 Sandbox/i)).toBeInTheDocument();
+
+    const editorDom = screen.getByLabelText(/Trình soạn thảo mã nguồn Java/i);
+    const view = EditorView.findFromDOM(editorDom)!;
+    await act(async () => {
+      view.dispatch({ changes: { from: 0, insert: 'package demo;\n' } });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Chấm Test Case PE/i }));
+
+    expect(await screen.findByText('✕ Vi phạm quy chế PE (Hard Policy Gate)')).toBeInTheDocument();
+    expect(postCalls).toBe(0);
+  });
+
+  it('surfaces explicit HTTP 401 errors from Gemini Interactions API and stops StreamingAiBubble on Dừng', async () => {
+    sessionStorage.setItem('javabrew:byok_key', 'AIzaInvalid');
+    const baseFetch = globalThis.fetch;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (url === 'https://generativelanguage.googleapis.com/v1/interactions') {
+          return new Response(JSON.stringify({ error: { message: 'API key not valid' } }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return baseFetch(input, init);
+      })
+    );
+
+    try {
+      const { unmount } = render(
+        <MemoryRouter initialEntries={['/studio/1']}>
+          <AppProvider>
+            <AppRoutes />
+          </AppProvider>
+        </MemoryRouter>
+      );
+
+      const quickBtn = await screen.findByRole('button', { name: 'Cách tối ưu?' });
+      fireEvent.click(quickBtn);
+
+      expect(await screen.findByText(/API Key không hợp lệ/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Mở Cài đặt Key/i })).toBeInTheDocument();
+
+      unmount();
+
+      vi.useFakeTimers();
+      try {
+        render(
+          <MemoryRouter>
+            <AppProvider>
+              <StreamingAiBubble
+                prompt="Test"
+                reply={Array.from({ length: 40 }, (_, i) => `word${i}`).join(' ')}
+              />
+            </AppProvider>
+          </MemoryRouter>
+        );
+
+        act(() => {
+          vi.advanceTimersByTime(65);
+        });
+
+        const stopBtn = screen.getByRole('button', { name: 'Dừng' });
+        fireEvent.click(stopBtn);
+        expect(screen.getByRole('button', { name: 'Hiện toàn bộ' })).toBeInTheDocument();
+
+        act(() => {
+          vi.advanceTimersByTime(2000);
+        });
+
+        expect(screen.queryByText(/word39/)).not.toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    } finally {
+      vi.stubGlobal('fetch', baseFetch);
     }
   });
 });

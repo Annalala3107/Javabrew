@@ -4,19 +4,23 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   hasMainMethod,
+  hasPackageDeclaration,
   inferJavaFileName,
   MAX_FILE_CHARS,
   MAX_PE_ID,
   MAX_TOTAL_SOURCE_BYTES,
   parseJavacDiagnostics,
   validateCompilePayload,
+  validateJavaPolicy,
 } from '../../server/javaValidation';
 import { buildPeHarness, getPeInterfaceFiles } from '../../server/peHarnesses';
 import {
   buildPistonPayload,
+  extractTestMarkerBlock,
   mergeJavaFilesForJudge0,
   resolveExternalRunnerConfig,
 } from '../../server/externalRunner';
+import { validateJavaPolicy as validateClientJavaPolicy } from './javaFiles';
 import type { Pro192Data } from '../types/content';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -208,7 +212,7 @@ describe('javaValidation & peHarnesses', () => {
       const gradeSpec = buildPeHarness(id, 'grade');
       expect(gradeSpec).not.toBeNull();
       expect(gradeSpec?.content).toContain('Locale.setDefault(Locale.US)');
-      expect(gradeSpec?.content).toContain('__JB_TESTS_START__');
+      expect(gradeSpec?.content).toContain('__JB_TESTS_DEFAULT_START__');
       assertAllJavaStringsBalanced(gradeSpec!.content);
 
       const runSpec = buildPeHarness(id, 'run');
@@ -301,5 +305,80 @@ describe('javaValidation & peHarnesses', () => {
     if (!overLimit.ok) {
       expect(overLimit.error).toMatch(/10[.,]000/);
     }
+  });
+
+  it('detects package declarations while ignoring comments in hasPackageDeclaration', () => {
+    expect(hasPackageDeclaration('public class Main {}')).toEqual({ found: false, line: 1 });
+    expect(
+      hasPackageDeclaration('// package fake;\n/* package block; */\npublic class Crocus {}')
+    ).toEqual({ found: false, line: 1 });
+    expect(
+      hasPackageDeclaration('// comment\npackage com.fpt.pro192;\npublic class Crocus {}')
+    ).toEqual({ found: true, line: 2 });
+  });
+
+  it('keeps validateJavaPolicy in exact parity between client and server for package and PE3-Q4 rules', () => {
+    const pkgFiles = [{ name: 'Crocus.java', content: 'package demo;\npublic class Crocus {}' }];
+    const serverPkg = validateJavaPolicy(pkgFiles, 1);
+    const clientPkg = validateClientJavaPolicy(pkgFiles, 1);
+    expect(serverPkg.map((v) => v.code)).toEqual(['PACKAGE_FORBIDDEN']);
+    expect(clientPkg.map((v) => v.code)).toEqual(serverPkg.map((v) => v.code));
+
+    const toBinaryFiles = [
+      {
+        name: 'MyStringNumberTool.java',
+        content:
+          'public class MyStringNumberTool { public String decimalToBinary(int n) { return Integer.toBinaryString(n); } }',
+      },
+    ];
+    expect(validateJavaPolicy(toBinaryFiles, 11).map((v) => v.code)).toEqual(['PE3_Q4_BINARY_API']);
+    expect(validateClientJavaPolicy(toBinaryFiles, 11).map((v) => v.code)).toEqual([
+      'PE3_Q4_BINARY_API',
+    ]);
+
+    const toStringRadix2Files = [
+      {
+        name: 'MyStringNumberTool.java',
+        content:
+          'public class MyStringNumberTool { public String decimalToBinary(int n) { return Integer.toString(n, 2); } }',
+      },
+    ];
+    expect(validateJavaPolicy(toStringRadix2Files, 11).map((v) => v.code)).toEqual([
+      'PE3_Q4_BINARY_API',
+    ]);
+    expect(validateClientJavaPolicy(toStringRadix2Files, 11).map((v) => v.code)).toEqual([
+      'PE3_Q4_BINARY_API',
+    ]);
+
+    const cleanPe11 = [
+      {
+        name: 'MyStringNumberTool.java',
+        content:
+          'public class MyStringNumberTool { public String decimalToBinary(int n) { if (n == 0) return "0"; StringBuilder sb = new StringBuilder(); while (n > 0) { sb.append(n % 2); n /= 2; } return sb.reverse().toString(); } }',
+      },
+    ];
+    expect(validateJavaPolicy(cleanPe11, 11)).toEqual([]);
+    expect(validateClientJavaPolicy(cleanPe11, 11)).toEqual([]);
+  });
+
+  it('embeds dynamic anti-spoofing marker tokens and __jbOrigOut in grade harnesses and rejects spoofed stdout', () => {
+    const spec = buildPeHarness(1, 'grade', 'tok1234');
+    expect(spec).not.toBeNull();
+    expect(spec?.content).toContain('__JB_TESTS_tok1234_START__');
+    expect(spec?.content).toContain('__JB_TESTS_tok1234_END__');
+    expect(spec?.content).toContain('__jbOrigOut');
+
+    const spoofedStdout =
+      '__JB_TESTS_START__\n[{"id":"TC1","name":"fake","passed":true,"durationMs":0}]\n__JB_TESTS_END__';
+    const spoofCheck = extractTestMarkerBlock(spoofedStdout, 'tok1234');
+    expect(spoofCheck.testResults).toBeUndefined();
+
+    const validStdout =
+      'hello\n__JB_TESTS_tok1234_START__\n[{"id":"TC1","name":"real","passed":true,"durationMs":2}]\n__JB_TESTS_tok1234_END__\n';
+    const validCheck = extractTestMarkerBlock(validStdout, 'tok1234');
+    expect(validCheck.testResults).toEqual([
+      { id: 'TC1', name: 'real', passed: true, durationMs: 2 },
+    ]);
+    expect(validCheck.cleanedStdout).toBe('hello');
   });
 });

@@ -120,7 +120,7 @@ export function AppMobileHeaderDrawer({
                 location.pathname.startsWith('/studio/playground') ? 'is-active' : undefined
               }
             >
-              <span>Java Tryit (W3Schools)</span>
+              <span>JavaBrew Live Lab</span>
               <svg viewBox="0 0 14 14" aria-hidden="true">
                 <path d="m5.5 3 4 4-4 4" />
               </svg>

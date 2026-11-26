@@ -285,9 +285,9 @@ public String toString() {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
 #### 🟢 Thực hành 16A: Ghi đè `@Override toString()` chuẩn format Q2 PE
 - **Mục tiêu:** Bổ sung `@Override public String toString()` kết hợp `super.toString()` để xuất `name, color, age` (dấu phẩy + 1 khoảng trắng).
@@ -371,7 +371,7 @@ public class Main {
 - **Expected Output:**
   - `Child instance speak`
   - `Parent static kind`
-- 🔗 [Mở bài lab Slot 16 trên Code Studio Tryit](/studio/playground?example=slot-16-lab)
+- 🔗 [Mở bài lab Slot 16 trên JavaBrew Live Lab](/studio/playground?example=slot-16-lab)
 
 ```java
 class ParentAnimal {

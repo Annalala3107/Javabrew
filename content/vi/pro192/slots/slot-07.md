@@ -157,9 +157,9 @@ Sau khi dòng lệnh `s2 = null;` thực thi xong, có đối tượng nào trê
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
 #### 🟢 Thực hành 7A: Heap Aliasing — Hai Biến trỏ cùng 1 Đối tượng & Tuổi thọ Garbage
 - **Mục tiêu:** Tạo hai biến `b1`, `b2` cùng tham chiếu một đối tượng `MemoryBox`, đổi giá trị qua `b2`, rồi gán `b1 = null` để quan sát đối tượng còn sống qua `b2`.
@@ -214,7 +214,7 @@ public class Main {
 - **Mục tiêu:** Cộng giá trị các `MemoryBox` khác `null` trong mảng `{ new MemoryBox(10), null, new MemoryBox(30) }`.
 - **Expected Output:**
   - `Tong khac null = 40`
-- 🔗 [Mở bài lab Slot 07 trên Code Studio Tryit](/studio/playground?example=slot-07-lab)
+- 🔗 [Mở bài lab Slot 07 trên JavaBrew Live Lab](/studio/playground?example=slot-07-lab)
 
 ```java
 class MemoryBox {

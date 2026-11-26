@@ -142,8 +142,15 @@ for (let n = 1; n <= 30; n++) {
     issues.push({ file: relLabel, issue: `Expected at least 5 <details> blocks for Active Recall, found ${openDetails}` });
   }
 
-  if (!/^### 💻 Luyện Code Thực hành \(Phong cách W3Schools Tryit\)$/m.test(bodyNoCode)) {
-    issues.push({ file: relLabel, issue: 'Missing W3Schools coding drills section heading' });
+  if (/w3school/i.test(txt)) {
+    issues.push({
+      file: relLabel,
+      issue: 'Contains forbidden third-party brand reference (W3Schools)',
+    });
+  }
+
+  if (!/^### 💻 Luyện Code Thực hành \(JavaBrew Live Lab\)$/m.test(bodyNoCode)) {
+    issues.push({ file: relLabel, issue: 'Missing JavaBrew Live Lab coding drills section heading' });
   }
   const drillMatches = bodyNoCode.match(/^#### (?:🟢|🟡) Thực hành \d+[AB]:/gm) || [];
   if (drillMatches.length !== 2) {
@@ -153,7 +160,7 @@ for (let n = 1; n <= 30; n++) {
 
   const expectedLabUrl = `/studio/playground?example=slot-${n2}-lab`;
   if (!bodyNoCode.includes(expectedLabUrl)) {
-    issues.push({ file: relLabel, issue: `Missing Tryit link ${expectedLabUrl}` });
+    issues.push({ file: relLabel, issue: `Missing JavaBrew Live Lab link ${expectedLabUrl}` });
   }
 }
 

@@ -1,10 +1,10 @@
 import type { PlaygroundTemplate } from './javaPlayground';
 
-export const W3SCHOOLS_SLOT_TEMPLATES: PlaygroundTemplate[] = [
+export const SLOT_LAB_TEMPLATES: PlaygroundTemplate[] = [
   {
     id: 'slot-01-lab',
-    title: 'Slot 01 Lab: Thong tin JVM & Print Card',
-    subtitle: 'W3Schools Intro/Output - System.getProperty() & println vs print',
+    title: 'Slot 01 Lab: Thông tin JVM & Print Card',
+    subtitle: 'Intro/Output · System.getProperty() & println vs print',
     category: 'Cơ bản',
     slotRef: 'Slot 01',
     stdin: '',
@@ -31,7 +31,7 @@ export const W3SCHOOLS_SLOT_TEMPLATES: PlaygroundTemplate[] = [
   {
     id: 'slot-02-lab',
     title: 'Slot 02 Lab: Output Numbers & Concatenation',
-    subtitle: 'W3Schools Syntax/Output - Phân biệt phép cộng số học và nối chuỗi',
+    subtitle: 'Syntax/Output · Phân biệt phép cộng số học và nối chuỗi',
     category: 'Cơ bản',
     slotRef: 'Slot 02',
     stdin: '',
@@ -55,7 +55,7 @@ export const W3SCHOOLS_SLOT_TEMPLATES: PlaygroundTemplate[] = [
   {
     id: 'slot-03-lab',
     title: 'Slot 03 Lab: CLI Args & Multi-Class 1 File',
-    subtitle: 'W3Schools Syntax - Đối số dòng lệnh args[] & lớp phụ trong cùng tệp',
+    subtitle: 'Syntax · Đối số dòng lệnh args[] & lớp phụ trong cùng tệp',
     category: 'Cơ bản',
     slotRef: 'Slot 03',
     stdin: '',
@@ -90,7 +90,7 @@ public class Main {
   {
     id: 'slot-04-lab',
     title: 'Slot 04 Lab: Casting, Division & Array Sum/Min',
-    subtitle: 'W3Schools Data Types/Casting/Arrays - Tránh chia nguyên & duyệt mảng',
+    subtitle: 'Data Types/Casting/Arrays · Tránh chia nguyên & duyệt mảng',
     category: 'Cơ bản',
     slotRef: 'Slot 04',
     stdin: '',
@@ -125,7 +125,7 @@ public class Main {
   {
     id: 'slot-05-lab',
     title: 'Slot 05 Lab: Switch Grade & Prime Loop',
-    subtitle: 'W3Schools Switch/For/Continue - Xếp loại GPA, nguyên tố & bẫy for-each',
+    subtitle: 'Switch/For/Continue · Xếp loại GPA, nguyên tố & bẫy for-each',
     category: 'Cơ bản',
     slotRef: 'Slot 05',
     stdin: '',
@@ -186,7 +186,7 @@ public class Main {
   {
     id: 'slot-06-lab',
     title: 'Slot 06 Lab: Stack vs Heap & Recursion',
-    subtitle: 'W3Schools Methods/Recursion - Truyền tham trị vs tham chiếu & đệ quy',
+    subtitle: 'Methods/Recursion · Truyền tham trị vs tham chiếu & đệ quy',
     category: 'Cơ bản',
     slotRef: 'Slot 06',
     stdin: '',
@@ -233,7 +233,7 @@ public class Main {
   {
     id: 'slot-07-lab',
     title: 'Slot 07 Lab: Reference Aliasing & Null Guard',
-    subtitle: 'W3Schools Objects - Hai biến cùng trỏ Heap & tránh NullPointerException',
+    subtitle: 'Objects · Hai biến cùng trỏ Heap & tránh NullPointerException',
     category: 'Cơ bản',
     slotRef: 'Slot 07',
     stdin: '',
@@ -275,7 +275,7 @@ public class Main {
   {
     id: 'slot-08-lab',
     title: 'Slot 08 Lab: Integer Cache, Character & Math',
-    subtitle: 'W3Schools Wrapper/Math - Bẫy == Integer(200) & Character API',
+    subtitle: 'Wrapper/Math · Bẫy == Integer(200) & Character API',
     category: 'Cơ bản',
     slotRef: 'Slot 08',
     stdin: '',
@@ -315,7 +315,7 @@ public class Main {
   {
     id: 'slot-09-lab',
     title: 'Slot 09 Lab: Scanner Buffer, Count Words & Reverse',
-    subtitle: 'W3Schools User Input & How To - Xả nextLine(), đếm từ & Palindrome',
+    subtitle: 'User Input & How To · Xả nextLine(), đếm từ & Palindrome',
     category: 'Cơ bản',
     slotRef: 'Slot 09',
     stdin: '20\n  Nguyen   Van   An  \n',
@@ -366,7 +366,7 @@ public class Main {
   {
     id: 'slot-10-lab',
     title: 'Slot 10 Lab: BankAccount (State & Behavior)',
-    subtitle: 'W3Schools OOP/Classes - Tạo lớp & quản lý trạng thái số dư độc lập',
+    subtitle: 'OOP/Classes · Tạo lớp & quản lý trạng thái số dư độc lập',
     category: 'OOP',
     slotRef: 'Slot 10',
     stdin: '',
@@ -415,7 +415,7 @@ public class Main {
   {
     id: 'slot-11-lab',
     title: 'Slot 11 Lab: UML -> Class & Method Overloading',
-    subtitle: 'W3Schools Class Methods/Overloading - Đọc UML & nạp chồng area()',
+    subtitle: 'Class Methods/Overloading · Đọc UML & nạp chồng area()',
     category: 'OOP',
     slotRef: 'Slot 11',
     stdin: '',
@@ -470,7 +470,7 @@ public class Main {
   {
     id: 'slot-12-lab',
     title: 'Slot 12 Lab: Constructors & Chaining this(...)',
-    subtitle: 'W3Schools Constructors - Giữ constructor rỗng & gọi chéo this(...)',
+    subtitle: 'Constructors · Giữ constructor rỗng & gọi chéo this(...)',
     category: 'OOP',
     slotRef: 'Slot 12',
     stdin: '',
@@ -512,7 +512,7 @@ public class Main {
   {
     id: 'slot-13-lab',
     title: 'Slot 13 Lab: Encapsulation & Validation Setter',
-    subtitle: 'W3Schools Encapsulation - private fields, clamp >= 0 & format getter',
+    subtitle: 'Encapsulation · private fields, clamp >= 0 & format getter',
     category: 'OOP',
     slotRef: 'Slot 13',
     stdin: '',
@@ -562,7 +562,7 @@ public class Main {
   {
     id: 'slot-14-lab',
     title: 'Slot 14 Lab: Inheritance is-a & Composition has-a',
-    subtitle: 'W3Schools Inheritance - Đa file Person.java + Main.java chuẩn OOP',
+    subtitle: 'Inheritance · Đa file Person.java + Main.java chuẩn OOP',
     category: 'OOP',
     slotRef: 'Slot 14',
     stdin: '',
@@ -624,7 +624,7 @@ public class Main {
   {
     id: 'slot-15-lab',
     title: 'Slot 15 Lab: Constructor Chaining & super(...)',
-    subtitle: 'W3Schools Inheritance/super - Thứ tự khởi tạo 3 tầng & SpecBook',
+    subtitle: 'Inheritance/super · Thứ tự khởi tạo 3 tầng & SpecBook',
     category: 'OOP',
     slotRef: 'Slot 15',
     stdin: '',
@@ -683,7 +683,7 @@ public class Main {
   {
     id: 'slot-16-lab',
     title: 'Slot 16 Lab: @Override toString vs Static Hiding',
-    subtitle: 'W3Schools Polymorphism - Phân biệt Overriding động & Static Hiding',
+    subtitle: 'Polymorphism · Phân biệt Overriding động & Static Hiding',
     category: 'OOP',
     slotRef: 'Slot 16',
     stdin: '',
@@ -759,7 +759,7 @@ public class Main {
   {
     id: 'slot-17-lab',
     title: 'Slot 17 Lab: instanceof & Array of Objects CRUD',
-    subtitle: 'W3Schools Type Casting/Arrays - Downcasting an toàn & Item[MAX]',
+    subtitle: 'Type Casting/Arrays · Downcasting an toàn & Item[MAX]',
     category: 'OOP',
     slotRef: 'Slot 17',
     stdin: '',
@@ -837,7 +837,7 @@ public class Main {
   {
     id: 'slot-18-lab',
     title: 'Slot 18 Lab: Polymorphic Array & Field Trap',
-    subtitle: 'W3Schools Polymorphism - Mảng Shape[] & bẫy field không đa hình',
+    subtitle: 'Polymorphism · Mảng Shape[] & bẫy field không đa hình',
     category: 'OOP',
     slotRef: 'Slot 18',
     stdin: '',
@@ -884,7 +884,7 @@ public class Main {
   {
     id: 'slot-19-lab',
     title: 'Slot 19 Lab: Abstract Class Payment Template',
-    subtitle: 'W3Schools Abstraction - abstract method & template printReceipt()',
+    subtitle: 'Abstraction · abstract method & template printReceipt()',
     category: 'OOP',
     slotRef: 'Slot 19',
     stdin: '',
@@ -953,7 +953,7 @@ public class Main {
   {
     id: 'slot-20-lab',
     title: 'Slot 20 Lab: Interface IString & MyString',
-    subtitle: 'W3Schools Interface - Mô phỏng đúng cấu trúc Q4 PE (IString + MyString)',
+    subtitle: 'Interface · Mô phỏng đúng cấu trúc Q4 PE (IString + MyString)',
     category: 'OOP',
     slotRef: 'Slot 20',
     stdin: '',
@@ -1016,7 +1016,7 @@ public class Main {
   {
     id: 'slot-21-lab',
     title: 'Slot 21 Lab: Anonymous Class & Comparator (JDK 8)',
-    subtitle: 'W3Schools Inner/Anonymous Class - Comparator đa tiêu chí không dùng Lambda',
+    subtitle: 'Inner/Anonymous Class · Comparator đa tiêu chí không dùng Lambda',
     category: 'OOP',
     slotRef: 'Slot 21',
     stdin: '',
@@ -1079,7 +1079,7 @@ public class Main {
   {
     id: 'slot-22-lab',
     title: 'Slot 22 Lab: Bắt RuntimeException An toàn',
-    subtitle: 'W3Schools Exceptions - Arithmetic, IndexOutOfBounds & NumberFormat',
+    subtitle: 'Exceptions · Arithmetic, IndexOutOfBounds & NumberFormat',
     category: 'Exception & File I/O',
     slotRef: 'Slot 22',
     stdin: '',
@@ -1116,7 +1116,7 @@ public class Main {
   {
     id: 'slot-23-lab',
     title: 'Slot 23 Lab: Thứ tự catch & Luồng finally',
-    subtitle: 'W3Schools Try/Catch/Finally - Catch con trước cha & dấu vết finally',
+    subtitle: 'Try/Catch/Finally · Catch con trước cha & dấu vết finally',
     category: 'Exception & File I/O',
     slotRef: 'Slot 23',
     stdin: '',
@@ -1153,7 +1153,7 @@ public class Main {
   {
     id: 'slot-24-lab',
     title: 'Slot 24 Lab: Custom Exception & Scanner Retry Loop',
-    subtitle: 'W3Schools throw/Exceptions - InvalidScoreException + ép nhập chuẩn',
+    subtitle: 'throw/Exceptions · InvalidScoreException + ép nhập chuẩn',
     category: 'Exception & File I/O',
     slotRef: 'Slot 24',
     stdin: 'abc\n12\n8.5\n',
@@ -1206,7 +1206,7 @@ public class Main {
   {
     id: 'slot-25-lab',
     title: 'Slot 25 Lab: ArrayList & Iterator.remove()',
-    subtitle: 'W3Schools ArrayList/Iterator - Xóa an toàn tránh ConcurrentModification',
+    subtitle: 'ArrayList/Iterator · Xóa an toàn tránh ConcurrentModification',
     category: 'Collections',
     slotRef: 'Slot 25',
     stdin: '',
@@ -1244,7 +1244,7 @@ public class Main {
   {
     id: 'slot-26-lab',
     title: 'Slot 26 Lab: HashSet/TreeSet & HashMap Tần suất',
-    subtitle: 'W3Schools HashSet/HashMap - Đếm chữ số khác nhau & từ qua entrySet()',
+    subtitle: 'HashSet/HashMap · Đếm chữ số khác nhau & từ qua entrySet()',
     category: 'Collections',
     slotRef: 'Slot 26',
     stdin: '',
@@ -1288,7 +1288,7 @@ public class Main {
   {
     id: 'slot-27-lab',
     title: 'Slot 27 Lab: Comparable, Comparator & Partial Sort',
-    subtitle: 'W3Schools List/Advanced Sorting - Sắp xếp cục bộ giữ nguyên vị trí khác',
+    subtitle: 'List/Advanced Sorting · Sắp xếp cục bộ giữ nguyên vị trí khác',
     category: 'Collections',
     slotRef: 'Slot 27',
     stdin: '',
@@ -1366,7 +1366,7 @@ public class Main {
   {
     id: 'slot-28-lab',
     title: 'Slot 28 Lab: java.io.File & Directory Listing',
-    subtitle: 'W3Schools Files/Create/Delete - mkdirs(), createNewFile(), listFiles()',
+    subtitle: 'Files/Create/Delete · mkdirs(), createNewFile(), listFiles()',
     category: 'Exception & File I/O',
     slotRef: 'Slot 28',
     stdin: '',
@@ -1406,7 +1406,7 @@ public class Main {
   {
     id: 'slot-29-lab',
     title: 'Slot 29 Lab: BufferedReader/Writer UTF-8 & CSV',
-    subtitle: 'W3Schools Read/Write Files - try-with-resources & tách dòng CSV',
+    subtitle: 'Read/Write Files · try-with-resources & tách dòng CSV',
     category: 'Exception & File I/O',
     slotRef: 'Slot 29',
     stdin: '',

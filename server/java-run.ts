@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type { Sandbox as SandboxType } from '@vercel/sandbox';
 import {
   executeViaExternalRunner,
@@ -9,6 +10,7 @@ import {
   parseJavacDiagnostics,
   utf8ByteLength,
   validateCompilePayload,
+  validateJavaPolicy,
   type JavaDiagnostic,
   type JavaSourceFile,
 } from './javaValidation';
@@ -82,10 +84,19 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+const utf8Encoder = new TextEncoder();
+const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
+
 function truncateOutput(text: string): string {
   if (!text) return '';
   if (utf8ByteLength(text) <= MAX_OUTPUT_BYTES) return text;
-  const sliced = text.slice(0, MAX_OUTPUT_BYTES);
+  const encoded = utf8Encoder.encode(text);
+  let cut = MAX_OUTPUT_BYTES;
+  // Walk back past UTF-8 continuation bytes (10xxxxxx) to avoid splitting a multi-byte char
+  while (cut > 0 && (encoded[cut] & 0xc0) === 0x80) {
+    cut -= 1;
+  }
+  const sliced = utf8Decoder.decode(encoded.subarray(0, cut));
   return `${sliced}\n... [đầu ra bị cắt bớt do vượt quá 32 KB]`;
 }
 
@@ -276,6 +287,76 @@ export async function POST(request: Request): Promise<Response> {
   const payload = validated.data;
   const primaryFileName = payload.files[0].name;
 
+  const policyViolations = validateJavaPolicy(payload.files, payload.peId);
+  const pkgViolation = policyViolations.find((v) => v.code === 'PACKAGE_FORBIDDEN');
+  if (pkgViolation) {
+    return Response.json(
+      {
+        ok: false,
+        phase: 'compile',
+        jdkVersion: payload.peId ? 'OpenJDK (--release 8)' : 'OpenJDK 21',
+        compileMs: 0,
+        runMs: 0,
+        exitCode: 1,
+        stdout: '',
+        stderr: pkgViolation.message,
+        diagnostics: [
+          {
+            file: pkgViolation.file,
+            line: pkgViolation.line,
+            column: 1,
+            severity: 'error',
+            message: pkgViolation.message,
+          },
+        ] satisfies JavaDiagnostic[],
+      },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } }
+    );
+  }
+
+  if (payload.mode === 'grade') {
+    const binViolation = policyViolations.find((v) => v.code === 'PE3_Q4_BINARY_API');
+    if (binViolation) {
+      await emitMetric('java_sandbox.run', 1, { mode: payload.mode, outcome: 'policy_violation' });
+      return Response.json(
+        {
+          ok: false,
+          phase: 'run',
+          jdkVersion: 'OpenJDK (--release 8)',
+          compileMs: 0,
+          runMs: 0,
+          exitCode: 1,
+          timedOut: false,
+          stdout: '',
+          stderr: binViolation.message,
+          diagnostics: [
+            {
+              file: binViolation.file,
+              line: binViolation.line,
+              column: 1,
+              severity: 'error',
+              message: binViolation.message,
+            },
+          ] satisfies JavaDiagnostic[],
+          testResults: [
+            {
+              id: 'POLICY',
+              name: 'Quy chế PE3-Q4: Tự viết thuật toán đổi nhị phân thủ công',
+              passed: false,
+              durationMs: 0,
+              expected: 'Dùng vòng lặp % 2 và / 2',
+              actual: 'Phát hiện Integer.toBinaryString / Integer.toString(..., 2)',
+              error: binViolation.message,
+            },
+          ],
+        },
+        { status: 200, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+  }
+
+  const markerToken = payload.mode === 'grade' ? randomBytes(12).toString('hex') : undefined;
+
   const workFiles: Array<{ path: string; content: string }> = payload.files.map((f) => ({
     path: `${WORK_DIR}/${f.name}`,
     content: f.content,
@@ -307,7 +388,7 @@ export async function POST(request: Request): Promise<Response> {
   let useUserStdin = false;
 
   if (payload.mode === 'grade') {
-    const harness = buildPeHarness(payload.peId!, 'grade');
+    const harness = buildPeHarness(payload.peId!, 'grade', markerToken);
     if (!harness) {
       return Response.json(
         { error: `Không tìm thấy bộ chấm cho PE ${payload.peId}.` },
@@ -382,6 +463,7 @@ export async function POST(request: Request): Promise<Response> {
       primaryFileName,
       stdin: useUserStdin ? payload.stdin : '',
       mode: payload.mode,
+      markerToken,
     });
     const outcome =
       ext.phase === 'compile'
@@ -424,7 +506,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const acquired = await acquireForkedSandbox();
     sandbox = acquired.sandbox;
-    const jdkVersion = acquired.jdkVersion;
+    const jdkVersion = payload.peId ? `${acquired.jdkVersion} (--release 8)` : acquired.jdkVersion;
 
     const mkdirRes = await sandbox.runCommand('mkdir', ['-p', WORK_DIR, OUT_DIR]);
     if (mkdirRes.exitCode !== 0) {
@@ -434,9 +516,18 @@ export async function POST(request: Request): Promise<Response> {
     await sandbox.writeFiles(workFiles);
 
     const tCompile = performance.now();
+    const javacArgs = [
+      ...(payload.peId ? ['--release', '8'] : []),
+      '-encoding',
+      'UTF-8',
+      '-Xlint:all',
+      '-d',
+      OUT_DIR,
+      ...compileTargets,
+    ];
     const compileRes = await sandbox.runCommand({
       cmd: 'javac',
-      args: ['-encoding', 'UTF-8', '-Xlint:all', '-d', OUT_DIR, ...compileTargets],
+      args: javacArgs,
       cwd: WORK_DIR,
     });
     const compileMs = Math.round(performance.now() - tCompile);
@@ -523,7 +614,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const runMs = Math.round(performance.now() - tRun);
-    const { cleanedStdout, testResults } = extractTestMarkerBlock(runStdout);
+    const { cleanedStdout, testResults } = extractTestMarkerBlock(runStdout, markerToken);
 
     let outcome: string;
     let ok = runExitCode === 0 && !timedOut;

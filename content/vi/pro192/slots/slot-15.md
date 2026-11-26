@@ -250,11 +250,11 @@ Trong mối quan hệ kế thừa của Java, từ khóa `this` và từ khóa `
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 15A: W3Schools `super` Keyword — Sửa Thứ tự `super(...)` & Thiếu Default Constructor
+#### 🟢 Thực hành 15A: `super` Keyword — Sửa Thứ tự `super(...)` & Thiếu Default Constructor
 - **Mục tiêu:** Đưa lời gọi `super(title, price)` lên dòng đầu tiên của constructor lớp con `SpecBook`.
 - **Expected Output:**
   - `Clean Java, PE-Q2, 18.5`
@@ -335,7 +335,7 @@ public class Main {
 - **Mục tiêu:** Tạo 3 lớp kế thừa nhau in thông báo trong constructor để thấy trình tự chạy từ gốc `Object -> A -> B -> C`.
 - **Expected Output:**
   - `A -> B -> C`
-- 🔗 [Mở bài lab Slot 15 trên Code Studio Tryit](/studio/playground?example=slot-15-lab)
+- 🔗 [Mở bài lab Slot 15 trên JavaBrew Live Lab](/studio/playground?example=slot-15-lab)
 
 ```java
 class A {

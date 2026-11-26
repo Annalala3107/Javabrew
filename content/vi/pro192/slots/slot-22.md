@@ -159,11 +159,11 @@ Hàm `divide` bị ngắt ngang và đẩy ngoại lệ về `calculate()`. Do `
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 22A: W3Schools Exceptions — Bắt `ArithmeticException` & `ArrayIndexOutOfBoundsException`
+#### 🟢 Thực hành 22A: Exceptions — Bắt `ArithmeticException` & `ArrayIndexOutOfBoundsException`
 - **Mục tiêu:** Bọc khối `try-catch` xử lý cả 2 ngoại lệ Runtime để chương trình tiếp tục in thông báo kết thúc bình thường.
 - **Expected Output:**
   - `Bat loi: chia cho 0`
@@ -207,7 +207,7 @@ public class Main {
 - **Mục tiêu:** Duyệt `String[] raw = {"10", "abc", "25", null, "5"}`, bắt `NumberFormatException` và lọc `null` để cộng các số hợp lệ.
 - **Expected Output:**
   - `Bo qua phan tu hong -> Tong = 40`
-- 🔗 [Mở bài lab Slot 22 trên Code Studio Tryit](/studio/playground?example=slot-22-lab)
+- 🔗 [Mở bài lab Slot 22 trên JavaBrew Live Lab](/studio/playground?example=slot-22-lab)
 
 ```java
 public class Main {

@@ -251,9 +251,9 @@ public class BookIODemo {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
 #### 🟢 Thực hành 30A: Byte Stream Copy — Sao chép File Nhị phân với Buffer `byte[64]`
 - **Mục tiêu:** Dùng `FileInputStream` đọc theo mảng byte `len = fis.read(buf)` và ghi đúng `len` byte (`fos.write(buf, 0, len)`) sang file đích.
@@ -324,7 +324,7 @@ public class Main {
 - **Mục tiêu:** Cho lớp `Account implements Serializable` với trường `transient String password`, ghi xuống file bằng `ObjectOutputStream` rồi đọc lại và quan sát `password == null`.
 - **Expected Output:**
   - `Loaded: user=se180001, password=null`
-- 🔗 [Mở bài lab Slot 30 trên Code Studio Tryit](/studio/playground?example=slot-30-lab)
+- 🔗 [Mở bài lab Slot 30 trên JavaBrew Live Lab](/studio/playground?example=slot-30-lab)
 
 ```java
 import java.io.*;

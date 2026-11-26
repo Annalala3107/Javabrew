@@ -249,11 +249,11 @@ for (int i = 0; i < numOfItem; i++) {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 17A: W3Schools Type Casting — `instanceof` & Safe Downcasting
+#### 🟢 Thực hành 17A: Type Casting — `instanceof` & Safe Downcasting
 - **Mục tiêu:** Kiểm tra `if (a instanceof Dog)` trước khi ép kiểu xuống `Dog` để tránh ngoại lệ `ClassCastException`.
 - **Expected Output:**
   - `Dog catches ball`
@@ -306,7 +306,7 @@ public class Main {
 - **Mục tiêu:** Hoàn thiện hàm `removeAt(int idx)` dịch các phần tử phía sau sang trái (`i < count - 1`) và xóa phần tử đuôi `list[--count] = null`.
 - **Expected Output:**
   - `Remaining: [I01, I03]`
-- 🔗 [Mở bài lab Slot 17 trên Code Studio Tryit](/studio/playground?example=slot-17-lab)
+- 🔗 [Mở bài lab Slot 17 trên JavaBrew Live Lab](/studio/playground?example=slot-17-lab)
 
 ```java
 import java.util.Arrays;

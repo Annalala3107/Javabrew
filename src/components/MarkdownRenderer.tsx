@@ -31,6 +31,7 @@ import { resolveMarkdownHref } from '../utils/markdown';
 interface MarkdownRendererProps {
   content: string;
   currentRel: string;
+  compact?: boolean;
 }
 
 function extractNodeText(node: ReactNode): string {
@@ -45,9 +46,11 @@ function extractNodeText(node: ReactNode): string {
 function CodeBlock({
   children,
   currentRel,
+  compact = false,
 }: {
   children?: ReactNode;
   currentRel: string;
+  compact?: boolean;
 }) {
   const { pushToast } = useApp();
   const navigate = useNavigate();
@@ -62,7 +65,7 @@ function CodeBlock({
   }
 
   const rawCode = extractNodeText(children).replace(/\n$/, '');
-  const isRunnableJava = language.toLowerCase() === 'java' && rawCode.trim().length >= 8;
+  const isRunnableJava = !compact && language.toLowerCase() === 'java' && rawCode.trim().length >= 8;
 
   const handleTryInPlayground = () => {
     const prepared = prepareJavaPlaygroundFiles(rawCode, currentRel);
@@ -84,8 +87,14 @@ function CodeBlock({
   };
 
   return (
-    <div className="my-5 overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-code)]">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface-muted)] px-3.5 py-1.5">
+    <div
+      className={
+        compact
+          ? 'my-2 overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--bg-code)]'
+          : 'my-5 overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-code)]'
+      }
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface-muted)] px-3 py-1">
         <span className="font-mono text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
           {language}
         </span>
@@ -115,7 +124,15 @@ function CodeBlock({
           />
         </div>
       </div>
-      <pre className="overflow-x-auto p-4 text-[13.5px] leading-relaxed">{children}</pre>
+      <pre
+        className={
+          compact
+            ? 'overflow-x-auto p-2.5 text-xs leading-relaxed'
+            : 'overflow-x-auto p-4 text-[13.5px] leading-relaxed'
+        }
+      >
+        {children}
+      </pre>
     </div>
   );
 }
@@ -237,7 +254,7 @@ function splitDetailsBlocks(md: string): MarkdownChunk[] {
   return chunks;
 }
 
-export function MarkdownRenderer({ content, currentRel }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, currentRel, compact = false }: MarkdownRendererProps) {
   const { openPdfPreview } = useApp();
   const [zoomedImg, setZoomedImg] = useState<{ src: string; alt: string } | null>(null);
 
@@ -254,7 +271,11 @@ export function MarkdownRenderer({ content, currentRel }: MarkdownRendererProps)
 
   const markdownComponents: Components = {
             pre({ children }) {
-              return <CodeBlock currentRel={currentRel}>{children}</CodeBlock>;
+              return (
+                <CodeBlock currentRel={currentRel} compact={compact}>
+                  {children}
+                </CodeBlock>
+              );
             },
             table({ children }) {
               return (
@@ -418,7 +439,13 @@ export function MarkdownRenderer({ content, currentRel }: MarkdownRendererProps)
 
   return (
     <>
-      <div className="jb-prose">
+      <div
+        className={
+          compact
+            ? 'jb-prose text-xs leading-relaxed [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:mb-2 [&_ol]:mb-2'
+            : 'jb-prose'
+        }
+      >
         {chunks.map((chunk, idx) =>
           chunk.type === 'md' ? (
             <ReactMarkdown

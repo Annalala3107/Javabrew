@@ -98,20 +98,31 @@ const JSON_HELPERS = `
     }
 `;
 
-function wrapGrader(peId: number, bodyJava: string): PeHarnessSpec {
+function sanitizeMarkerToken(token?: string): string {
+  return token && /^[A-Za-z0-9_-]{4,64}$/.test(token) ? token : 'DEFAULT';
+}
+
+function buildWrappedGrader(
+  peId: number,
+  bodyJava: string,
+  markerToken = 'DEFAULT'
+): PeHarnessSpec {
   const entryClass = `__JavaBrewPe${String(peId).padStart(2, '0')}Grader`;
   const extraFiles = getPeInterfaceFiles(peId);
+  const safeToken = sanitizeMarkerToken(markerToken);
   const content = `import java.util.*;
 
 public class ${entryClass} {
 ${JSON_HELPERS}
     public static void main(String[] args) {
+        final java.io.PrintStream __jbOrigOut = System.out;
         Locale.setDefault(Locale.US);
         List<String> results = new ArrayList<String>();
 ${bodyJava}
-        System.out.println("__JB_TESTS_START__");
-        System.out.println("[" + String.join(",", results) + "]");
-        System.out.println("__JB_TESTS_END__");
+        System.setOut(__jbOrigOut);
+        __jbOrigOut.println("__JB_TESTS_${safeToken}_START__");
+        __jbOrigOut.println("[" + String.join(",", results) + "]");
+        __jbOrigOut.println("__JB_TESTS_${safeToken}_END__");
     }
 }
 `;
@@ -165,7 +176,9 @@ ${tryBody}
 `;
 }
 
-function buildGrader(peId: number): PeHarnessSpec | null {
+function buildGrader(peId: number, markerToken = 'DEFAULT'): PeHarnessSpec | null {
+  const wrapGrader = (id: number, bodyJava: string): PeHarnessSpec =>
+    buildWrappedGrader(id, bodyJava, markerToken);
   switch (peId) {
     // 1. PE1-Q1: Crocus
     case 1:
@@ -732,17 +745,26 @@ function buildGrader(peId: number): PeHarnessSpec | null {
         [
           tcBlock(
             'TC1',
-            'f1(): tim Shoes co price lon nhat',
+            'f1(): tim Shoes co price lon nhat & kiem tra display(List<Shoes>)',
             '"(cong so, 55)"',
-            `            IShoes m = new MyShoes();
+            `            MyShoes ms = new MyShoes();
+            IShoes m = ms;
             List<Shoes> t = new ArrayList<Shoes>(Arrays.asList(
                 new Shoes("sandal", 20), new Shoes("tre em", 50),
                 new Shoes("the thao", 15), new Shoes("cong so", 55)
             ));
             Shoes max = m.f1(t);
+            java.io.PrintStream prevOut = System.out;
+            java.io.ByteArrayOutputStream dispBuf = new java.io.ByteArrayOutputStream();
+            System.setOut(new java.io.PrintStream(dispBuf));
+            try {
+                ms.display(t);
+            } finally {
+                System.setOut(prevOut);
+            }
             a_TC1 = (max == null) ? "null" : max.toString();
             p_TC1 = max != null && "(cong so, 55)".equals(max.toString());
-            if (!p_TC1) e_TC1 = "f1() phai tra ve doi tuong Shoes co gia cao nhat";`
+            if (!p_TC1) e_TC1 = "f1() phai tra ve doi tuong Shoes co gia cao nhat va display(List<Shoes>) hoat dong an toan";`
           ),
           tcBlock(
             'TC2',
@@ -1148,6 +1170,10 @@ function buildRunner(peId: number): PeHarnessSpec | null {
   }
 }
 
-export function buildPeHarness(peId: number, mode: 'run' | 'grade'): PeHarnessSpec | null {
-  return mode === 'run' ? buildRunner(peId) : buildGrader(peId);
+export function buildPeHarness(
+  peId: number,
+  mode: 'run' | 'grade',
+  markerToken = 'DEFAULT'
+): PeHarnessSpec | null {
+  return mode === 'run' ? buildRunner(peId) : buildGrader(peId, markerToken);
 }

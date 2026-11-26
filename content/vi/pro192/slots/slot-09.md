@@ -212,11 +212,11 @@ public class ParseScore {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 9A: W3Schools User Input — Sửa Bẫy `Scanner.nextLine()` bị Trôi lệnh
+#### 🟢 Thực hành 9A: User Input — Sửa Bẫy `Scanner.nextLine()` bị Trôi lệnh
 - **Mục tiêu:** Xả ký tự xuống dòng `\n` sau `sc.nextInt()` trước khi đọc họ tên sinh viên có dấu cách.
 - **Expected Output:**
   - `Sinh vien: Nguyen Van An (20 tuoi)`
@@ -256,17 +256,17 @@ public class Main {
 }
 ```
 
-* **Giải thích:** Trong bản mở trên Code Studio Tryit, `System.in` đã nạp sẵn `stdin`. Khi chạy bằng bàn phím thật hay PE test, sau `nextInt()`/`nextDouble()` luôn nhớ `sc.nextLine()` nếu lệnh sau là `nextLine()`.
+* **Giải thích:** Trong bản mở trên JavaBrew Live Lab, `System.in` đã nạp sẵn `stdin`. Khi chạy bằng bàn phím thật hay PE test, sau `nextInt()`/`nextDouble()` luôn nhớ `sc.nextLine()` nếu lệnh sau là `nextLine()`.
 
 </details>
 
 ---
 
-#### 🟡 Thực hành 9B: W3Schools *How To* (Cầu nối PE Q4) — Đếm Từ & Đảo Chuỗi JDK 8
+#### 🟡 Thực hành 9B: Thực chiến Chuỗi (Cầu nối PE Q4) — Đếm Từ & Đảo Chuỗi JDK 8
 - **Mục tiêu:** Tách từ an toàn với `trim().split("\\s+")` (không dùng `isBlank()` của Java 11) và kiểm tra đối xứng bằng `StringBuilder.reverse()`.
 - **Expected Output:**
   - `So tu: 3 | Palindrome(madam): true`
-- 🔗 [Mở bài lab Slot 09 trên Code Studio Tryit](/studio/playground?example=slot-09-lab)
+- 🔗 [Mở bài lab Slot 09 trên JavaBrew Live Lab](/studio/playground?example=slot-09-lab)
 
 ```java
 public class Main {
@@ -284,7 +284,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        String input = "   Java   PRO192   W3Schools  ";
+        String input = "   Java   PRO192   JavaBrew  ";
         System.out.println("So tu: " + countWords(input) + " | Palindrome(madam): " + isPalindrome("madam"));
     }
 }
@@ -311,7 +311,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        String input = "   Java   PRO192   W3Schools  ";
+        String input = "   Java   PRO192   JavaBrew  ";
         System.out.println("So tu: " + countWords(input) + " | Palindrome(madam): " + isPalindrome("madam"));
     }
 }

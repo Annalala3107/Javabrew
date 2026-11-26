@@ -221,11 +221,11 @@ public class TestBlockScope {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 4A: W3Schools Type Casting — Sửa Bẫy Chia nguyên & Ép kiểu `byte`
+#### 🟢 Thực hành 4A: Type Casting — Sửa Bẫy Chia nguyên & Ép kiểu `byte`
 - **Mục tiêu:** Ép `(double)` trước khi chia `5 / 2` để tránh kết quả bị cụt thành `2.0`, và xem cơ chế tràn `byte`.
 - **Expected Output:**
   - `Chia dung: 2.50`
@@ -265,11 +265,11 @@ public class Main {
 
 ---
 
-#### 🟡 Thực hành 4B: W3Schools *Java How To* — Tổng, Trung bình & Min của Mảng 1D
+#### 🟡 Thực hành 4B: Thực chiến Tổng, Trung bình & Min của Mảng 1D
 - **Mục tiêu:** Duyệt mảng `int[]` tính tổng, tìm phần tử nhỏ nhất và in điểm trung bình 2 chữ số thập phân.
 - **Expected Output:**
   - `Sum = 39, Min = 5, Avg = 7.80`
-- 🔗 [Mở bài lab Slot 04 trên Code Studio Tryit](/studio/playground?example=slot-04-lab)
+- 🔗 [Mở bài lab Slot 04 trên JavaBrew Live Lab](/studio/playground?example=slot-04-lab)
 
 ```java
 public class Main {

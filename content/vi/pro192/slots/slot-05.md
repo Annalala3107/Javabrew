@@ -250,11 +250,11 @@ System.out.println(x);
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 5A: W3Schools Switch & Ternary — Chặn Fall-through thiếu `break`
+#### 🟢 Thực hành 5A: Switch & Ternary — Chặn Fall-through thiếu `break`
 - **Mục tiêu:** Sửa `switch` bị rơi tự do từ `case 'A'` xuống `default` và dùng toán tử 3 ngôi `?:` kiểm tra Đậu/Rớt.
 - **Expected Output:**
   - `Rank: Excellent | Status: PASS`
@@ -308,12 +308,12 @@ public class Main {
 
 ---
 
-#### 🟡 Thực hành 5B: W3Schools For/Continue — Liệt kê Số nguyên tố & Bẫy `for-each`
+#### 🟡 Thực hành 5B: For/Continue — Liệt kê Số nguyên tố & Bẫy `for-each`
 - **Mục tiêu:** Dùng `continue` bỏ qua số chẵn > 2 khi kiểm tra nguyên tố đến 20, đồng thời thấy `for-each` không sửa được phần tử mảng nguyên thủy.
 - **Expected Output:**
   - `Primes: 2 3 5 7 11 13 17 19`
   - `arr[0] = 10`
-- 🔗 [Mở bài lab Slot 05 trên Code Studio Tryit](/studio/playground?example=slot-05-lab)
+- 🔗 [Mở bài lab Slot 05 trên JavaBrew Live Lab](/studio/playground?example=slot-05-lab)
 
 ```java
 public class Main {

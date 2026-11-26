@@ -302,7 +302,7 @@ export function PeHubPage() {
                     onClick={() => navigate(`/studio/${selected.id}`)}
                     className="min-h-[42px] w-full rounded-lg bg-[var(--accent)] py-2.5 font-bold text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"
                   >
-                    Bắt đầu Code trên Studio (M7) →
+                    Bắt đầu Code trên Studio →
                   </button>
 
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

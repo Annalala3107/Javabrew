@@ -185,11 +185,11 @@ public class SafeInput {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 24A: W3Schools `throw` Keyword — Chủ động Ném Ngoại lệ Kiểm tra Tuổi
+#### 🟢 Thực hành 24A: `throw` Keyword — Chủ động Ném Ngoại lệ Kiểm tra Tuổi
 - **Mục tiêu:** Viết hàm `checkAge(int age)` ném `IllegalArgumentException` nếu `< 18` và bắt lại tại `main`.
 - **Expected Output:**
   - `Tu choi: Can du 18 tuoi!`
@@ -246,7 +246,7 @@ public class Main {
 - **Expected Output:**
   - `Nhap lai...`
   - `Nhan diem hop le: 8.5`
-- 🔗 [Mở bài lab Slot 24 trên Code Studio Tryit](/studio/playground?example=slot-24-lab)
+- 🔗 [Mở bài lab Slot 24 trên JavaBrew Live Lab](/studio/playground?example=slot-24-lab)
 
 ```java
 import java.util.Scanner;
@@ -323,7 +323,7 @@ public class Main {
 }
 ```
 
-* **Giải thích:** Mở bản `slot-24-lab` trên Code Studio Tryit để thử nhập nhiều dòng `stdin` trực tiếp qua ô Input.
+* **Giải thích:** Mở bản `slot-24-lab` trên JavaBrew Live Lab để thử nhập nhiều dòng `stdin` trực tiếp qua ô Input.
 
 </details>
 

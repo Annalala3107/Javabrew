@@ -247,9 +247,9 @@ Trình biên dịch sẽ thông báo lỗi gì tại Dòng 9? Quy tắc nào tro
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
 #### 🟢 Thực hành 21A: Anonymous Class — Khởi tạo Tức thì & Lỗi thiếu dấu `;`
 - **Mục tiêu:** Sửa dấu `;` kết thúc Anonymous Class và quan sát quy tắc biến `effectively final` (`prefix`).
@@ -307,7 +307,7 @@ public class Main {
 - **Mục tiêu:** Dùng `new Comparator<Student>()` (chuẩn JDK 8) sắp xếp giảm dần theo `gpa`; nếu `gpa` bằng nhau thì tăng dần theo `name`.
 - **Expected Output:**
   - `[Binh(9.0), An(8.5), Linh(8.5)]`
-- 🔗 [Mở bài lab Slot 21 trên Code Studio Tryit](/studio/playground?example=slot-21-lab)
+- 🔗 [Mở bài lab Slot 21 trên JavaBrew Live Lab](/studio/playground?example=slot-21-lab)
 
 ```java
 import java.util.*;

@@ -29,15 +29,18 @@ interface DemoScenario {
 
 const SCENARIOS: Record<DemoTab, DemoScenario> = {
   pe: {
-    fileName: 'StudentManager.java · PE 01',
+    fileName: 'Crocus.java · PE1-Q1',
     badgeText: '✔ 3/3 Test Pass',
     badgeTone: 'success',
-    cmd: 'javac Student.java Main.java && java Main',
-    steps: ['Biên dịch lớp Student & Main', 'Chạy TC1 & TC2 (Null-safe check)'],
-    finalLine: 'PASS 3/3 · Clean Code đạt chuẩn PE 01 (0.4s)',
+    cmd: 'javac --release 8 Crocus.java && java Grader',
+    steps: [
+      'Biên dịch Crocus.java chuẩn JDK 8',
+      'Chạy TC1 getName("crocus3") & TC2 setWeight(10)',
+    ],
+    finalLine: 'PASS 3/3 · Chuẩn JDK 1.8 & Default Package (0.4s)',
     mentorLabel: '✨ AI Mentor (Góc Cà Phê Review):',
     mentorBody:
-      'Gọn hơn hẳn rồi! Tách điều kiện kiểm tra null ngay đầu hàm giúp bạn tránh lỗi NullPointerException kinh điển khi chấm PE.',
+      'Duyệt ngược từ cuối chuỗi giúp xóa đúng chữ số cuối và kiểm tra name == null ở đầu hàm tránh NullPointerException khi chấm PE.',
     tryPath: '/studio/1',
     tryLabel: 'Mở đề này trong Studio →',
   },
@@ -218,23 +221,36 @@ export function InteractiveHeroDemo() {
           <>
             <div>
               <span className="mr-3 text-[var(--text-dim)]">01</span>
-              <span className="text-[var(--accent)]">public List&lt;Student&gt;</span>{' '}
-              <span className="text-[var(--text-primary)]">getHonorList(List&lt;Student&gt; list) {'{'}</span>
+              <span className="text-[var(--accent)]">public String</span>{' '}
+              <span className="text-[var(--text-primary)]">getName() {'{'}</span>
             </div>
             <div>
               <span className="mr-3 text-[var(--text-dim)]">02</span>
               {'  '}
-              <span className="text-[var(--info)]">if</span> (list == null){' '}
-              <span className="text-[var(--info)]">return</span> List.of();
+              <span className="text-[var(--info)]">if</span> (name == null){' '}
+              <span className="text-[var(--info)]">return</span>{' '}
+              <span className="text-[var(--success-text)]">&quot;&quot;</span>;
             </div>
             <div>
               <span className="mr-3 text-[var(--text-dim)]">03</span>
               {'  '}
-              <span className="text-[var(--info)]">return</span> list.stream().filter(s -&gt; s.getGpa() &gt;= 8.0).toList();
+              <span className="text-[var(--info)]">for</span> (int i = name.length() - 1; i &gt;= 0; i--)
+              {' {'}
             </div>
             <div>
               <span className="mr-3 text-[var(--text-dim)]">04</span>
-              {'}'}
+              {'    '}
+              <span className="text-[var(--info)]">if</span> (Character.isDigit(name.charAt(i)))
+            </div>
+            <div>
+              <span className="mr-3 text-[var(--text-dim)]">05</span>
+              {'      '}
+              <span className="text-[var(--info)]">return</span> name.substring(0, i) + name.substring(i + 1);
+            </div>
+            <div>
+              <span className="mr-3 text-[var(--text-dim)]">06</span>
+              {'  } '}
+              <span className="text-[var(--info)]">return</span> name; {'}'}
             </div>
           </>
         ) : (

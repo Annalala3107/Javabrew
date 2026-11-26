@@ -75,7 +75,7 @@ System.out.println(price + " " + tags + " " + LocalDate.now());`;
     expect(validateNewJavaFileName('Extra.java', fullList).ok).toBe(false);
   });
 
-  it('ships 45 curated PRO192 + W3Schools slot templates starting with demo-intro and unique JDK 8 compatible ids', () => {
+  it('ships 45 curated PRO192 + JavaBrew Live Lab slot templates starting with demo-intro and unique JDK 8 compatible ids', () => {
     expect(PLAYGROUND_TEMPLATES).toHaveLength(45);
     expect(PLAYGROUND_TEMPLATES[0]?.id).toBe('demo-intro');
 

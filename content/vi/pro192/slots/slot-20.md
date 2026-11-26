@@ -225,11 +225,11 @@ public static void processOrder(PaymentMethod payment, double amount) {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 20A: W3Schools Interface — Đa kế thừa Giao diện & Lỗi quên `public`
+#### 🟢 Thực hành 20A: Interface — Đa kế thừa Giao diện & Lỗi quên `public`
 - **Mục tiêu:** Sửa lỗi thu hẹp phạm vi truy cập khi lớp `SmartPhone` cài đặt 2 interface `Callable` và `Camera`.
 - **Expected Output:**
   - `Calling 090123...`
@@ -289,7 +289,7 @@ public class Main {
 - **Mục tiêu:** Hoàn thiện `f1` (đếm từ chứa ít nhất 1 chữ số) và `f2` (chuẩn hóa 1 dấu cách giữa các từ). Mở bản 3 file ở Code Studio để luyện y hệt đề thi.
 - **Expected Output:**
   - `f1 = 2 | f2 = [Java8 PRO192 pure]`
-- 🔗 [Mở bài lab Slot 20 trên Code Studio Tryit](/studio/playground?example=slot-20-lab)
+- 🔗 [Mở bài lab Slot 20 trên JavaBrew Live Lab](/studio/playground?example=slot-20-lab)
 
 ```java
 interface IString {

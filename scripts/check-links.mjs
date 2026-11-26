@@ -7,7 +7,7 @@ const prefix = (process.argv[2] || '').replace(/^\/+|\/+$/g, '');
 
 async function loadPlaygroundTemplateIds() {
   const ids = new Set();
-  for (const rel of ['src/utils/javaPlayground.ts', 'src/utils/w3schoolsSlotTemplates.ts']) {
+  for (const rel of ['src/utils/javaPlayground.ts', 'src/utils/slotLabTemplates.ts']) {
     const abs = path.join(ROOT, rel);
     if (!fssync.existsSync(abs)) continue;
     const raw = await fs.readFile(abs, 'utf8');

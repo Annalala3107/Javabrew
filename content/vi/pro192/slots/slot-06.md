@@ -190,9 +190,9 @@ public class InfiniteCall {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
 #### 🟢 Thực hành 6A: JVM Stack vs Heap — Truyền Tham trị Nguyên thủy vs Tham chiếu Mảng
 - **Mục tiêu:** Hoàn thiện 2 hàm `swap` (kiểu `int`) và `doubleFirst` (`int[]`) để chứng minh mọi lời gọi hàm trong Java đều là Pass-by-Value.
@@ -257,11 +257,11 @@ public class Main {
 
 ---
 
-#### 🟡 Thực hành 6B: W3Schools Recursion — Đệ quy có Base Case tránh `StackOverflowError`
+#### 🟡 Thực hành 6B: Recursion — Đệ quy có Base Case tránh `StackOverflowError`
 - **Mục tiêu:** Viết hàm đệ quy `factorial(int n)` với điều kiện dừng `n <= 1` và đếm số frame tạo ra.
 - **Expected Output:**
   - `5! = 120`
-- 🔗 [Mở bài lab Slot 06 trên Code Studio Tryit](/studio/playground?example=slot-06-lab)
+- 🔗 [Mở bài lab Slot 06 trên JavaBrew Live Lab](/studio/playground?example=slot-06-lab)
 
 ```java
 public class Main {

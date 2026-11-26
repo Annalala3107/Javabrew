@@ -34,6 +34,7 @@ export interface JumpTarget {
 }
 
 interface JavaCodeEditorProps {
+  docKey?: string;
   value: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
@@ -132,7 +133,10 @@ function buildEditorTheme(mode: 'dark' | 'light', minHeight: number) {
   ];
 }
 
+const MAX_CACHED_STATES = 25;
+
 export function JavaCodeEditor({
+  docKey = 'default',
   value,
   onChange,
   onBlur,
@@ -148,6 +152,8 @@ export function JavaCodeEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const themeCompartmentRef = useRef(new Compartment());
+  const stateCacheRef = useRef<Map<string, EditorState>>(new Map());
+  const activeDocKeyRef = useRef<string>(docKey);
 
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
@@ -161,16 +167,10 @@ export function JavaCodeEditor({
   onLimitReachedRef.current = onLimitReached;
   maxLengthRef.current = maxLength;
 
-  // Create EditorView once
-  useEffect(() => {
-    const parent = containerRef.current;
-    if (!parent) return;
-
-    const themeCompartment = themeCompartmentRef.current;
-    const initialDoc = value.length > maxLength ? value.slice(0, maxLength) : value;
-
-    const state = EditorState.create({
-      doc: initialDoc,
+  const createIsolatedState = (docText: string, mode: 'dark' | 'light', heightPx: number) => {
+    const safeDoc = docText.length > maxLengthRef.current ? docText.slice(0, maxLengthRef.current) : docText;
+    return EditorState.create({
+      doc: safeDoc,
       extensions: [
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -244,19 +244,34 @@ export function JavaCodeEditor({
             return false;
           },
         }),
-        themeCompartment.of(buildEditorTheme(theme, minHeight)),
+        themeCompartmentRef.current.of(buildEditorTheme(mode, heightPx)),
       ],
     });
+  };
 
-    const view = new EditorView({ state, parent });
-    viewRef.current = view;
-
-    const gutterEl = parent.querySelector('.cm-gutters');
+  const syncGutterTestId = () => {
+    const gutterEl = containerRef.current?.querySelector('.cm-gutters');
     if (gutterEl) {
       gutterEl.setAttribute('data-testid', 'code-line-gutter');
     }
+  };
 
+  // Create EditorView once
+  useEffect(() => {
+    const parent = containerRef.current;
+    if (!parent) return;
+
+    const initialState = createIsolatedState(value, theme, minHeight);
+    activeDocKeyRef.current = docKey;
+    stateCacheRef.current.set(docKey, initialState);
+
+    const view = new EditorView({ state: initialState, parent });
+    viewRef.current = view;
+    syncGutterTestId();
+
+    const cacheMap = stateCacheRef.current;
     return () => {
+      cacheMap.clear();
       viewRef.current = null;
       view.destroy();
     };
@@ -272,18 +287,46 @@ export function JavaCodeEditor({
     });
   }, [theme, minHeight]);
 
-  // Sync external value changes (switching PE, file tab, diff apply, undo/reset)
+  // Swap isolated EditorState (and Undo history) on docKey change, or sync external value updates
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     const safeValue = value.length > maxLength ? value.slice(0, maxLength) : value;
+
+    if (docKey !== activeDocKeyRef.current) {
+      const cache = stateCacheRef.current;
+      cache.set(activeDocKeyRef.current, view.state);
+      if (cache.size > MAX_CACHED_STATES) {
+        const oldestKey = cache.keys().next().value;
+        if (oldestKey !== undefined && oldestKey !== docKey) {
+          cache.delete(oldestKey);
+        }
+      }
+
+      activeDocKeyRef.current = docKey;
+      const cached = cache.get(docKey);
+      const nextState =
+        cached && cached.doc.toString() === safeValue
+          ? cached
+          : createIsolatedState(safeValue, theme, minHeight);
+      cache.set(docKey, nextState);
+
+      view.setState(nextState);
+      view.dispatch({
+        effects: themeCompartmentRef.current.reconfigure(buildEditorTheme(theme, minHeight)),
+      });
+      syncGutterTestId();
+      return;
+    }
+
     const current = view.state.doc.toString();
     if (current !== safeValue) {
       view.dispatch({
         changes: { from: 0, to: current.length, insert: safeValue },
       });
     }
-  }, [value, maxLength]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docKey, value, maxLength]);
 
   // Sync javac compiler diagnostics directly onto CodeMirror lines/columns
   useEffect(() => {
@@ -321,7 +364,7 @@ export function JavaCodeEditor({
     });
 
     view.dispatch(setDiagnostics(view.state, mapped));
-  }, [diagnostics, value]);
+  }, [diagnostics, value, docKey]);
 
   // Jump to diagnostic line when clicked in Console
   useEffect(() => {

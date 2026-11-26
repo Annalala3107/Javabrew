@@ -9,6 +9,11 @@
   padding: 12px;
 }
 
+.u086-card.is-err {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: var(--danger-soft);
+}
+
 .u086-q {
   font-size: 12px;
   font-weight: 600;

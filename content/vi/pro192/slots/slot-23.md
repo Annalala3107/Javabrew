@@ -219,11 +219,11 @@ public class FallbackDemo {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 23A: W3Schools Try...Catch — Sửa Thứ tự `catch` Con trước Cha
+#### 🟢 Thực hành 23A: Try...Catch — Sửa Thứ tự `catch` Con trước Cha
 - **Mục tiêu:** Đảo thứ tự khối `catch (Exception e)` xuống sau `catch (ArithmeticException e)` để hết lỗi unreachable code.
 - **Expected Output:**
   - `ArithmeticException caught!`
@@ -268,12 +268,12 @@ public class Main {
 
 ---
 
-#### 🟡 Thực hành 23B: W3Schools Finally — Vết Thực thi `finally` khi Có `return` trong `try`
+#### 🟡 Thực hành 23B: Finally — Vết Thực thi `finally` khi Có `return` trong `try`
 - **Mục tiêu:** Quan sát khối `finally` luôn chạy trước khi thoát hàm kể cả khi `try` trả về kết quả sớm.
 - **Expected Output:**
   - `finally ran!`
   - `Returned: 5`
-- 🔗 [Mở bài lab Slot 23 trên Code Studio Tryit](/studio/playground?example=slot-23-lab)
+- 🔗 [Mở bài lab Slot 23 trên JavaBrew Live Lab](/studio/playground?example=slot-23-lab)
 
 ```java
 public class Main {

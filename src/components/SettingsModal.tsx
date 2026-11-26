@@ -1,13 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, Moon, RotateCcw, Settings, Sun, Upload, X } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import {
+  CheckCircle2,
+  Download,
+  ExternalLink,
+  Moon,
+  RotateCcw,
+  Settings,
+  Sun,
+  Upload,
+  X,
+} from 'lucide-react';
+import { useApp, type ByokPersistMode } from '../context/AppContext';
+import {
+  AI_MENTOR_MODELS,
+  testGeminiApiKey,
+  type AiMentorModel,
+} from '../services/aiMentorService';
 
 export function SettingsModal() {
   const {
     isSettingsOpen,
     setIsSettingsOpen,
     byokKey,
-    setByokKey,
+    byokPersist,
+    setByokConfig,
+    aiModel,
+    setAiModel,
     theme,
     setTheme,
     lang,
@@ -18,22 +36,49 @@ export function SettingsModal() {
   } = useApp();
 
   const [draftKey, setDraftKey] = useState(byokKey);
+  const [draftPersist, setDraftPersist] = useState<ByokPersistMode>(byokPersist);
+  const [draftModel, setDraftModel] = useState<AiMentorModel>(aiModel);
+  const [testingKey, setTestingKey] = useState(false);
+  const [keyStatus, setKeyStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isSettingsOpen) {
       setDraftKey(byokKey);
+      setDraftPersist(byokPersist);
+      setDraftModel(aiModel);
+      setKeyStatus(null);
+      setTestingKey(false);
       setStatusMsg(null);
     }
-  }, [isSettingsOpen, byokKey]);
+  }, [isSettingsOpen, byokKey, byokPersist, aiModel]);
 
   if (!isSettingsOpen) return null;
 
   const handleSave = () => {
-    setByokKey(draftKey);
+    setByokConfig(draftKey, draftPersist);
+    setAiModel(draftModel);
     setStatusMsg('Đã lưu cấu hình cục bộ trên trình duyệt.');
     window.setTimeout(() => setIsSettingsOpen(false), 350);
+  };
+
+  const handleTestKey = async () => {
+    setTestingKey(true);
+    setKeyStatus(null);
+    try {
+      const res = await testGeminiApiKey(draftKey, draftModel);
+      if (res.ok) {
+        setKeyStatus({
+          ok: true,
+          msg: `Kết nối thành công với model ${res.model}!`,
+        });
+      } else {
+        setKeyStatus({ ok: false, msg: res.errorMessage });
+      }
+    } finally {
+      setTestingKey(false);
+    }
   };
 
   const handleExport = () => {
@@ -88,28 +133,101 @@ export function SettingsModal() {
         </div>
 
         <p className="leading-relaxed text-[var(--text-muted)]">
-          Kiến trúc bảo mật (BYOK): Tài liệu đọc hoàn toàn Offline. Để gọi trực tiếp AI Mentor trên bản web tĩnh, khóa API cá nhân được lưu riêng tại{' '}
+          Kiến trúc bảo mật (BYOK): Tài liệu lưu nội bộ, không quảng cáo. Để gọi trực tiếp AI Mentor bằng khóa cá nhân, API Key mặc định chỉ lưu trong{' '}
           <code className="rounded bg-[var(--bg-code)] px-1 py-0.5 text-[var(--accent-text)]">
-            localStorage
+            sessionStorage
           </code>{' '}
-          trên trình duyệt của bạn.
+          (tự xóa khi đóng tab, an toàn trên máy phòng Lab).
         </p>
 
-        {/* BYOK API Key */}
-        <div className="space-y-1.5">
-          <label htmlFor="byok-key-input" className="block font-semibold text-[var(--text-primary)]">
-            Gemini API Key (Tùy chọn):
-          </label>
+        {/* BYOK API Key & Model */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="byok-key-input" className="font-semibold text-[var(--text-primary)]">
+              Gemini API Key (Tùy chọn):
+            </label>
+            <a
+              href="https://aistudio.google.com/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--info-text)] hover:underline"
+            >
+              <span>Lấy key miễn phí tại AI Studio</span>
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            </a>
+          </div>
+
           <input
             id="byok-key-input"
             type="password"
             value={draftKey}
-            onChange={(e) => setDraftKey(e.target.value)}
+            onChange={(e) => {
+              setDraftKey(e.target.value);
+              setKeyStatus(null);
+            }}
             autoComplete="off"
             spellCheck={false}
-            placeholder="AIzaSy… (Lưu cục bộ trên máy)"
+            placeholder="AIzaSy… (Gửi qua header x-goog-api-key)"
             className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-dim)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           />
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="ai-model-select" className="font-semibold text-[var(--text-primary)]">
+              Model AI Mentor:
+            </label>
+            <select
+              id="ai-model-select"
+              value={draftModel}
+              onChange={(e) => {
+                setDraftModel(e.target.value as AiMentorModel);
+                setKeyStatus(null);
+              }}
+              className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            >
+              {AI_MENTOR_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)]/70 p-2.5 text-[11px] leading-snug text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              checked={draftPersist === 'local'}
+              onChange={(e) => setDraftPersist(e.target.checked ? 'local' : 'session')}
+              className="mt-0.5 accent-[var(--accent)]"
+            />
+            <span>
+              Ghi nhớ API Key trên máy cá nhân này (<code>localStorage</code>). Bỏ tick nếu dùng máy phòng Lab để tự xóa khi đóng tab.
+            </span>
+          </label>
+
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              disabled={testingKey || !draftKey.trim()}
+              onClick={() => void handleTestKey()}
+              className="inline-flex min-h-[32px] items-center gap-1.5 rounded-lg border border-[var(--info)]/40 bg-[var(--info-soft)] px-3 py-1 font-semibold text-[var(--info-text)] transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{testingKey ? 'Đang kiểm tra…' : 'Kiểm tra kết nối Key'}</span>
+            </button>
+          </div>
+
+          {keyStatus && (
+            <p
+              role="status"
+              className={
+                keyStatus.ok
+                  ? 'rounded-lg border border-[var(--success)]/35 bg-[var(--success-soft)] px-2.5 py-1.5 text-xs text-[var(--success-text)]'
+                  : 'rounded-lg border border-[var(--danger)]/35 bg-[var(--danger-soft)] px-2.5 py-1.5 text-xs text-[var(--danger-text)]'
+              }
+            >
+              {keyStatus.msg}
+            </p>
+          )}
         </div>
 
         {/* Theme & Language */}

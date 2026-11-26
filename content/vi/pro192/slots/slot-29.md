@@ -242,11 +242,11 @@ public class ReadUTF8Demo {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 29A: W3Schools Write/Read Files — Ghi & Đọc `UTF-8` bằng `try-with-resources`
+#### 🟢 Thực hành 29A: Write/Read Files — Ghi & Đọc `UTF-8` bằng `try-with-resources`
 - **Mục tiêu:** Dùng `BufferedWriter` ghi 2 dòng văn bản UTF-8 vào file tạm rồi đọc lại từng dòng bằng `BufferedReader.readLine()`.
 - **Expected Output:**
   - `Line: Java PRO192`
@@ -309,7 +309,7 @@ public class Main {
   - `OK: SV01 (8.5)`
   - `Bo qua dong loi: SV02,Binh,bad`
   - `OK: SV03 (9.2)`
-- 🔗 [Mở bài lab Slot 29 trên Code Studio Tryit](/studio/playground?example=slot-29-lab)
+- 🔗 [Mở bài lab Slot 29 trên JavaBrew Live Lab](/studio/playground?example=slot-29-lab)
 
 ```java
 import java.io.*;

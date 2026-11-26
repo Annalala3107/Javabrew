@@ -201,11 +201,11 @@ Lệnh `java MainProgram` yêu cầu JVM nạp và chạy lớp, còn lệnh `Pa
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 3A: W3Schools CLI Args — Đọc Tham số Dòng lệnh `String[] args`
+#### 🟢 Thực hành 3A: CLI Args — Đọc Tham số Dòng lệnh `String[] args`
 - **Mục tiêu:** Hoàn thiện hàm kiểm tra `args.length`: nếu rỗng thì dùng giá trị mặc định, ngược lại in từng tham số.
 - **Expected Output:**
   - `args.length = 0 -> Fallback: JavaBrew`
@@ -245,7 +245,7 @@ public class Main {
 - **Expected Output:**
   - `[PRO192]`
   - `Build OK`
-- 🔗 [Mở bài lab Slot 03 trên Code Studio Tryit](/studio/playground?example=slot-03-lab)
+- 🔗 [Mở bài lab Slot 03 trên JavaBrew Live Lab](/studio/playground?example=slot-03-lab)
 
 ```java
 // TODO: Bo tu khoa sai pham de 2 class cung nam trong Main.java biên dịch duoc

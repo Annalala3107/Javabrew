@@ -236,11 +236,11 @@ for (Integer n : numbers) {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 25A: W3Schools ArrayList — Thêm, Sửa (`set`) & Duyệt `ArrayList<String>`
+#### 🟢 Thực hành 25A: ArrayList — Thêm, Sửa (`set`) & Duyệt `ArrayList<String>`
 - **Mục tiêu:** Tạo danh sách môn học, thay thế phần tử tại chỉ mục `1` bằng `set(1, "DBI202")` và in kích thước.
 - **Expected Output:**
   - `[PRO192, DBI202, CSD201] (size=3)`
@@ -284,11 +284,11 @@ public class Main {
 
 ---
 
-#### 🟡 Thực hành 25B: W3Schools Iterator (Cầu nối PE4/PE5-Q3) — Sửa Lỗi `ConcurrentModificationException`
+#### 🟡 Thực hành 25B: Iterator (Cầu nối PE4/PE5-Q3) — Sửa Lỗi `ConcurrentModificationException`
 - **Mục tiêu:** Chuyển vòng lặp `for-each` xóa trực tiếp sang `Iterator<Integer>` với `it.remove()` để xóa mọi số lẻ an toàn.
 - **Expected Output:**
   - `Even only: [10, 30]`
-- 🔗 [Mở bài lab Slot 25 trên Code Studio Tryit](/studio/playground?example=slot-25-lab)
+- 🔗 [Mở bài lab Slot 25 trên JavaBrew Live Lab](/studio/playground?example=slot-25-lab)
 
 ```java
 import java.util.*;

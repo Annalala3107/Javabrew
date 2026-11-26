@@ -13,6 +13,8 @@ export interface PeEvaluationResult {
   passedCount: number;
   totalCount: number;
   allPassed: boolean;
+  hardPolicyViolations: string[];
+  softWarnings: PeDiagnosisCard[];
   statusText: string;
   consoleRunOutput: string;
   consoleTestOutput: string;
@@ -51,8 +53,8 @@ const PE_RULES: Record<number, PeRuleSpec> = {
       const tc1 = /getName\s*\(/.test(main) && /Character\.isDigit/.test(combined) && /substring/.test(combined);
       const tc2 =
         /setWeight\s*\(/.test(main) &&
-        /!\s*Character\.isDigit/.test(combined) &&
-        /-\s*(nonDigitCount|nonDigits|cnt|count|n)\b/.test(combined);
+        /(?:!\s*Character\.isDigit|isDigit)/.test(combined) &&
+        /(?:(?:this\.)?weight\s*=\s*[A-Za-z_]\w*\s*-|weight\s*-=)/.test(combined);
       const tc3 = /name\s*==\s*null/.test(combined) && /public\s+Crocus\s*\(\s*\)/.test(combined);
       return {
         tc1,
@@ -189,8 +191,8 @@ const PE_RULES: Record<number, PeRuleSpec> = {
         /\\s\+/.test(combined) &&
         /Character\.isLetter/.test(combined) &&
         /Character\.isDigit/.test(combined) &&
-        /firstLetter\s*<\s*firstDigit/.test(combined) &&
-        /lastLetter\s*>\s*lastDigit/.test(combined);
+        /</.test(combined) &&
+        />/.test(combined);
       const tc2 =
         /f2\s*\(/.test(main) && /StringBuilder/.test(combined) && /substring\s*\(/.test(combined);
       const tc3 = /str\s*==\s*null/.test(combined) && /\.trim\s*\(\s*\)/.test(combined);
@@ -452,7 +454,7 @@ const PE_RULES: Record<number, PeRuleSpec> = {
         /return\s+null/.test(main);
       const tc3 =
         /countEmployeesBySalary\s*\(/.test(main) &&
-        /getSalary\s*\(\s*\)\s*>=\s*salary/.test(main);
+        /getSalary\s*\(\s*\)\s*>=\s*[A-Za-z_]\w*/.test(main);
       return {
         tc1,
         tc2,
@@ -547,7 +549,9 @@ const PE_RULES: Record<number, PeRuleSpec> = {
       const tc1 = /getSickLeave\s*\(\s*\)/.test(main) && /return\s+sickLeave/.test(main);
       const tc2 =
         /setName\s*\(/.test(main) &&
-        /(this\.)?name\s*\+\s*" "\s*\+\s*newname/.test(main);
+        /(?:(?:this\.)?name\s*\+\s*" "\s*\+\s*[A-Za-z_]\w*|(?:this\.)?name\s*\+=\s*" "\s*\+\s*[A-Za-z_]\w*)/.test(
+          main
+        );
       const tc3 = /toString\s*\(\s*\)/.test(main) && /name\s*\+\s*","/.test(main);
       return {
         tc1,
@@ -683,7 +687,7 @@ const PE_RULES: Record<number, PeRuleSpec> = {
         /indexOf\s*\(\s*'\.'|indexOf\s*\(\s*"\."\s*\)/.test(main) &&
         /toUpperCase\s*\(\s*\)/.test(main);
       const tc3 =
-        /str\s*==\s*null/.test(main) && /(idx|index|dot)\s*==\s*-1/.test(main);
+        /str\s*==\s*null/.test(main) && /(?:==\s*-1|<\s*0)/.test(main);
       return {
         tc1,
         tc2,
@@ -727,7 +731,9 @@ const PE_RULES: Record<number, PeRuleSpec> = {
     code: 'PE5-Q1',
     check: (main) => {
       const tc1 =
-        /getName\s*\(/.test(main) && /substring\s*\(\s*0\s*,\s*name\.length\s*\(\s*\)\s*-\s*1\s*\)/.test(main);
+        /getName\s*\(/.test(main) &&
+        /substring\s*\(\s*0\s*,/.test(main) &&
+        /length\s*\(\s*\)\s*-\s*1/.test(main);
       const tc2 = /setPrice\s*\(/.test(main) && /this\.price\s*=\s*price/.test(main);
       const tc3 = /name\s*==\s*null/.test(main) && /isEmpty\s*\(\s*\)/.test(main);
       return {
@@ -809,15 +815,17 @@ const PE_RULES: Record<number, PeRuleSpec> = {
   // 18. PE5-Q3: MyLadder
   18: {
     code: 'PE5-Q3',
-    check: (main) => {
+    check: (main, combined) => {
       const tc1 =
         /implements\s+ILadder/.test(main) &&
         /f1\s*\(/.test(main) &&
-        /upper\s*>\s*lower/.test(main);
+        /(?:isUpperCase|'A')/.test(combined) &&
+        /(?:isLowerCase|'a')/.test(combined) &&
+        />/.test(combined);
       const tc2 =
         /f2\s*\(/.test(main) &&
         /setPrice\s*\(\s*0\s*\)/.test(main) &&
-        /maxLen/.test(main);
+        /\.length\s*\(\s*\)/.test(combined);
       const tc3 =
         /f3\s*\(/.test(main) &&
         /Character\.isLetter/.test(main) &&
@@ -914,12 +922,29 @@ export function evaluatePeCode(
   const hasJava11Api = /\.isBlank\s*\(|\b(?:List|Set|Map)\.of\s*\(|\.toList\s*\(|\.strip\s*\(|\.repeat\s*\(/.test(
     cleanMainCode
   );
+  const hasForbiddenPe3Q4Binary =
+    peId === 11 &&
+    /\bInteger\.toBinaryString\s*\(|\bLong\.toBinaryString\s*\(|\bInteger\.toString\s*\([^,]+,\s*2\s*\)/.test(
+      cleanMainCode
+    );
   const hasNonAscii = /[^\x00-\x7F]/.test(mainCode);
 
+  const hardPolicyViolations: string[] = [];
+  if (hasPackageDecl) {
+    hardPolicyViolations.push('Quy chế 0 điểm PEA/EOS: Không khai báo package trong bài PE.');
+  }
+  if (hasJava11Api) {
+    hardPolicyViolations.push('Phát hiện API Java 11+ (không tương thích trình chấm JDK 1.8).');
+  }
+  if (hasForbiddenPe3Q4Binary) {
+    hardPolicyViolations.push('Vi phạm quy chế PE3-Q4: Cấm dùng Integer.toBinaryString().');
+  }
+
   const passedCount = [r.tc1, r.tc2, r.tc3].filter(Boolean).length;
-  const allPassed = passedCount === 3 && !hasPackageDecl && !hasJava11Api;
+  const allPassed = passedCount === 3 && hardPolicyViolations.length === 0;
 
   const diagnosisCards: PeDiagnosisCard[] = [];
+  const softWarnings: PeDiagnosisCard[] = [];
 
   if (hasPackageDecl) {
     diagnosisCards.push({
@@ -932,14 +957,18 @@ export function evaluatePeCode(
   }
 
   if (hasJava11Api || hasNonAscii) {
-    diagnosisCards.push({
+    const asciiCard: PeDiagnosisCard = {
       id: `pe${peId}-jdk8`,
       tone: 'amber',
-      title: '⚠ Cảnh báo chuẩn JDK 1.8 & ASCII PEA/EOS',
+      title: hasJava11Api ? '⚠ Cảnh báo chuẩn JDK 1.8' : '💡 Lưu ý ASCII phòng thi PEA/EOS',
       description: hasJava11Api
         ? 'Phát hiện API Java 11+ (isBlank/List.of/toList/strip/repeat). Trình chấm dùng JDK 1.8 sẽ báo lỗi biên dịch 0 điểm!'
-        : 'Phát hiện ký tự tiếng Việt có dấu trong mã nguồn Java. Quy chế phòng thi yêu cầu chỉ dùng ASCII trong comment/code.',
-    });
+        : 'Phát hiện ký tự có dấu trong mã nguồn/comment Java. Quy chế phòng thi khuyến nghị chỉ dùng ASCII.',
+    };
+    diagnosisCards.push(asciiCard);
+    if (!hasJava11Api) {
+      softWarnings.push(asciiCard);
+    }
   }
 
   if (!r.tc1 || !r.tc3) {
@@ -947,6 +976,13 @@ export function evaluatePeCode(
       id: `pe${peId}-sky`,
       tone: 'sky',
       title: r.skyTitle,
+      description: r.skyDesc,
+      hintCode: r.skyHint,
+    });
+    softWarnings.push({
+      id: `pe${peId}-soft-edge`,
+      tone: 'amber',
+      title: `💡 Gợi ý phòng bẫy test ẩn (${spec.code})`,
       description: r.skyDesc,
       hintCode: r.skyHint,
     });
@@ -966,23 +1002,33 @@ export function evaluatePeCode(
     diagnosisCards.push({
       id: `pe${peId}-pass`,
       tone: 'green',
-      title: `✔ Đạt chuẩn ${spec.code} (JDK 1.8)`,
+      title: `✔ Cấu trúc đạt chuẩn ${spec.code} (Static Preview)`,
       description: r.passSummary,
     });
   }
+
+  const staticRunPrefix = '[Static Preview — Phân tích cấu trúc tĩnh, chưa biên dịch JVM]';
+  const staticSampleBody = allPassed
+    ? `${staticRunPrefix}\nMinh họa kỳ vọng đề bài:\n${r.sampleRunOk.replace(/^Output:\s*/i, '')}`
+    : `${staticRunPrefix}\n${r.sampleRunFail}`;
 
   return {
     passedCount,
     totalCount: 3,
     allPassed,
-    statusText: allPassed ? '✔ 3/3 Test Cases PASSED!' : `${passedCount}/3 Test Cases Passed`,
-    consoleRunOutput: allPassed ? r.sampleRunOk : r.sampleRunFail,
+    hardPolicyViolations,
+    softWarnings,
+    statusText: allPassed
+      ? '✔ 3/3 Tiêu chí cấu trúc (Static Preview — chưa chạy JVM)'
+      : `${passedCount}/3 Tiêu chí cấu trúc (Static Preview)`,
+    consoleRunOutput: staticSampleBody,
     consoleTestOutput: [
-      `${r.tc1 ? '✔' : '✕'} TC1: ${r.labels[0]} (${r.tc1 ? 'Pass' : r.failHints[0]})`,
-      `${r.tc2 ? '✔' : '✕'} TC2: ${r.labels[1]} (${r.tc2 ? 'Pass' : r.failHints[1]})`,
-      `${r.tc3 ? '✔' : '✕'} TC3: ${r.labels[2]} (${r.tc3 ? 'Pass' : r.failHints[2]})`,
+      '[Static Preview — Phân tích cấu trúc tĩnh · Cần OpenJDK để xác nhận Pass chính thức]',
+      `${r.tc1 ? '✔' : '✕'} TC1: ${r.labels[0]} (${r.tc1 ? 'Đạt mẫu' : r.failHints[0]})`,
+      `${r.tc2 ? '✔' : '✕'} TC2: ${r.labels[1]} (${r.tc2 ? 'Đạt mẫu' : r.failHints[1]})`,
+      `${r.tc3 ? '✔' : '✕'} TC3: ${r.labels[2]} (${r.tc3 ? 'Đạt mẫu' : r.failHints[2]})`,
       allPassed
-        ? `Chúc mừng! Bài ${spec.code} đạt chuẩn chấm tự động JDK 1.8.`
+        ? `Cấu trúc ${spec.code} khớp mẫu chuẩn JDK 1.8. Hãy chạy trên OpenJDK Cloud hoặc "Copy lệnh javac" để xác nhận Pass thật!`
         : 'Gợi ý: Mở "⚡ So sánh Bản Tối ưu (Diff)" hoặc xem /pro192/pe-patterns để đối chiếu.',
     ].join('\n'),
     diagnosisCards,

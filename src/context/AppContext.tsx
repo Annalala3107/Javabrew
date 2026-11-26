@@ -17,6 +17,13 @@ import type {
   SearchIndexData,
   Theme,
 } from '../types/content';
+import {
+  DEFAULT_AI_MODEL,
+  isValidAiMentorModel,
+  type AiMentorModel,
+} from '../services/aiMentorService';
+
+export type ByokPersistMode = 'session' | 'local';
 
 export interface PdfPreviewState {
   title: string;
@@ -37,29 +44,9 @@ const STORAGE_LANG = 'javabrew:lang';
 const STORAGE_THEME = 'javabrew:theme';
 const STORAGE_PROGRESS = 'javabrew:progress';
 const STORAGE_BYOK = 'javabrew:byok_key';
+const STORAGE_AI_MODEL = 'javabrew:ai_model';
 
-const DEFAULT_MISTAKES: MistakeItem[] = [
-  {
-    id: 'seed-pe1-npe',
-    type: 'runtime',
-    title: 'NullPointerException khi chưa kiểm tra list hoặc object null',
-    detail:
-      'Hay gặp ở bài PE 01 (filterHonor). Luôn kiểm tra `if (list == null || list.isEmpty())` ở đầu hàm xử lý và `s != null` trước khi gọi getter.',
-    peId: 1,
-    createdAt: '2026-11-24T00:00:00.000Z',
-    resolved: false,
-  },
-  {
-    id: 'seed-pe1-cleancode',
-    type: 'cleancode',
-    title: 'Gộp nhập, lọc và sắp xếp vào chung 1 hàm dài với nhiều vòng if lồng nhau',
-    detail:
-      'Nên tách điều kiện hợp lệ thành helper nhỏ hoặc dùng Early Return + Comparator chain để giảm độ sâu lồng khối, dễ debug khi chấm PE.',
-    peId: 1,
-    createdAt: '2026-11-24T00:00:00.000Z',
-    resolved: false,
-  },
-];
+const LEGACY_SEED_MISTAKE_IDS = new Set(['seed-pe1-npe', 'seed-pe1-cleancode']);
 
 const DEFAULT_PROGRESS: LearningProgress = {
   completedArticles: [],
@@ -68,7 +55,7 @@ const DEFAULT_PROGRESS: LearningProgress = {
   completedPe: [],
   bookmarks: [],
   notes: {},
-  mistakes: DEFAULT_MISTAKES,
+  mistakes: [],
   peStatus: {},
   lastVisited: null,
 };
@@ -92,12 +79,30 @@ function readInitialTheme(): Theme {
   return 'dark';
 }
 
-function readInitialByokKey(): string {
+function readInitialByokState(): { key: string; persist: ByokPersistMode } {
   try {
-    return localStorage.getItem(STORAGE_BYOK) || '';
+    const sessionVal = sessionStorage.getItem(STORAGE_BYOK);
+    if (sessionVal) {
+      return { key: sessionVal, persist: 'session' };
+    }
+    const localVal = localStorage.getItem(STORAGE_BYOK);
+    if (localVal) {
+      return { key: localVal, persist: 'local' };
+    }
   } catch {
-    return '';
+    // ignore storage errors
   }
+  return { key: '', persist: 'session' };
+}
+
+function readInitialAiModel(): AiMentorModel {
+  try {
+    const val = localStorage.getItem(STORAGE_AI_MODEL);
+    if (isValidAiMentorModel(val)) return val;
+  } catch {
+    // ignore
+  }
+  return DEFAULT_AI_MODEL;
 }
 
 function sanitizeProgress(raw: unknown): LearningProgress {
@@ -110,7 +115,9 @@ function sanitizeProgress(raw: unknown): LearningProgress {
     completedPe: Array.isArray(parsed.completedPe) ? parsed.completedPe : [],
     bookmarks: Array.isArray(parsed.bookmarks) ? parsed.bookmarks : [],
     notes: parsed.notes && typeof parsed.notes === 'object' ? parsed.notes : {},
-    mistakes: Array.isArray(parsed.mistakes) ? parsed.mistakes : DEFAULT_MISTAKES,
+    mistakes: Array.isArray(parsed.mistakes)
+      ? parsed.mistakes.filter((m) => m && !LEGACY_SEED_MISTAKE_IDS.has(m.id))
+      : [],
     peStatus: parsed.peStatus && typeof parsed.peStatus === 'object' ? parsed.peStatus : {},
     lastVisited: parsed.lastVisited ?? null,
   };
@@ -148,7 +155,11 @@ interface AppContextValue {
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
   byokKey: string;
+  byokPersist: ByokPersistMode;
   setByokKey: (key: string) => void;
+  setByokConfig: (key: string, persist: ByokPersistMode) => void;
+  aiModel: AiMentorModel;
+  setAiModel: (model: AiMentorModel) => void;
   progress: LearningProgress;
   toggleArticleCompleted: (rel: string) => void;
   toggleSlotCompleted: (slot: number) => void;
@@ -188,9 +199,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [searchIndex, setSearchIndex] = useState<SearchIndexData | null>(null);
   const searchPromiseRef = useRef<Promise<SearchIndexData | null> | null>(null);
 
+  const initialByok = useMemo(() => readInitialByokState(), []);
   const [lang, setLangState] = useState<Lang>(readInitialLang);
   const [theme, setThemeState] = useState<Theme>(readInitialTheme);
-  const [byokKey, setByokKeyState] = useState<string>(readInitialByokKey);
+  const [byokKey, setByokKeyState] = useState<string>(initialByok.key);
+  const [byokPersist, setByokPersistState] = useState<ByokPersistMode>(initialByok.persist);
+  const [aiModel, setAiModelState] = useState<AiMentorModel>(readInitialAiModel);
   const [progress, setProgress] = useState<LearningProgress>(readInitialProgress);
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -281,12 +295,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
   }, []);
 
-  const setByokKey = useCallback((key: string) => {
+  const setByokConfig = useCallback((key: string, persist: ByokPersistMode) => {
     const trimmed = key.trim();
     setByokKeyState(trimmed);
+    setByokPersistState(persist);
     try {
-      if (trimmed) localStorage.setItem(STORAGE_BYOK, trimmed);
-      else localStorage.removeItem(STORAGE_BYOK);
+      if (!trimmed) {
+        sessionStorage.removeItem(STORAGE_BYOK);
+        localStorage.removeItem(STORAGE_BYOK);
+        return;
+      }
+      if (persist === 'local') {
+        localStorage.setItem(STORAGE_BYOK, trimmed);
+        sessionStorage.removeItem(STORAGE_BYOK);
+      } else {
+        sessionStorage.setItem(STORAGE_BYOK, trimmed);
+        localStorage.removeItem(STORAGE_BYOK);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setByokKey = useCallback(
+    (key: string) => {
+      setByokConfig(key, byokPersist);
+    },
+    [setByokConfig, byokPersist]
+  );
+
+  const setAiModel = useCallback((model: AiMentorModel) => {
+    setAiModelState(model);
+    try {
+      localStorage.setItem(STORAGE_AI_MODEL, model);
     } catch {
       // ignore
     }
@@ -493,7 +534,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTheme,
       toggleTheme,
       byokKey,
+      byokPersist,
       setByokKey,
+      setByokConfig,
+      aiModel,
+      setAiModel,
       progress,
       toggleArticleCompleted,
       toggleSlotCompleted,
@@ -535,7 +580,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTheme,
       toggleTheme,
       byokKey,
+      byokPersist,
       setByokKey,
+      setByokConfig,
+      aiModel,
+      setAiModel,
       progress,
       toggleArticleCompleted,
       toggleSlotCompleted,

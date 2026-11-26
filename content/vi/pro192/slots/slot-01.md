@@ -162,11 +162,11 @@ Vì sản phẩm của quá trình biên dịch là tệp bytecode `.class` trun
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 1A: W3Schools Java Output — Sửa `print()` vs `println()` in Thẻ Sinh viên
+#### 🟢 Thực hành 1A: Java Output — Sửa `print()` vs `println()` in Thẻ Sinh viên
 - **Mục tiêu:** Điền/sửa lệnh in `System.out.print` và `System.out.println` để các trường tách dòng gọn gàng.
 - **Expected Output:**
   - `=== STUDENT CARD ===`
@@ -214,7 +214,7 @@ public class Main {
 - **Expected Output:**
   - `Java Version : 21.x...`
   - `OS Platform  : Linux`
-- 🔗 [Mở bài lab Slot 01 trên Code Studio Tryit](/studio/playground?example=slot-01-lab)
+- 🔗 [Mở bài lab Slot 01 trên JavaBrew Live Lab](/studio/playground?example=slot-01-lab)
 
 ```java
 public class Main {

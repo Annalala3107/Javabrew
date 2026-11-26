@@ -70,4 +70,91 @@ describe('evaluatePeCode against real metadata/pro192.json PE challenges', () =>
     expect(res15.allPassed).toBe(false);
     expect(res15.consoleTestOutput).toContain('replaceAll');
   });
+
+  it('accepts alternative student variable names and labels Static Preview output transparently', () => {
+    const crocusAlt = `public class Crocus {
+      private String name;
+      private int weight;
+      public Crocus() {}
+      public Crocus(String name, int weight) { this.name = name; this.weight = weight; }
+      public String getName() {
+        if (name == null) return "";
+        for (int idx = name.length() - 1; idx >= 0; idx--) {
+          if (Character.isDigit(name.charAt(idx))) return name.substring(0, idx) + name.substring(idx + 1);
+        }
+        return name;
+      }
+      public void setWeight(int w) {
+        int dem = 0;
+        if (name != null) {
+          for (int k = 0; k < name.length(); k++) {
+            if (!Character.isDigit(name.charAt(k))) dem++;
+          }
+        }
+        this.weight = w - dem;
+      }
+    }`;
+    const pe1 = evaluatePeCode(1, crocusAlt, '');
+    expect(pe1.allPassed).toBe(true);
+    expect(pe1.passedCount).toBe(3);
+    expect(pe1.statusText).toContain('Static Preview');
+    expect(pe1.consoleTestOutput).toContain('[Static Preview');
+
+    const personAlt = `public class Person {
+      private String name;
+      private double sickLeave;
+      public double getSickLeave() { return sickLeave; }
+      public void setName(String hoTen) { this.name += " " + hoTen; }
+      public String toString() { return name + "," + sickLeave; }
+    }`;
+    const pe12 = evaluatePeCode(12, personAlt, '');
+    expect(pe12.allPassed).toBe(true);
+
+    const linkAlt = `public class MyLink implements ILink {
+      public String f1(String str) {
+        if (str == null) return "";
+        return str.replace(".", ":");
+      }
+      public String f2(String str) {
+        if (str == null) return "";
+        int pos = str.indexOf('.');
+        if (pos < 0) return str;
+        return str.substring(0, pos + 1) + str.substring(pos + 1).toUpperCase();
+      }
+    }`;
+    const pe15 = evaluatePeCode(15, linkAlt, '');
+    expect(pe15.allPassed).toBe(true);
+
+    const ladderAlt = `import java.util.Iterator;
+    import java.util.List;
+    public class MyLadder implements ILadder {
+      public int f1(List<Ladder> t) {
+        int sum = 0;
+        for (Ladder item : t) {
+          int upperCount = 0, lowerCount = 0;
+          String s = item.getType();
+          for (int i = 0; i < s.length(); i++) {
+            if (Character.isUpperCase(s.charAt(i))) upperCount++;
+            else if (Character.isLowerCase(s.charAt(i))) lowerCount++;
+          }
+          if (upperCount > lowerCount) sum += item.getPrice();
+        }
+        return sum;
+      }
+      public void f2(List<Ladder> t) {
+        int best = 0;
+        for (Ladder item : t) best = Math.max(best, item.getType().length());
+        for (Ladder item : t) if (item.getType().length() == best) item.setPrice(0);
+      }
+      public void f3(List<Ladder> t) {
+        Iterator<Ladder> it = t.iterator();
+        while (it.hasNext()) {
+          String s = it.next().getType();
+          if (Character.isLetter(s.charAt(0))) it.remove();
+        }
+      }
+    }`;
+    const pe18 = evaluatePeCode(18, ladderAlt, '');
+    expect(pe18.allPassed).toBe(true);
+  });
 });

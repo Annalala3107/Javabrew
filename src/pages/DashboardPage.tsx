@@ -84,7 +84,7 @@ export function DashboardPage() {
           <div className="inline-flex items-center gap-2 text-xs text-[var(--accent-text)]">
             <span>☕ Góc Cà Phê Code Đêm</span>
             <span className="text-[var(--border-strong)]">•</span>
-            <span className="text-[var(--text-muted)]">Chế độ Offline Docs Ready</span>
+            <span className="text-[var(--text-muted)]">Học liệu nội bộ sẵn sàng</span>
           </div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">
             {nextSlot
@@ -364,9 +364,9 @@ export function DashboardPage() {
           </Link>
           <Link
             to="/studio/playground?example=demo-intro"
-            className="inline-flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-medium text-emerald-300 transition-colors hover:bg-emerald-500/15"
+            className="inline-flex items-center justify-between rounded-lg border border-[var(--success)]/35 bg-[var(--success-soft)] px-3 py-1.5 text-[11px] font-medium text-[var(--success-text)] transition-opacity hover:opacity-90"
           >
-            <span>☕ Java Tryit — Chạy code kiểu W3Schools</span>
+            <span>☕ JavaBrew Live Lab — Chạy thử Java trực tiếp</span>
             <span aria-hidden="true">→</span>
           </Link>
         </div>

@@ -200,11 +200,11 @@ public static double totalArea(Shape[] list) {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 19A: W3Schools Abstraction — Lớp Con Hoàn thiện `abstract class Employee`
+#### 🟢 Thực hành 19A: Abstraction — Lớp Con Hoàn thiện `abstract class Employee`
 - **Mục tiêu:** Cài đặt phương thức trừu tượng `calcSalary()` cho `FullTimeEmployee` và `PartTimeEmployee`.
 - **Expected Output:**
   - `FullTime salary = 1500.0`
@@ -304,7 +304,7 @@ public class Main {
 - **Expected Output:**
   - `CardPayment: total = 510.00`
   - `CashPayment: total = 500.00`
-- 🔗 [Mở bài lab Slot 19 trên Code Studio Tryit](/studio/playground?example=slot-19-lab)
+- 🔗 [Mở bài lab Slot 19 trên JavaBrew Live Lab](/studio/playground?example=slot-19-lab)
 
 ```java
 abstract class Payment {

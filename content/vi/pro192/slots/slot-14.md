@@ -233,11 +233,11 @@ Lớp cha `Parent` có 2 trường: `private int x;` và `protected int y;`. L�
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 14A: W3Schools Inheritance — Sửa lỗi Truy cập `private` từ Lớp con
+#### 🟢 Thực hành 14A: Inheritance — Sửa lỗi Truy cập `private` từ Lớp con
 - **Mục tiêu:** Sửa `ElectricCar extends Vehicle` truy cập `brand` qua getter công khai thay vì đọc trực tiếp field `private`.
 - **Expected Output:**
   - `Brand: VinFast, Battery: 85 kWh`
@@ -306,7 +306,7 @@ public class Main {
 - **Mục tiêu:** Thiết kế `Employee extends Person` (`is-a`) và chứa trường `Address` (`has-a`).
 - **Expected Output:**
   - `Minh | salary=1200.0 | city=Ha Noi`
-- 🔗 [Mở bài lab Slot 14 trên Code Studio Tryit](/studio/playground?example=slot-14-lab)
+- 🔗 [Mở bài lab Slot 14 trên JavaBrew Live Lab](/studio/playground?example=slot-14-lab)
 
 ```java
 class Address {
@@ -377,7 +377,7 @@ public class Main {
 }
 ```
 
-* **Giải thích:** Trong bài đa file trên Code Studio Tryit (`slot-14-lab`), bạn sẽ thấy rõ cách tách `Person.java` thành file độc lập đúng chuẩn NetBeans/PE.
+* **Giải thích:** Trong bài đa file trên JavaBrew Live Lab (`slot-14-lab`), bạn sẽ thấy rõ cách tách `Person.java` thành file độc lập đúng chuẩn NetBeans/PE.
 
 </details>
 

@@ -28,24 +28,37 @@ export interface ExternalExecutionOutput {
   testResults?: JavaTestCaseResult[];
 }
 
-export function extractTestMarkerBlock(rawStdout: string): {
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function extractTestMarkerBlock(
+  rawStdout: string,
+  markerToken?: string
+): {
   cleanedStdout: string;
   testResults?: JavaTestCaseResult[];
 } {
-  const match = rawStdout.match(/__JB_TESTS_START__\s*([\s\S]*?)\s*__JB_TESTS_END__/);
-  if (!match) {
+  const startTag = markerToken ? `__JB_TESTS_${markerToken}_START__` : '__JB_TESTS_START__';
+  const endTag = markerToken ? `__JB_TESTS_${markerToken}_END__` : '__JB_TESTS_END__';
+  const blockRegex = new RegExp(
+    `${escapeRegex(startTag)}\\s*([\\s\\S]*?)\\s*${escapeRegex(endTag)}\\r?\\n?`,
+    'g'
+  );
+  const matches = Array.from(rawStdout.matchAll(blockRegex));
+  if (matches.length === 0) {
     return { cleanedStdout: rawStdout };
   }
-  const cleanedStdout = rawStdout
-    .replace(/__JB_TESTS_START__[\s\S]*?__JB_TESTS_END__\r?\n?/g, '')
-    .trimEnd();
-  try {
-    const parsed = JSON.parse(match[1]) as JavaTestCaseResult[];
-    if (Array.isArray(parsed)) {
-      return { cleanedStdout, testResults: parsed };
+  const cleanedStdout = rawStdout.replace(blockRegex, '').trimEnd();
+  for (let i = matches.length - 1; i >= 0; i--) {
+    try {
+      const parsed = JSON.parse(matches[i][1]) as JavaTestCaseResult[];
+      if (Array.isArray(parsed)) {
+        return { cleanedStdout, testResults: parsed };
+      }
+    } catch {
+      // Ignore malformed marker output and try preceding block
     }
-  } catch {
-    // Ignore malformed marker output and surface stdout directly
   }
   return { cleanedStdout };
 }
@@ -250,8 +263,9 @@ export async function executeViaExternalRunner(params: {
   primaryFileName: string;
   stdin: string;
   mode: 'run' | 'grade';
+  markerToken?: string;
 }): Promise<ExternalExecutionOutput> {
-  const { config, files, entryClass, primaryFileName, stdin, mode } = params;
+  const { config, files, entryClass, primaryFileName, stdin, mode, markerToken } = params;
   const startedAt = performance.now();
 
   if (config.provider === 'judge0') {
@@ -304,7 +318,7 @@ export async function executeViaExternalRunner(params: {
     }
 
     const timedOut = statusId === 5;
-    const { cleanedStdout, testResults } = extractTestMarkerBlock(rawStdout);
+    const { cleanedStdout, testResults } = extractTestMarkerBlock(rawStdout, markerToken);
     const runOk = !timedOut && statusId === 3;
     const ok =
       mode === 'grade'
@@ -364,7 +378,7 @@ export async function executeViaExternalRunner(params: {
   const timedOut = data.run?.signal === 'SIGKILL' || data.run?.signal === 'SIGTERM';
   const rawStdout = data.run?.stdout || '';
   const rawStderr = data.run?.stderr || '';
-  const { cleanedStdout, testResults } = extractTestMarkerBlock(rawStdout);
+  const { cleanedStdout, testResults } = extractTestMarkerBlock(rawStdout, markerToken);
 
   const ok =
     mode === 'grade'

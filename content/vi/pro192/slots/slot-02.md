@@ -158,11 +158,11 @@ Tổ hợp phím tắt là **`Shift + F6`**.
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 2A: W3Schools Java Syntax — Sửa 3 Lỗi Biên dịch Khởi đầu
+#### 🟢 Thực hành 2A: Java Syntax — Sửa 3 Lỗi Biên dịch Khởi đầu
 - **Mục tiêu:** Sửa tên lớp trùng file `Main`, dấu chấm phẩy thiếu và chữ ký `main` chuẩn.
 - **Expected Output:**
   - `Environment Ready: JDK 1.8 / NetBeans!`
@@ -198,7 +198,7 @@ public class Main {
   - `6`
   - `Sai: 33`
   - `Dung: 6`
-- 🔗 [Mở bài lab Slot 02 trên Code Studio Tryit](/studio/playground?example=slot-02-lab)
+- 🔗 [Mở bài lab Slot 02 trên JavaBrew Live Lab](/studio/playground?example=slot-02-lab)
 
 ```java
 public class Main {

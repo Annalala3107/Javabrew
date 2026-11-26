@@ -232,11 +232,11 @@ Tại sao Cách 2 lại được các chuyên gia đánh giá là có hiệu nă
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 26A: W3Schools HashSet/TreeSet (Cầu nối `PE5-Q4`) — Đếm Chữ số Khác nhau
+#### 🟢 Thực hành 26A: HashSet/TreeSet (Cầu nối `PE5-Q4`) — Đếm Chữ số Khác nhau
 - **Mục tiêu:** Dùng `TreeSet<Character>` lọc và đếm các chữ số *duy nhất* trong chuỗi `"a1b2c1d9a2"`.
 - **Expected Output:**
   - `Digits: [1, 2, 9] -> count = 3`
@@ -281,12 +281,12 @@ public class Main {
 
 ---
 
-#### 🟡 Thực hành 26B: W3Schools *HashMap Loop* — Đếm Tần suất Từ qua `entrySet()`
+#### 🟡 Thực hành 26B: Duyệt HashMap — Đếm Tần suất Từ qua `entrySet()`
 - **Mục tiêu:** Dùng `HashMap<String, Integer>` đếm số lần xuất hiện từng từ trong câu và duyệt in kết quả bằng `Map.Entry` (thứ tự khóa của `HashMap` có thể khác nhau; đổi sang `TreeMap` nếu muốn sort A–Z).
 - **Expected Output:**
   - `java=3`
   - `mal/map -> map=1, oop=1`
-- 🔗 [Mở bài lab Slot 26 trên Code Studio Tryit](/studio/playground?example=slot-26-lab)
+- 🔗 [Mở bài lab Slot 26 trên JavaBrew Live Lab](/studio/playground?example=slot-26-lab)
 
 ```java
 import java.util.*;

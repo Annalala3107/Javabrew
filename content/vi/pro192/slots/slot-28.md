@@ -211,11 +211,11 @@ public class ListJavaFiles {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 28A: W3Schools Create/Delete Files — Tạo & Kiểm tra File bằng `java.io.File`
+#### 🟢 Thực hành 28A: Create/Delete Files — Tạo & Kiểm tra File bằng `java.io.File`
 - **Mục tiêu:** Tạo tệp tạm trong thư mục `java.io.tmpdir`, kiểm tra `exists()` + `getName()`, sau đó dọn sạch bằng `delete()`.
 - **Expected Output:**
   - `Exists before delete: true`
@@ -260,7 +260,7 @@ public class Main {
 - **Mục tiêu:** Tạo thư mục tạm chứa 2 tệp mẫu, liệt kê tên tệp bằng `dir.listFiles()`, rồi xóa gọn toàn bộ.
 - **Expected Output:**
   - `Files in dir: a.txt, b.txt`
-- 🔗 [Mở bài lab Slot 28 trên Code Studio Tryit](/studio/playground?example=slot-28-lab)
+- 🔗 [Mở bài lab Slot 28 trên JavaBrew Live Lab](/studio/playground?example=slot-28-lab)
 
 ```java
 import java.io.File;

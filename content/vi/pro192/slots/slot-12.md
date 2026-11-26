@@ -187,11 +187,11 @@ Màn hình console sẽ in ra kết quả gì?
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 12A: W3Schools Constructors — Bẫy mất Default Constructor & Chaining `this(...)`
+#### 🟢 Thực hành 12A: Constructors — Bẫy mất Default Constructor & Chaining `this(...)`
 - **Mục tiêu:** Bổ sung lại constructor rỗng `Product()` dùng `this("DEFAULT", 0.0)` để `new Product()` biên dịch qua.
 - **Expected Output:**
   - `DEFAULT - 0.00`
@@ -268,7 +268,7 @@ public class Main {
 - **Mục tiêu:** Sửa lỗi quên `this.` trong constructor khiến thuộc tính `brand` và `price` bị `null` / `0`.
 - **Expected Output:**
   - `Coffee, 35`
-- 🔗 [Mở bài lab Slot 12 trên Code Studio Tryit](/studio/playground?example=slot-12-lab)
+- 🔗 [Mở bài lab Slot 12 trên JavaBrew Live Lab](/studio/playground?example=slot-12-lab)
 
 ```java
 class Drink {

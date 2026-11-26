@@ -43,7 +43,7 @@ export function TopBar() {
         <div className="flex items-center gap-3 md:gap-4">
           <Link
             to="/"
-            title="Về Trang Giới thiệu (M1)"
+            title="Về Trang Giới thiệu JavaBrew"
             className="group rounded-lg focus-visible:outline-2"
           >
             <Logo />

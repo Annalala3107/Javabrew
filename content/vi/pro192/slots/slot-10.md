@@ -158,11 +158,11 @@ Tính phân cấp tổ chức mối quan hệ giữa các thực thể thành ha
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 10A: W3Schools Classes/Objects — Tạo Lớp `Car` & 2 Đối tượng Độc lập
+#### 🟢 Thực hành 10A: Classes/Objects — Tạo Lớp `Car` & 2 Đối tượng Độc lập
 - **Mục tiêu:** Khai báo thuộc tính `brand`, `year` và phương thức `showInfo()` cho `Car`, sau đó khởi tạo `c1` và `c2`.
 - **Expected Output:**
   - `Car: Toyota (2022)`
@@ -228,7 +228,7 @@ public class Main {
 - **Expected Output:**
   - `An balance = 650.00`
   - `Binh withdraw ok? false`
-- 🔗 [Mở bài lab Slot 10 trên Code Studio Tryit](/studio/playground?example=slot-10-lab)
+- 🔗 [Mở bài lab Slot 10 trên JavaBrew Live Lab](/studio/playground?example=slot-10-lab)
 
 ```java
 class BankAccount {

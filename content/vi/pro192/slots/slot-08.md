@@ -197,11 +197,11 @@ if (Character.isDigit(c)) {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 8A: W3Schools Wrapper — Bẫy Integer Cache `127` vs `200`
+#### 🟢 Thực hành 8A: Wrapper — Bẫy Integer Cache `127` vs `200`
 - **Mục tiêu:** Sửa phép so sánh `x == y` của `Integer` thành `.equals()` và chuyển chuỗi `"42"` sang `int`.
 - **Expected Output:**
   - `127 == 127: true`
@@ -248,7 +248,7 @@ public class Main {
 - **Mục tiêu:** Dùng `Character.isLetter()`, `Character.isDigit()` và `Math.round(Math.sqrt(50))` chuẩn JDK 8.
 - **Expected Output:**
   - `Letters=7, Digits=4, Math=7`
-- 🔗 [Mở bài lab Slot 08 trên Code Studio Tryit](/studio/playground?example=slot-08-lab)
+- 🔗 [Mở bài lab Slot 08 trên JavaBrew Live Lab](/studio/playground?example=slot-08-lab)
 
 ```java
 public class Main {

@@ -9,6 +9,7 @@ import {
   Play,
   RotateCcw,
   Rows2,
+  Settings,
   Share2,
   Timer,
   Trash2,
@@ -24,12 +25,17 @@ import { StreamingAiBubble } from '../components/lucian/StreamingAiBubble';
 import { StretchySwitch } from '../components/lucian/StretchySwitch';
 import { useApp } from '../context/AppContext';
 import {
+  askGeminiMentor,
+  buildOfflineMentorReply,
+  type AiMentorContext,
+} from '../services/aiMentorService';
+import {
   checkJavaSandboxHealth,
   runJavaInCloud,
   type JavaDiagnostic,
   type JavaTestCaseResult,
 } from '../services/javaCompilerService';
-import { hasMainMethod, inferJavaFileName } from '../utils/javaFiles';
+import { hasMainMethod, inferJavaFileName, validateJavaPolicy } from '../utils/javaFiles';
 import {
   MAX_PLAYGROUND_FILES,
   PLAYGROUND_TEMPLATES,
@@ -53,6 +59,8 @@ interface ChatMessage {
   id: string;
   prompt: string;
   reply: string;
+  tone: 'ai' | 'offline' | 'error';
+  badgeLabel?: string;
 }
 
 interface CodeStudioPageProps {
@@ -134,7 +142,18 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { pro192, theme, byokKey, markPeStatus, addMistake, recordVisit, pushToast } = useApp();
+  const {
+    pro192,
+    theme,
+    byokKey,
+    aiModel,
+    progress,
+    setIsSettingsOpen,
+    markPeStatus,
+    addMistake,
+    recordVisit,
+    pushToast,
+  } = useApp();
 
   const playgroundMode = isPlayground || peId === 'playground';
   const urlExampleId = searchParams.get('example');
@@ -286,6 +305,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const pgDraftTimerRef = useRef<number>(0);
   const charLimitToastAtRef = useRef<number>(0);
   const runAbortRef = useRef<AbortController | null>(null);
+  const lastInteractionIdRef = useRef<string | null>(null);
   const appliedImportKeyRef = useRef<string | null>(null);
   const appliedQueryKeyRef = useRef<string>(
     playgroundMode
@@ -327,6 +347,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     if (prevPlaygroundModeRef.current === playgroundMode) return;
     prevPlaygroundModeRef.current = playgroundMode;
     runAbortRef.current?.abort();
+    lastInteractionIdRef.current = null;
     setShowDiff(false);
     setDiagnostics([]);
     setCloudTestResults([]);
@@ -390,6 +411,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setRevealedHints({});
     setChatHistory([]);
     setPendingPrompt('');
+    lastInteractionIdRef.current = null;
     setTimerRunning(false);
     setSecondsLeft(suggestedMinutes * 60);
   }
@@ -527,7 +549,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     if (playgroundMode) {
       recordVisit({
         path: activeExampleId ? `/studio/playground?example=${activeExampleId}` : '/studio/playground',
-        title: activeExampleId ? `Java Tryit (${activeExampleId})` : 'Java Tryit Playground',
+        title: activeExampleId ? `JavaBrew Live Lab (${activeExampleId})` : 'JavaBrew Live Lab',
         kind: 'studio',
         updatedAt: new Date().toISOString(),
       });
@@ -628,8 +650,8 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     const nextMain = target === 'main' ? safeValue : mainCode;
     const nextEntity = target === 'entity' ? safeValue : entityCode;
 
-    if (target === 'main') setMainCode(nextValue);
-    else setEntityCode(nextValue);
+    if (target === 'main') setMainCode(safeValue);
+    else setEntityCode(safeValue);
 
     setDiagnostics([]);
     setDraftState('saving');
@@ -772,30 +794,33 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
     if (mode === 'run') {
       if (staticRes.allPassed) {
-        setConsoleStatus('✔ Static Check đạt tiêu chí');
+        setConsoleStatus('✔ Static Preview đạt cấu trúc (chưa chạy JVM)');
         setConsoleTone('green');
         return true;
       }
-      setConsoleStatus('✕ Cảnh báo Runtime / Thiếu điều kiện (Static)');
+      setConsoleStatus('✕ Cảnh báo cấu trúc / Thiếu điều kiện (Static Preview)');
       setConsoleTone('red');
       if (staticRes.detectedMistake) addMistake(staticRes.detectedMistake);
       return false;
     }
 
     setConsoleStatus(staticRes.statusText);
+    if (progress.peStatus[activePe.id] !== 'pass') {
+      markPeStatus(activePe.id, 'in-progress');
+    }
+
     if (staticRes.allPassed) {
-      setConsoleTone('green');
-      markPeStatus(activePe.id, 'pass');
+      setConsoleTone('amber');
       pushToast({
-        title: `Chúc mừng! Đã Pass ${activePe.code}`,
-        description: `${staticRes.passedCount}/${staticRes.totalCount} tiêu chí Clean Code`,
-        tone: 'success',
+        title: `Static Preview ${activePe.code} đạt 3/3 cấu trúc`,
+        description:
+          'Chế độ Static không cấp Pass chính thức — hãy chạy OpenJDK hoặc dùng lệnh javac local để kiểm chứng.',
+        tone: 'info',
       });
-      return true;
+      return false;
     }
 
     setConsoleTone('amber');
-    markPeStatus(activePe.id, 'in-progress');
     if (staticRes.detectedMistake) addMistake(staticRes.detectedMistake);
     return false;
   };
@@ -918,12 +943,73 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     if (!activePe || isExecuting) return false;
     flushLatestDraft();
 
-    // Layer 1 (0ms): Instant Clean Code + AI Mentor analysis
+    const filesToSend =
+      !hasEntityFile || !entityFileName || mainFileName === entityFileName
+        ? [{ name: mainFileName, content: mainCode }]
+        : [
+            { name: mainFileName, content: mainCode },
+            { name: entityFileName, content: entityCode },
+          ];
+
+    // Track 1 (0ms): Dual-Track Static Policy Gate + Clean-Code Coach
     const staticRes = evaluatePeCode(activePe.id, mainCode, entityCode);
+    const policyViolations = validateJavaPolicy(filesToSend, activePe.id);
     setDiagnosisCards(staticRes.diagnosisCards);
 
     if (engineMode === 'static') {
       return applyStaticFallback(mode, staticRes);
+    }
+
+    const pkgViolation = policyViolations.find((v) => v.code === 'PACKAGE_FORBIDDEN');
+    const binViolation =
+      mode === 'grade' ? policyViolations.find((v) => v.code === 'PE3_Q4_BINARY_API') : undefined;
+    const blockingViolation = pkgViolation || binViolation;
+
+    if (blockingViolation) {
+      setLastTiming(null);
+      setDiagnostics([
+        {
+          file: blockingViolation.file,
+          line: blockingViolation.line,
+          column: 1,
+          severity: 'error',
+          message: blockingViolation.message,
+        },
+      ]);
+      setCloudTestResults(
+        mode === 'grade'
+          ? [
+              {
+                id: 'POLICY',
+                name:
+                  blockingViolation.code === 'PACKAGE_FORBIDDEN'
+                    ? 'Quy chế default package (không khai báo package)'
+                    : 'Quy chế PE3-Q4: Tự viết thuật toán đổi nhị phân thủ công',
+                passed: false,
+                durationMs: 0,
+                expected:
+                  blockingViolation.code === 'PACKAGE_FORBIDDEN'
+                    ? 'Không có câu lệnh package'
+                    : 'Dùng vòng lặp % 2 và / 2',
+                actual: `${blockingViolation.file}:${blockingViolation.line}`,
+                error: blockingViolation.message,
+              },
+            ]
+          : []
+      );
+      setConsoleStatus('✕ Vi phạm quy chế PE (Hard Policy Gate)');
+      setConsoleTone('red');
+      setConsoleOutput(blockingViolation.message);
+      if (progress.peStatus[activePe.id] !== 'pass') {
+        markPeStatus(activePe.id, 'in-progress');
+      }
+      addMistake({
+        type: 'runtime',
+        title: `Vi phạm quy chế ${activePe.code}`,
+        detail: blockingViolation.message,
+        peId: activePe.id,
+      });
+      return false;
     }
 
     runAbortRef.current?.abort();
@@ -934,19 +1020,11 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setDiagnostics([]);
     setCloudTestResults([]);
     setLastTiming(null);
-    setConsoleStatus('☕ Đang biên dịch trên OpenJDK Sandbox...');
+    setConsoleStatus('☕ Đang biên dịch trên OpenJDK Sandbox (--release 8)...');
     setConsoleTone('amber');
-    setConsoleOutput('Đang khởi chạy môi trường OpenJDK và biên dịch mã nguồn...');
+    setConsoleOutput('Đang khởi chạy môi trường OpenJDK (--release 8) và biên dịch mã nguồn...');
 
     try {
-      const filesToSend =
-        !hasEntityFile || !entityFileName || mainFileName === entityFileName
-          ? [{ name: mainFileName, content: mainCode }]
-          : [
-              { name: mainFileName, content: mainCode },
-              { name: entityFileName, content: entityCode },
-            ];
-
       const res = await runJavaInCloud(
         {
           mode,
@@ -968,7 +1046,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       setLastTiming({
         compileMs: res.compileMs,
         runMs: res.runMs,
-        engineLabel: res.jdkVersion || 'OpenJDK 21',
+        engineLabel: res.jdkVersion || 'OpenJDK 21 (--release 8)',
       });
 
       if (res.phase === 'compile') {
@@ -977,7 +1055,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         setConsoleStatus(`✕ Lỗi biên dịch javac (${res.compileMs}ms)`);
         setConsoleTone('red');
         setConsoleOutput(res.stderr || res.stdout || 'Biên dịch javac thất bại.');
-        if (mode === 'grade') {
+        if (mode === 'grade' && progress.peStatus[activePe.id] !== 'pass') {
           markPeStatus(activePe.id, 'in-progress');
         }
         addMistake({
@@ -1015,7 +1093,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         if (res.timedOut) {
           setConsoleStatus('⏱ Quá thời gian thực thi JVM (8s)');
           setConsoleTone('red');
-          markPeStatus(activePe.id, 'in-progress');
+          if (progress.peStatus[activePe.id] !== 'pass') {
+            markPeStatus(activePe.id, 'in-progress');
+          }
           return false;
         }
 
@@ -1023,9 +1103,21 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
           setConsoleStatus(`✔ ${passedCount}/${totalCount} Test Cases PASSED! (OpenJDK 21)`);
           setConsoleTone('green');
           markPeStatus(activePe.id, 'pass');
+          setDiagnosisCards([
+            {
+              id: `pe${activePe.id}-cloud-pass`,
+              tone: 'green',
+              title: `✔ OpenJDK JDK 8 xác nhận PASS ${passedCount}/${totalCount} Test Cases!`,
+              description:
+                staticRes.softWarnings.length > 0
+                  ? 'Bài làm đã vượt qua toàn bộ kiểm thử thật trên JVM. Xem thêm gợi ý phòng test ẩn bên dưới.'
+                  : 'Bài làm chuẩn xác cả logic thực thi JDK 1.8 lẫn quy chế PE.',
+            },
+            ...staticRes.softWarnings,
+          ]);
           pushToast({
             title: `Chúc mừng! Đã Pass ${activePe.code}`,
-            description: `${passedCount}/${totalCount} test cases thật trên OpenJDK 21`,
+            description: `${passedCount}/${totalCount} test cases thật trên OpenJDK (JDK 8)`,
             tone: 'success',
           });
           return true;
@@ -1033,7 +1125,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
         setConsoleStatus(`${passedCount}/${totalCount || 3} Test Cases Passed (OpenJDK 21)`);
         setConsoleTone('amber');
-        markPeStatus(activePe.id, 'in-progress');
+        if (progress.peStatus[activePe.id] !== 'pass') {
+          markPeStatus(activePe.id, 'in-progress');
+        }
         const firstFail = tests.find((t) => !t.passed);
         if (firstFail) {
           addMistake({
@@ -1084,7 +1178,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       return applyStaticFallback(
         mode,
         staticRes,
-        '⚡ Gặp sự cố kết nối OpenJDK Sandbox — đã tự động chấm bằng Static Evaluator.'
+        '⚡ Gặp sự cố kết nối OpenJDK Sandbox — đã tự động chuyển về Static Preview.'
       );
     } finally {
       if (runAbortRef.current === controller) {
@@ -1265,7 +1359,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       // Ignore clipboard failures in restricted contexts
     }
     pushToast({
-      title: 'Đã chép liên kết Java Tryit!',
+      title: 'Đã chép liên kết JavaBrew Live Lab!',
       description: isUnmodifiedTemplate ? `Mẫu: ${matchedTemplate.title}` : 'Link chứa đầy đủ mã nguồn của bạn.',
       tone: 'success',
     });
@@ -1330,7 +1424,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       setDiagnostics([]);
       setJumpTarget(null);
       setLastTiming(null);
-      setConsoleStatus(`Java Tryit · Đã khôi phục mẫu ${template.title}`);
+      setConsoleStatus(`JavaBrew Live Lab · Đã khôi phục mẫu ${template.title}`);
       setConsoleTone('muted');
       setConsoleOutput('Nhấn "▶ Run Code" để biên dịch và chạy mẫu này.');
       pushToast({
@@ -1402,65 +1496,99 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     if (!playgroundMode && !activePe) return;
     setChatInput('');
 
-    const contextTitle = playgroundMode
-      ? `Java Playground (${activeFileName})`
-      : `${activePe!.code} (${activePe!.title})`;
+    const filesForContext: Array<{ name: string; content: string }> = playgroundMode
+      ? playgroundEffectiveFiles.map((f) => ({ name: f.name, content: f.content }))
+      : [
+          { name: mainFileName, content: mainCode },
+          ...(hasEntityFile && entityFileName ? [{ name: entityFileName, content: entityCode }] : []),
+          ...(hasInterfaceFile && activePe?.interfaceFileName && activePe.interfaceCode
+            ? [{ name: activePe.interfaceFileName, content: activePe.interfaceCode }]
+            : []),
+        ];
+
+    const context: AiMentorContext = {
+      mode: playgroundMode ? 'playground' : 'pe',
+      title: playgroundMode
+        ? pgSourceLabel || `JavaBrew Live Lab (${activeFileName})`
+        : `${activePe!.code}: ${activePe!.title}`,
+      description: playgroundMode ? undefined : activePe!.desc,
+      checklist: playgroundMode ? undefined : activePe!.checklist,
+      activeFileName,
+      files: filesForContext,
+      diagnostics,
+      testResults: cloudTestResults,
+      diagnosisHints: diagnosisCards
+        .filter((c) => c.tone !== 'green')
+        .map((c) => `${c.title}: ${c.description}`),
+    };
 
     if (byokKey) {
       setPendingPrompt(cleanPrompt);
       setAiBusy(true);
       try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(byokKey)}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    {
-                      text: `Bạn là AI Code Mentor cho môn Java OOP (PRO192). Hãy trả lời ngắn gọn, thực tế bằng tiếng Việt cho câu hỏi "${cleanPrompt}" dựa trên ngữ cảnh ${contextTitle} và mã nguồn hiện tại:\n\n${activeCode}`,
-                    },
-                  ],
-                },
-              ],
-            }),
-          }
-        );
+        const res = await askGeminiMentor({
+          apiKey: byokKey,
+          model: aiModel,
+          prompt: cleanPrompt,
+          context,
+          previousInteractionId: lastInteractionIdRef.current,
+        });
         if (res.ok) {
-          const data = (await res.json()) as {
-            candidates?: { content?: { parts?: { text?: string }[] } }[];
-          };
-          const reply =
-            data.candidates?.[0]?.content?.parts?.[0]?.text ||
-            'Không nhận được phản hồi từ Gemini API.';
+          if (res.interactionId) {
+            lastInteractionIdRef.current = res.interactionId;
+          }
           setChatHistory((prev) => [
             ...prev,
-            { id: `msg-${Date.now()}`, prompt: cleanPrompt, reply },
+            {
+              id: `msg-${Date.now()}`,
+              prompt: cleanPrompt,
+              reply: res.reply,
+              tone: 'ai',
+              badgeLabel: res.model,
+            },
           ]);
-          setAiBusy(false);
-          setPendingPrompt('');
-          return;
+        } else {
+          setChatHistory((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}`,
+              prompt: cleanPrompt,
+              reply: res.errorMessage,
+              tone: 'error',
+              badgeLabel: res.status ? `Lỗi HTTP ${res.status}` : 'Lỗi kết nối',
+            },
+          ]);
         }
-      } catch {
-        // fall through to offline smart mentor
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          setChatHistory((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}`,
+              prompt: cleanPrompt,
+              reply: 'Không thể hoàn tất yêu cầu tới Gemini API. Hãy kiểm tra lại kết nối.',
+              tone: 'error',
+              badgeLabel: 'Lỗi mạng',
+            },
+          ]);
+        }
+      } finally {
+        setAiBusy(false);
+        setPendingPrompt('');
       }
-      setAiBusy(false);
-      setPendingPrompt('');
+      return;
     }
 
-    const fallbackReply = playgroundMode
-      ? /tối ưu|ngắn|clean/i.test(cleanPrompt)
-        ? `AI Mentor (Playground): Trong ${activeFileName}, hãy đặt tên tệp trùng chính xác với \`public class\`, đóng Scanner/BufferedReader cẩn thận và kiểm tra tham số null ở đầu phương thức.`
-        : `AI Mentor (Playground): Tệp ${activeFileName} đang chạy trên OpenJDK. Nếu chương trình đọc bàn phím (\`Scanner\`), hãy mở mục "+ Nhập stdin" bên khung Output để truyền dữ liệu đầu vào.`
-      : /tối ưu|ngắn|clean/i.test(cleanPrompt)
-        ? `AI Mentor: Với ${activePe!.code}, hãy ưu tiên kiểm tra dữ liệu biên (null / mảng rỗng) ở đầu hàm bằng Early Return, sau đó tách phần kiểm tra hoặc dùng Comparator / Iterator để giảm độ sâu if-else.`
-        : `AI Mentor: Đoạn code ${activePe!.code} tập trung vào ${activePe!.meta}. Kiểm tra kỹ tiêu chí: ${activePe!.checklist[0] || 'xử lý null an toàn'} và bấm "⚡ So sánh Bản Tối ưu (Diff)" để đối chiếu trực quan.`;
-
+    const offlineReply = buildOfflineMentorReply(cleanPrompt, context);
     setChatHistory((prev) => [
       ...prev,
-      { id: `msg-${Date.now()}`, prompt: cleanPrompt, reply: fallbackReply },
+      {
+        id: `msg-${Date.now()}`,
+        prompt: cleanPrompt,
+        reply: offlineReply,
+        tone: 'offline',
+        badgeLabel: 'Gợi ý cục bộ',
+      },
     ]);
   };
 
@@ -1540,7 +1668,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--info)]/30 bg-[var(--info-soft)] px-3 py-1.5 text-xs">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="font-semibold text-[var(--info-text)]">
-              {activeExampleId ? `☕ Mẫu Tryit (${activeExampleId})` : 'Đang chạy thử từ bài học'}
+              {activeExampleId ? `☕ Mẫu Live Lab (${activeExampleId})` : 'Đang chạy thử từ bài học'}
             </span>
             <span className="truncate font-mono text-[var(--text-secondary)]">
               {pgSourceLabel}
@@ -1702,6 +1830,11 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       ) : playgroundMode || !showDiff ? (
         <>
           <JavaCodeEditor
+            docKey={
+              playgroundMode
+                ? `pg:${activePgFile?.id || 'main'}`
+                : `pe:${activePe!.id}:${activeFile}`
+            }
             value={activeCode}
             onChange={(val) =>
               playgroundMode && activePgFile
@@ -1973,14 +2106,13 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       <p className="text-xs text-[var(--text-dim)]">
         {playgroundMode ? (
           <>
-            W3Schools-style Tryit · OpenJDK Sandbox &amp; Fallback Runner. Lệnh máy local:{' '}
+            JavaBrew Live Lab · OpenJDK Sandbox &amp; Fallback Runner. Lệnh máy local:{' '}
             <code className="text-[var(--text-muted)]">{javacCommand}</code>
           </>
         ) : (
           <>
-            Hybrid 2 lớp: biên dịch &amp; chấm Test Case thật trên{' '}
-            <strong>OpenJDK Sandbox</strong> + phân tích Clean Code tức thì bởi{' '}
-            <strong>Static Pattern Evaluator</strong>. Lệnh máy local:{' '}
+            Dual-Track Hybrid: kiểm thử <strong>OpenJDK (--release 8)</strong> song song{' '}
+            <strong>Static Policy &amp; Clean-Code Coach</strong>. Lệnh máy local:{' '}
             <code className="text-[var(--text-muted)]">{javacCommand}</code>
           </>
         )}
@@ -2015,7 +2147,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
                 ].join(' ')}
               >
-                ☕ Java Tryit
+                ☕ Brew Lab
               </button>
               <button
                 type="button"
@@ -2049,7 +2181,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
               className="min-h-[40px] sm:min-h-[36px] min-w-0 w-full sm:w-auto sm:max-w-[260px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-bold text-[var(--text-primary)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
             >
               <option value="playground">
-                ☕ Java Tryit (Tự do · tối đa {MAX_PLAYGROUND_FILES} file)
+                ☕ JavaBrew Live Lab (Tự do · tối đa {MAX_PLAYGROUND_FILES} file)
               </option>
               {challengesByPaper.map(([paperName, groupItems]) => (
                 <optgroup key={paperName} label={`Bộ đề ${paperName}`}>
@@ -2221,7 +2353,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <div className="text-sm font-semibold text-[var(--text-primary)]">
-                      Java Tryit ({PLAYGROUND_TEMPLATES.length} mẫu)
+                      JavaBrew Live Lab ({PLAYGROUND_TEMPLATES.length} mẫu)
                     </div>
                     <p className="text-[var(--text-muted)]">Chọn mẫu để nạp vào Split-Pane</p>
                   </div>
@@ -2419,25 +2551,55 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         {showAiPane && (
           <aside className="flex w-full shrink-0 flex-col justify-between gap-3 border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-xs lg:w-80 lg:border-l lg:border-t-0">
             <div className="max-h-[460px] space-y-3 overflow-y-auto overscroll-contain pr-1">
-              <div className="flex items-center justify-between border-b border-[var(--border-default)] pb-2.5">
-                <span className="flex items-center gap-1.5 font-bold text-[var(--info-text)]">
-                  ✨ AI Code Mentor
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowAiPane(false)}
-                  aria-label="Ẩn AI Code Mentor"
-                  className="rounded border border-[var(--border-default)] px-2 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  ✕
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-default)] pb-2.5">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span className="flex items-center gap-1 font-bold text-[var(--info-text)]">
+                    ✨ AI Code Mentor
+                  </span>
+                  {byokKey ? (
+                    <span className="rounded border border-[var(--info)]/35 bg-[var(--info-soft)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--info-text)]">
+                      {aiModel}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsSettingsOpen(true)}
+                      className="inline-flex items-center gap-1 rounded border border-[var(--border-default)] bg-[var(--bg-canvas)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent-text)]"
+                    >
+                      <Settings className="h-2.5 w-2.5" aria-hidden="true" />
+                      <span>Cài đặt Key</span>
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  {chatHistory.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChatHistory([]);
+                        lastInteractionIdRef.current = null;
+                      }}
+                      className="rounded border border-[var(--border-default)] px-2 py-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    >
+                      Xóa chat
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowAiPane(false)}
+                    aria-label="Ẩn AI Code Mentor"
+                    className="rounded border border-[var(--border-default)] px-2 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-3">
                 {playgroundMode ? (
                   <div className="space-y-2 rounded-xl border border-[var(--info)]/35 bg-[var(--info-soft)] p-3">
                     <div className="font-semibold text-[var(--info-text)]">
-                      ☕ Trợ lý Java Tryit Playground
+                      ☕ Trợ lý JavaBrew Live Lab
                     </div>
                     <p className="leading-relaxed text-[var(--text-secondary)]">
                       Đang chỉnh sửa <code className="font-mono">{activeFileName}</code>. Bạn có thể
@@ -2508,11 +2670,18 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                 )}
 
                 {chatHistory.map((msg) => (
-                  <StreamingAiBubble key={msg.id} prompt={msg.prompt} reply={msg.reply} />
+                  <StreamingAiBubble
+                    key={msg.id}
+                    prompt={msg.prompt}
+                    reply={msg.reply}
+                    tone={msg.tone}
+                    badgeLabel={msg.badgeLabel}
+                    onOpenSettings={() => setIsSettingsOpen(true)}
+                  />
                 ))}
 
                 {aiBusy && pendingPrompt && (
-                  <StreamingAiBubble prompt={pendingPrompt} thinking />
+                  <StreamingAiBubble prompt={pendingPrompt} thinking badgeLabel={aiModel} />
                 )}
               </div>
             </div>

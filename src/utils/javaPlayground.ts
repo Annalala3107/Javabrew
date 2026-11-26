@@ -1,5 +1,5 @@
 import { hasMainMethod, inferJavaFileName, stripJavaComments } from './javaFiles';
-import { W3SCHOOLS_SLOT_TEMPLATES } from './w3schoolsSlotTemplates';
+import { SLOT_LAB_TEMPLATES } from './slotLabTemplates';
 
 export interface PlaygroundFile {
   id: string;
@@ -40,7 +40,7 @@ export const PLAYGROUND_TEMPLATES: PlaygroundTemplate[] = [
   {
     id: 'demo-intro',
     title: 'Hello World & main() (demo_intro)',
-    subtitle: 'Chương trình Java đầu tiên chạy ngay kiểu W3Schools',
+    subtitle: 'Chương trình Java đầu tiên chạy ngay trên JavaBrew Live Lab',
     category: 'Cơ bản',
     slotRef: 'Slot 01–03',
     stdin: '',
@@ -50,7 +50,7 @@ export const PLAYGROUND_TEMPLATES: PlaygroundTemplate[] = [
         name: 'Main.java',
         content: `public class Main {
     public static void main(String[] args) {
-        System.out.println("Xin chao JavaBrew Tryit!");
+        System.out.println("Xin chao JavaBrew Live Lab!");
         System.out.println("Java Version: " + System.getProperty("java.version"));
 
         for (int i = 1; i <= 3; i++) {
@@ -678,7 +678,7 @@ public class Main {
       },
     ],
   },
-  ...W3SCHOOLS_SLOT_TEMPLATES,
+  ...SLOT_LAB_TEMPLATES,
 ];
 
 export function findPlaygroundTemplate(id: string): PlaygroundTemplate | null {
@@ -813,7 +813,7 @@ export function decodePlaygroundShareParam(raw: string): PlaygroundWorkspaceStat
       files,
       activeFileId: files[0].id,
       stdin: typeof parsed.s === 'string' ? parsed.s : '',
-      sourceLabel: 'Liên kết chia sẻ Java Tryit',
+      sourceLabel: 'Liên kết chia sẻ JavaBrew Live Lab',
     };
   } catch {
     return null;

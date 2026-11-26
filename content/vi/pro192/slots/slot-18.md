@@ -238,11 +238,11 @@ for (Shape s : shapes) {
 
 ---
 
-### 💻 Luyện Code Thực hành (Phong cách W3Schools Tryit)
+### 💻 Luyện Code Thực hành (JavaBrew Live Lab)
 
-> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **Code Studio Tryit**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
+> Bấm **▶ Chạy thử** ở góc trên khung code để mở trong **JavaBrew Live Lab**, sửa theo `// TODO` rồi tự đối chiếu với **Expected Output**.
 
-#### 🟢 Thực hành 18A: W3Schools Polymorphism — Tính Tổng Diện tích qua Mảng Đa hình `Shape[]`
+#### 🟢 Thực hành 18A: Polymorphism — Tính Tổng Diện tích qua Mảng Đa hình `Shape[]`
 - **Mục tiêu:** Cài đặt phương thức `area()` ở `Circle` và `Rectangle` để vòng lặp chung `for (Shape s : shapes)` tính đúng tổng diện tích.
 - **Expected Output:**
   - `Total area = 48.27`
@@ -317,7 +317,7 @@ public class Main {
 - **Expected Output:**
   - `ref.tag = ParentField`
   - `ref.getTag() = ChildMethod`
-- 🔗 [Mở bài lab Slot 18 trên Code Studio Tryit](/studio/playground?example=slot-18-lab)
+- 🔗 [Mở bài lab Slot 18 trên JavaBrew Live Lab](/studio/playground?example=slot-18-lab)
 
 ```java
 class Base {
