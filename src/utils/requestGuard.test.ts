@@ -2,9 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   consumeRateLimit,
+  getCachedValue,
   getTrustedClientIp,
   peekRateLimit,
+  resetMemoryCacheForTest,
   resetMemoryRateLimitsForTest,
+  setCachedValue,
   validateOrigin,
 } from '../../server/requestGuard';
 
@@ -168,5 +171,42 @@ describe('server/requestGuard', () => {
     expect(fallbackRes.backend).toBe('memory');
     expect(fallbackRes.allowed).toBe(true);
     expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('caches values in Upstash Redis when configured and falls back cleanly to TTL memory cache', async () => {
+    vi.useFakeTimers();
+    try {
+      await setCachedValue('demo:key', '{"hello":"world"}', 60);
+      expect(await getCachedValue('demo:key')).toBe('{"hello":"world"}');
+
+      vi.advanceTimersByTime(61_000);
+      expect(await getCachedValue('demo:key')).toBeNull();
+
+      resetMemoryCacheForTest();
+      process.env.UPSTASH_REDIS_REST_URL = 'https://redis.upstash.test';
+      process.env.UPSTASH_REDIS_REST_TOKEN = 'secret-token';
+
+      const cmds: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+          const bodyStr = String(init?.body || '');
+          cmds.push(bodyStr);
+          if (bodyStr.includes('"SET"')) {
+            return new Response(JSON.stringify([{ result: 'OK' }]), { status: 200 });
+          }
+          return new Response(JSON.stringify([{ result: 'cached-redis-val' }]), { status: 200 });
+        })
+      );
+
+      await setCachedValue('slot-quiz:v1:slot-1', 'cached-redis-val', 3600);
+      const readVal = await getCachedValue('slot-quiz:v1:slot-1');
+      expect(readVal).toBe('cached-redis-val');
+      expect(cmds[0]).toContain('"SET"');
+      expect(cmds[0]).toContain('"jb:cache:slot-quiz:v1:slot-1"');
+      expect(cmds[1]).toContain('"GET"');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -14,10 +14,17 @@ export interface RateLimitResult {
 }
 
 const REDIS_TIMEOUT_MS = 2_000;
+const MAX_MEMORY_CACHE_ENTRIES = 200;
 const memoryBuckets = new Map<string, { count: number; resetAt: number }>();
+const memoryCache = new Map<string, { value: string; expiresAt: number }>();
+
+export function resetMemoryCacheForTest(): void {
+  memoryCache.clear();
+}
 
 export function resetMemoryRateLimitsForTest(): void {
   memoryBuckets.clear();
+  memoryCache.clear();
 }
 
 export function getUtcDateKey(date = new Date()): string {
@@ -290,4 +297,76 @@ export async function peekRateLimit(opts: RateLimitOptions): Promise<RateLimitRe
   }
 
   return peekMemoryRateLimit(bucketKey, opts.limit, opts.windowSeconds);
+}
+
+function pruneMemoryCache(now: number): void {
+  for (const [k, entry] of memoryCache.entries()) {
+    if (entry.expiresAt <= now) {
+      memoryCache.delete(k);
+    }
+  }
+  while (memoryCache.size >= MAX_MEMORY_CACHE_ENTRIES) {
+    const oldestKey = memoryCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    memoryCache.delete(oldestKey);
+  }
+}
+
+export async function getCachedValue(key: string): Promise<string | null> {
+  const cacheKey = `jb:cache:${key}`;
+  const redis = getRedisConfig();
+  if (redis) {
+    try {
+      const results = await callUpstashPipeline(redis, [['GET', cacheKey]]);
+      const val = results[0]?.result;
+      if (typeof val === 'string') {
+        return val;
+      }
+      if (val === null || val === undefined) {
+        return null;
+      }
+    } catch (err) {
+      console.warn(
+        '[requestGuard] Upstash Redis cache get fallback to memory:',
+        err instanceof Error ? err.message : String(err)
+      );
+    }
+  }
+
+  const now = Date.now();
+  const entry = memoryCache.get(cacheKey);
+  if (!entry) return null;
+  if (entry.expiresAt <= now) {
+    memoryCache.delete(cacheKey);
+    return null;
+  }
+  return entry.value;
+}
+
+export async function setCachedValue(
+  key: string,
+  value: string,
+  ttlSeconds: number
+): Promise<void> {
+  const cacheKey = `jb:cache:${key}`;
+  const ttl = Math.max(60, Math.trunc(ttlSeconds));
+  const redis = getRedisConfig();
+  if (redis) {
+    try {
+      await callUpstashPipeline(redis, [['SET', cacheKey, value, 'EX', ttl]]);
+      return;
+    } catch (err) {
+      console.warn(
+        '[requestGuard] Upstash Redis cache set fallback to memory:',
+        err instanceof Error ? err.message : String(err)
+      );
+    }
+  }
+
+  const now = Date.now();
+  pruneMemoryCache(now);
+  memoryCache.set(cacheKey, {
+    value,
+    expiresAt: now + ttl * 1000,
+  });
 }

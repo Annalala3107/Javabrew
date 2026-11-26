@@ -1,12 +1,23 @@
 import {
   consumeRateLimit,
+  getCachedValue,
   getTrustedClientIp,
   getUtcDateKey,
   peekRateLimit,
+  setCachedValue,
   validateOrigin,
 } from './requestGuard';
 
 export type AiMentorModel = 'gemini-4-hydrogen' | 'gemini-3.5-flash-lite';
+export type AiMentorStyle = 'socratic' | 'deep';
+export type LearnTutorIntent =
+  | 'explain-simple'
+  | 'java-example'
+  | 'exam-relevance'
+  | 'summarize'
+  | 'compare-table'
+  | 'glossary-en-vi'
+  | 'custom';
 
 export const GEMINI_INTERACTIONS_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/interactions';
 export const GEMINI_API_REVISION = '2026-05-20';
@@ -21,12 +32,17 @@ const BURST_SERVER_LIMIT = 10;
 const BURST_BYOK_LIMIT = 30;
 const BURST_WINDOW_SECONDS = 60;
 const DAILY_WINDOW_SECONDS = 86_400;
+const LEARN_SUMMARY_TTL_SECONDS = 86_400;
+const SLOT_QUIZ_TTL_SECONDS = 604_800;
 
 const MAX_PROMPT_CHARS = 4_000;
 const MAX_FILES = 5;
 const MAX_FILE_CHARS = 6_000;
 const MAX_DIAGNOSTICS = 8;
 const MAX_TEST_RESULTS = 10;
+const MAX_LEARN_EXCERPT_CHARS = 6_000;
+const MAX_SELECTED_TEXT_CHARS = 1_000;
+const MAX_EXERCISE_FIELD_CHARS = 3_000;
 
 const SYSTEM_INSTRUCTION = [
   'Bạn là AI Code Mentor chuyên môn Java OOP (môn PRO192 chuẩn JDK 1.8 và default package).',
@@ -34,6 +50,74 @@ const SYSTEM_INSTRUCTION = [
   'Ưu tiên chỉ rõ nguyên nhân lỗi biên dịch javac, test case đang fail hoặc lỗ hổng dữ liệu biên (null, chuỗi rỗng, chỉ số mảng) và gợi ý hướng sửa từng bước.',
   'Với các bài PE PRO192, không dùng API Java 9+ (như var, List.of, isBlank, toList) và nhắc bỏ package nếu có.',
 ].join(' ');
+
+const SOCRATIC_ADDENDUM = [
+  'CHẾ ĐỘ GIA SƯ (SOCRATIC): Ở lượt trả lời đầu tiên, TUYỆT ĐỐI KHÔNG viết sẵn toàn bộ file hoặc full hàm đáp án để sinh viên chép.',
+  'Thay vào đó: (1) chỉ rõ dòng code hoặc điều kiện logic bị lỗi, (2) giải thích bản chất OOP/JDK 8 vì sao sai, (3) đưa gợi ý sửa theo 1–3 bước (có thể minh họa 1 đoạn tối đa 3–5 dòng), và (4) kết thúc bằng 1 câu hỏi gợi mở để sinh viên tự sửa code.',
+].join(' ');
+
+const LEARN_SYSTEM_INSTRUCTION = [
+  'Bạn là Trợ lý Học tập AI của JavaBrew (PRO192 JDK 1.8 & JavaGuide CS/Backend).',
+  'Trả lời súc tích, rõ ràng, dễ hiểu bằng tiếng Việt định dạng Markdown, bám sát ngữ cảnh bài học được cung cấp.',
+  'Nếu minh họa bằng mã Java hoặc được yêu cầu ví dụ Java chạy thử được, luôn viết trong khối ```java ... ``` một chương trình hoàn chỉnh độc lập gồm `public class Main { public static void main(String[] args) { ... } }` (không dùng dòng `package`, ưu tiên tương thích JDK 8) để người học bấm "Chạy thử" ngay trên JavaBrew Live Lab.',
+].join(' ');
+
+const GRADE_EXERCISE_SYSTEM_INSTRUCTION = [
+  'Bạn là trợ giảng chấm bài PRO192 Java OOP công tâm, khuyến khích người học tự tư duy.',
+  'So sánh câu trả lời/code nháp của học viên với đề bài và đáp án chuẩn. Trình bày theo 4 mục ngắn gọn bằng Markdown tiếng Việt:',
+  '(1) **Đánh giá: X/10** kèm 1 câu nhận xét tổng quan;',
+  '(2) **Điểm làm đúng**;',
+  '(3) **Chỗ còn thiếu / sai & bẫy JDK 8** (không ném nguyên văn toàn bộ lời giải chuẩn nếu học viên mới viết dở);',
+  '(4) **Gợi ý bước sửa tiếp theo** (có thể minh họa đoạn nhỏ trong ```java ... ``` tương thích Live Lab).',
+].join(' ');
+
+const SLOT_QUIZ_SYSTEM_INSTRUCTION = [
+  'Bạn là giảng viên ra đề trắc nghiệm Final Exam (FE) môn PRO192 (Java Core & OOP, chuẩn JDK 8).',
+  'Hãy tạo đúng 5 câu hỏi trắc nghiệm khách quan bám sát mục tiêu học tập và bẫy thi của Slot hiện tại (ưu tiên câu dự đoán output, phát hiện lỗi biên dịch JDK 8, bẫy đa hình/override/static/collections).',
+  'Trả về DUY NHẤT JSON hợp lệ theo schema { "questions": [{ "id", "question", "codeSnippet", "options", "correctIndex", "explanation", "topicTag" }] }, không thêm chữ ngoài JSON.',
+].join(' ');
+
+const SLOT_QUIZ_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    questions: {
+      type: 'array',
+      description: 'Đúng 5 câu hỏi trắc nghiệm FE PRO192 (JDK 8).',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Mã câu hỏi như q1..q5' },
+          question: { type: 'string', description: 'Câu hỏi ngắn gọn bằng tiếng Việt.' },
+          codeSnippet: {
+            type: 'string',
+            description: 'Đoạn mã Java ngắn minh họa cho câu hỏi (chuỗi rỗng nếu câu lý thuyết thuần).',
+          },
+          options: {
+            type: 'array',
+            description: 'Đúng 4 lựa chọn phương án (không cần tiền tố A./B.).',
+            items: { type: 'string' },
+          },
+          correctIndex: { type: 'integer', description: 'Chỉ số đáp án đúng từ 0 đến 3.' },
+          explanation: {
+            type: 'string',
+            description: 'Giải thích rõ lý do đúng và bẫy hay gặp bằng tiếng Việt.',
+          },
+          topicTag: { type: 'string', description: 'Nhãn chủ đề ngắn, ví dụ OOP, JDK 8, Exception.' },
+        },
+        required: [
+          'id',
+          'question',
+          'codeSnippet',
+          'options',
+          'correctIndex',
+          'explanation',
+          'topicTag',
+        ],
+      },
+    },
+  },
+  required: ['questions'],
+};
 
 export interface AiDiagnosticInput {
   file: string;
@@ -65,14 +149,68 @@ export interface AiMentorContextPayload {
   diagnosisHints: string[];
 }
 
+export interface LearnTutorContextPayload {
+  kind: 'pro192' | 'docs';
+  itemKey: string;
+  title: string;
+  lang: 'vi' | 'en';
+  domainLabel?: string;
+  slotNumber?: number;
+  objectives?: string[];
+  examTraps?: string[];
+  excerpt?: string;
+  selectedText?: string;
+  intent?: LearnTutorIntent;
+}
+
+export interface ExerciseGradeContextPayload {
+  exerciseId: string;
+  slot: number;
+  title: string;
+  promptMd: string;
+  solutionMd: string;
+  userAnswer: string;
+}
+
+export interface SlotQuizContextPayload {
+  slot: number;
+  title: string;
+  objectives?: string[];
+  examTraps?: string[];
+  examFocus?: string[];
+  excerpt?: string;
+  regenerate?: boolean;
+}
+
+export interface SlotQuizQuestion {
+  id: string;
+  question: string;
+  codeSnippet?: string;
+  options: [string, string, string, string];
+  correctIndex: number;
+  explanation: string;
+  topicTag: string;
+}
+
+export interface SlotQuizSet {
+  slot: number;
+  title: string;
+  generatedAt: string;
+  questions: SlotQuizQuestion[];
+}
+
 interface ValidatedAiRequest {
-  action: 'chat' | 'test';
+  action: 'chat' | 'test' | 'learn' | 'grade-exercise' | 'slot-quiz';
   model: AiMentorModel;
+  mentorStyle: AiMentorStyle;
   stream: boolean;
   previousInteractionId?: string;
   codeChanged: boolean;
   prompt: string;
   context?: AiMentorContextPayload;
+  learnContext?: LearnTutorContextPayload;
+  exerciseContext?: ExerciseGradeContextPayload;
+  quizContext?: SlotQuizContextPayload;
 }
 
 export function isValidAiMentorModel(value: unknown): value is AiMentorModel {
@@ -120,6 +258,36 @@ function sanitizeTestResult(raw: unknown): AiTestCaseInput | null {
   };
 }
 
+function isValidLearnIntent(val: unknown): val is LearnTutorIntent {
+  return (
+    val === 'explain-simple' ||
+    val === 'java-example' ||
+    val === 'exam-relevance' ||
+    val === 'summarize' ||
+    val === 'compare-table' ||
+    val === 'glossary-en-vi' ||
+    val === 'custom'
+  );
+}
+
+function sanitizeStringArray(raw: unknown, maxItems: number, maxChars: number): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const cleaned = raw
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .slice(0, maxItems)
+    .map((item) => item.trim().slice(0, maxChars));
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+export function sanitizeCacheKeyPart(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120) || 'default';
+}
+
 function validateAiPayload(
   raw: unknown
 ): { ok: true; data: ValidatedAiRequest } | { ok: false; error: string } {
@@ -127,8 +295,20 @@ function validateAiPayload(
     return { ok: false, error: 'Payload phải là JSON object hợp lệ.' };
   }
   const rec = raw as Record<string, unknown>;
-  const action = rec.action === 'test' ? 'test' : 'chat';
+  const rawAction = rec.action;
+  const action: ValidatedAiRequest['action'] =
+    rawAction === 'test' ||
+    rawAction === 'learn' ||
+    rawAction === 'grade-exercise' ||
+    rawAction === 'slot-quiz'
+      ? rawAction
+      : 'chat';
   const model = isValidAiMentorModel(rec.model) ? rec.model : resolveDefaultServerModel();
+  const mentorStyle: AiMentorStyle = rec.mentorStyle === 'socratic' ? 'socratic' : 'deep';
+  const previousInteractionId =
+    typeof rec.previousInteractionId === 'string' && rec.previousInteractionId.trim()
+      ? rec.previousInteractionId.trim().slice(0, 200)
+      : undefined;
 
   if (action === 'test') {
     return {
@@ -136,9 +316,140 @@ function validateAiPayload(
       data: {
         action: 'test',
         model,
+        mentorStyle,
         stream: false,
         codeChanged: false,
         prompt: '',
+      },
+    };
+  }
+
+  if (action === 'learn') {
+    if (typeof rec.prompt !== 'string' || !rec.prompt.trim()) {
+      return { ok: false, error: 'Thiếu câu hỏi (prompt) gửi tới AI Trợ lý bài học.' };
+    }
+    const prompt = rec.prompt.trim();
+    if (prompt.length > MAX_PROMPT_CHARS) {
+      return {
+        ok: false,
+        error: `Câu hỏi vượt quá giới hạn ${MAX_PROMPT_CHARS.toLocaleString('vi-VN')} ký tự.`,
+      };
+    }
+    if (!rec.learnContext || typeof rec.learnContext !== 'object' || Array.isArray(rec.learnContext)) {
+      return { ok: false, error: 'Thiếu ngữ cảnh bài học (learnContext).' };
+    }
+    const lc = rec.learnContext as Record<string, unknown>;
+    const itemKey = typeof lc.itemKey === 'string' && lc.itemKey.trim() ? lc.itemKey.trim().slice(0, 160) : '';
+    const title = typeof lc.title === 'string' && lc.title.trim() ? lc.title.trim().slice(0, 240) : '';
+    if (!itemKey || !title) {
+      return { ok: false, error: 'Thiếu mã hoặc tiêu đề bài học (itemKey / title).' };
+    }
+    const slotNumRaw = Number(lc.slotNumber);
+    const learnContext: LearnTutorContextPayload = {
+      kind: lc.kind === 'docs' ? 'docs' : 'pro192',
+      itemKey,
+      title,
+      lang: lc.lang === 'en' ? 'en' : 'vi',
+      domainLabel: typeof lc.domainLabel === 'string' ? lc.domainLabel.slice(0, 120) : undefined,
+      slotNumber: Number.isInteger(slotNumRaw) && slotNumRaw >= 1 && slotNumRaw <= 30 ? slotNumRaw : undefined,
+      objectives: sanitizeStringArray(lc.objectives, 10, 250),
+      examTraps: sanitizeStringArray(lc.examTraps, 10, 250),
+      excerpt: typeof lc.excerpt === 'string' ? lc.excerpt.slice(0, MAX_LEARN_EXCERPT_CHARS) : undefined,
+      selectedText:
+        typeof lc.selectedText === 'string' && lc.selectedText.trim()
+          ? lc.selectedText.trim().slice(0, MAX_SELECTED_TEXT_CHARS)
+          : undefined,
+      intent: isValidLearnIntent(lc.intent) ? lc.intent : 'custom',
+    };
+    return {
+      ok: true,
+      data: {
+        action: 'learn',
+        model,
+        mentorStyle,
+        stream: rec.stream !== false,
+        previousInteractionId,
+        codeChanged: false,
+        prompt,
+        learnContext,
+      },
+    };
+  }
+
+  if (action === 'grade-exercise') {
+    if (
+      !rec.exerciseContext ||
+      typeof rec.exerciseContext !== 'object' ||
+      Array.isArray(rec.exerciseContext)
+    ) {
+      return { ok: false, error: 'Thiếu ngữ cảnh bài tập cần chấm (exerciseContext).' };
+    }
+    const ec = rec.exerciseContext as Record<string, unknown>;
+    const exerciseId = typeof ec.exerciseId === 'string' ? ec.exerciseId.trim().slice(0, 40) : '';
+    const title = typeof ec.title === 'string' ? ec.title.trim().slice(0, 240) : '';
+    const promptMd = typeof ec.promptMd === 'string' ? ec.promptMd.trim().slice(0, MAX_EXERCISE_FIELD_CHARS) : '';
+    const solutionMd =
+      typeof ec.solutionMd === 'string' ? ec.solutionMd.trim().slice(0, MAX_EXERCISE_FIELD_CHARS) : '';
+    const userAnswer =
+      typeof ec.userAnswer === 'string' ? ec.userAnswer.trim().slice(0, MAX_EXERCISE_FIELD_CHARS) : '';
+    if (!exerciseId || !title || !promptMd) {
+      return { ok: false, error: 'Thiếu thông tin đề bài tập để AI chấm.' };
+    }
+    if (!userAnswer) {
+      return { ok: false, error: 'Bạn hãy nhập câu trả lời hoặc đoạn code nháp trước khi nhờ AI chấm.' };
+    }
+    const slotNumRaw = Number(ec.slot);
+    const exerciseContext: ExerciseGradeContextPayload = {
+      exerciseId,
+      slot: Number.isInteger(slotNumRaw) && slotNumRaw >= 1 && slotNumRaw <= 30 ? slotNumRaw : 1,
+      title,
+      promptMd,
+      solutionMd,
+      userAnswer,
+    };
+    return {
+      ok: true,
+      data: {
+        action: 'grade-exercise',
+        model,
+        mentorStyle,
+        stream: rec.stream !== false,
+        codeChanged: false,
+        prompt: 'Chấm bài tập',
+        exerciseContext,
+      },
+    };
+  }
+
+  if (action === 'slot-quiz') {
+    if (!rec.quizContext || typeof rec.quizContext !== 'object' || Array.isArray(rec.quizContext)) {
+      return { ok: false, error: 'Thiếu ngữ cảnh Slot để sinh Mini-Quiz (quizContext).' };
+    }
+    const qc = rec.quizContext as Record<string, unknown>;
+    const slotNum = Number(qc.slot);
+    const title = typeof qc.title === 'string' ? qc.title.trim().slice(0, 240) : '';
+    if (!Number.isInteger(slotNum) || slotNum < 1 || slotNum > 30 || !title) {
+      return { ok: false, error: 'Thông tin Slot (1–30) hoặc tiêu đề không hợp lệ.' };
+    }
+    const quizContext: SlotQuizContextPayload = {
+      slot: slotNum,
+      title,
+      objectives: sanitizeStringArray(qc.objectives, 10, 250),
+      examTraps: sanitizeStringArray(qc.examTraps, 10, 250),
+      examFocus: sanitizeStringArray(qc.examFocus, 8, 80),
+      excerpt: typeof qc.excerpt === 'string' ? qc.excerpt.slice(0, 4_000) : undefined,
+      regenerate: Boolean(qc.regenerate),
+    };
+    return {
+      ok: true,
+      data: {
+        action: 'slot-quiz',
+        model,
+        mentorStyle,
+        stream: false,
+        codeChanged: false,
+        prompt: 'Sinh Mini-Quiz FE',
+        quizContext,
       },
     };
   }
@@ -191,24 +502,8 @@ function validateAiPayload(
     }
   }
 
-  const checklist = Array.isArray(ctxRec.checklist)
-    ? ctxRec.checklist
-        .filter((c): c is string => typeof c === 'string')
-        .slice(0, 12)
-        .map((c) => c.slice(0, 250))
-    : undefined;
-
-  const diagnosisHints = Array.isArray(ctxRec.diagnosisHints)
-    ? ctxRec.diagnosisHints
-        .filter((h): h is string => typeof h === 'string')
-        .slice(0, 6)
-        .map((h) => h.slice(0, 300))
-    : [];
-
-  const previousInteractionId =
-    typeof rec.previousInteractionId === 'string' && rec.previousInteractionId.trim()
-      ? rec.previousInteractionId.trim().slice(0, 200)
-      : undefined;
+  const checklist = sanitizeStringArray(ctxRec.checklist, 12, 250);
+  const diagnosisHints = sanitizeStringArray(ctxRec.diagnosisHints, 6, 300) ?? [];
 
   const context: AiMentorContextPayload = {
     mode: ctxRec.mode === 'playground' ? 'playground' : 'pe',
@@ -228,6 +523,7 @@ function validateAiPayload(
     data: {
       action: 'chat',
       model,
+      mentorStyle,
       stream: rec.stream !== false,
       previousInteractionId,
       codeChanged: rec.codeChanged !== false,
@@ -296,6 +592,197 @@ export function buildServerContextPrompt(
 
   sections.push(`${compact ? 'Câu hỏi tiếp theo của học viên' : 'Câu hỏi của học viên'}:\n${prompt}`);
   return sections.join('\n\n');
+}
+
+export function buildLearnTutorPrompt(
+  prompt: string,
+  ctx: LearnTutorContextPayload,
+  compactFollowUp = false
+): string {
+  const sections: string[] = [];
+  const label =
+    ctx.kind === 'pro192' && ctx.slotNumber
+      ? `PRO192 Slot ${String(ctx.slotNumber).padStart(2, '0')} (JDK 1.8)`
+      : `JavaGuide (${ctx.domainLabel || 'Java'}, bản ${ctx.lang.toUpperCase()})`;
+
+  sections.push(`Ngữ cảnh bài học (${label}): ${ctx.title}`);
+
+  if (!compactFollowUp) {
+    if (ctx.objectives && ctx.objectives.length > 0) {
+      sections.push(`Mục tiêu trọng tâm:\n${ctx.objectives.map((o) => `- ${o}`).join('\n')}`);
+    }
+    if (ctx.examTraps && ctx.examTraps.length > 0) {
+      sections.push(`Bẫy thi hay gặp:\n${ctx.examTraps.map((t) => `- ${t}`).join('\n')}`);
+    }
+    if (ctx.excerpt && ctx.excerpt.trim()) {
+      sections.push(`Trích đoạn nội dung bài học:\n${ctx.excerpt.slice(0, MAX_LEARN_EXCERPT_CHARS)}`);
+    }
+  }
+
+  if (ctx.selectedText) {
+    sections.push(`Đoạn văn bản / code người học vừa bôi đen:\n"""\n${ctx.selectedText}\n"""`);
+  }
+
+  const intentDirective: Record<LearnTutorIntent, string> = {
+    'explain-simple':
+      'Yêu cầu: Giải thích đoạn kiến thức trên thật dễ hiểu cho sinh viên mới học, kèm ví dụ đời thường ngắn.',
+    'java-example':
+      'Yêu cầu: Viết 1 ví dụ Java ngắn gọn, hoàn chỉnh chạy thử được ngay trong JavaBrew Live Lab (bắt buộc có `public class Main` và `public static void main(String[] args)`, không dùng `package`).',
+    'exam-relevance':
+      'Yêu cầu: Phân tích kiến thức này có hay ra thi FE/PE PRO192 không, ra dưới dạng câu hỏi nào và bẫy cần tránh.',
+    summarize:
+      'Yêu cầu: Tóm tắt thành đúng 5 ý cốt lõi súc tích nhất bằng gạch đầu dòng tiếng Việt để ôn nhanh trước giờ thi.',
+    'compare-table':
+      'Yêu cầu: Lập bảng so sánh Markdown (các khái niệm, ưu/nhược điểm hoặc bẫy thường gặp trong bài) để dễ ghi nhớ.',
+    'glossary-en-vi':
+      'Yêu cầu: Giải thích các thuật ngữ tiếng Anh chuyên ngành liên quan kèm nghĩa tiếng Việt chuẩn và ngữ cảnh dùng trong Java.',
+    custom: 'Yêu cầu: Trả lời trực tiếp câu hỏi bên dưới dựa sát trên nội dung bài học.',
+  };
+
+  sections.push(intentDirective[ctx.intent || 'custom']);
+  sections.push(`Câu hỏi của người học:\n${prompt}`);
+  return sections.join('\n\n');
+}
+
+export function buildGradeExercisePrompt(ctx: ExerciseGradeContextPayload): string {
+  return [
+    `Bài tập ${ctx.exerciseId} (PRO192 Slot ${String(ctx.slot).padStart(2, '0')}): ${ctx.title}`,
+    `Đề bài:\n${ctx.promptMd}`,
+    ctx.solutionMd ? `Đáp án chuẩn tham khảo:\n${ctx.solutionMd}` : '',
+    `Câu trả lời / code nháp của học viên:\n${ctx.userAnswer}`,
+    'Hãy chấm điểm (0–10), chỉ ra điểm đúng, lỗi cần sửa và gợi ý bước tiếp theo.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+export function buildSlotQuizPrompt(ctx: SlotQuizContextPayload): string {
+  const sections = [
+    `Tạo đúng 5 câu hỏi trắc nghiệm FE (Final Exam PRO192, chuẩn JDK 8) cho Slot ${String(ctx.slot).padStart(2, '0')}: ${ctx.title}`,
+  ];
+  if (ctx.examFocus && ctx.examFocus.length > 0) {
+    sections.push(`Trọng tâm đề thi: ${ctx.examFocus.join(', ')}`);
+  }
+  if (ctx.objectives && ctx.objectives.length > 0) {
+    sections.push(`Mục tiêu kiến thức:\n${ctx.objectives.map((o) => `- ${o}`).join('\n')}`);
+  }
+  if (ctx.examTraps && ctx.examTraps.length > 0) {
+    sections.push(`Bẫy thi thường gặp:\n${ctx.examTraps.map((t) => `- ${t}`).join('\n')}`);
+  }
+  if (ctx.excerpt && ctx.excerpt.trim()) {
+    sections.push(`Tài liệu tham khảo của Slot:\n${ctx.excerpt.slice(0, 4_000)}`);
+  }
+  if (ctx.regenerate) {
+    sections.push('Hãy ra bộ 5 câu hỏi MỚI khác biệt tình huống/ví dụ code so với đề mặc định.');
+  }
+  sections.push(
+    'Trả về DUY NHẤT JSON hợp lệ dạng { "questions": [{ "id": "q1", "question": "...", "codeSnippet": "", "options": ["...", "...", "...", "..."], "correctIndex": 0, "explanation": "...", "topicTag": "..." }] }.'
+  );
+  return sections.join('\n\n');
+}
+
+export function extractJsonObject(raw: string): unknown {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // try extracting fenced JSON block
+  }
+
+  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenceMatch && fenceMatch[1]) {
+    try {
+      return JSON.parse(fenceMatch[1].trim());
+    } catch {
+      // fall through to brace slice
+    }
+  }
+
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+export function validateSlotQuizPayload(
+  raw: unknown,
+  slot: number,
+  title: string
+): SlotQuizSet | null {
+  let rawList: unknown[] | null = null;
+  let generatedAt = new Date().toISOString();
+
+  if (Array.isArray(raw)) {
+    rawList = raw;
+  } else if (raw && typeof raw === 'object') {
+    const rec = raw as Record<string, unknown>;
+    if (Array.isArray(rec.questions)) {
+      rawList = rec.questions;
+    }
+    if (typeof rec.generatedAt === 'string' && rec.generatedAt.trim()) {
+      generatedAt = rec.generatedAt.trim();
+    }
+  }
+
+  if (!rawList) return null;
+
+  const questions: SlotQuizQuestion[] = [];
+  for (let i = 0; i < rawList.length && questions.length < 5; i++) {
+    const item = rawList[i];
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const q = item as Record<string, unknown>;
+
+    const questionText = typeof q.question === 'string' ? q.question.trim() : '';
+    const explanation = typeof q.explanation === 'string' ? q.explanation.trim() : '';
+    const idxNum = typeof q.correctIndex === 'number' ? q.correctIndex : Number(q.correctIndex);
+
+    if (!questionText || !explanation || !Number.isInteger(idxNum) || idxNum < 0 || idxNum > 3) {
+      continue;
+    }
+
+    if (!Array.isArray(q.options) || q.options.length !== 4) continue;
+    const cleanOpts = q.options.map((opt) =>
+      typeof opt === 'string' ? opt.trim().slice(0, 300) : ''
+    );
+    if (cleanOpts.some((opt) => !opt)) continue;
+
+    const codeSnippetRaw = typeof q.codeSnippet === 'string' ? q.codeSnippet.trim() : '';
+    const topicTag =
+      typeof q.topicTag === 'string' && q.topicTag.trim()
+        ? q.topicTag.trim().slice(0, 60)
+        : `Slot ${String(slot).padStart(2, '0')}`;
+    const id =
+      typeof q.id === 'string' && q.id.trim()
+        ? q.id.trim().slice(0, 24)
+        : `q${questions.length + 1}`;
+
+    questions.push({
+      id,
+      question: questionText.slice(0, 800),
+      codeSnippet: codeSnippetRaw ? codeSnippetRaw.slice(0, 1_200) : undefined,
+      options: [cleanOpts[0], cleanOpts[1], cleanOpts[2], cleanOpts[3]],
+      correctIndex: idxNum,
+      explanation: explanation.slice(0, 800),
+      topicTag,
+    });
+  }
+
+  if (questions.length < 3) return null;
+
+  return {
+    slot,
+    title,
+    generatedAt,
+    questions,
+  };
 }
 
 interface InteractionContentBlock {
@@ -454,6 +941,168 @@ export async function GET(request: Request): Promise<Response> {
   );
 }
 
+const SSE_RESPONSE_HEADERS = {
+  'Content-Type': 'text/event-stream; charset=utf-8',
+  'Cache-Control': 'no-store, no-transform',
+  'X-Accel-Buffering': 'no',
+} as const;
+
+function buildSseSingleShotResponse(opts: {
+  text: string;
+  interactionId?: string;
+  model: AiMentorModel;
+  source: 'server' | 'byok';
+  remaining?: number;
+  limit?: number;
+  cached?: boolean;
+}): Response {
+  const singleStream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(
+        encodeSseEvent('meta', {
+          source: opts.source,
+          model: opts.model,
+          remaining: opts.remaining,
+          limit: opts.limit,
+          ...(opts.cached ? { cached: true } : {}),
+        })
+      );
+      controller.enqueue(encodeSseEvent('delta', { text: opts.text }));
+      controller.enqueue(
+        encodeSseEvent('done', {
+          interactionId: opts.interactionId,
+          model: opts.model,
+          source: opts.source,
+          remaining: opts.remaining,
+          limit: opts.limit,
+          ...(opts.cached ? { cached: true } : {}),
+        })
+      );
+      controller.close();
+    },
+  });
+  return new Response(singleStream, {
+    status: 200,
+    headers: SSE_RESPONSE_HEADERS,
+  });
+}
+
+async function peekServerQuota(clientIp: string): Promise<{ dailyLimit: number; remaining: number }> {
+  const dailyLimit = resolveDailyLimit();
+  const q = await peekRateLimit({
+    namespace: `ai-daily:${getUtcDateKey()}`,
+    key: clientIp,
+    limit: dailyLimit,
+    windowSeconds: DAILY_WINDOW_SECONDS,
+  });
+  return { dailyLimit, remaining: q.remaining };
+}
+
+async function consumeServerQuota(
+  clientIp: string,
+  source: 'server' | 'byok'
+): Promise<{ ok: true; dailyLimit?: number; remaining?: number } | { ok: false; response: Response }> {
+  if (source !== 'server') {
+    return { ok: true };
+  }
+  const dailyLimit = resolveDailyLimit();
+  const quota = await consumeRateLimit({
+    namespace: `ai-daily:${getUtcDateKey()}`,
+    key: clientIp,
+    limit: dailyLimit,
+    windowSeconds: DAILY_WINDOW_SECONDS,
+  });
+  if (!quota.allowed) {
+    await emitMetric('ai_mentor.request', 1, { source, outcome: 'quota_exceeded' });
+    return {
+      ok: false,
+      response: Response.json(
+        {
+          error: `Bạn đã dùng hết ${dailyLimit} lượt AI miễn phí hôm nay. Bạn có thể quay lại vào ngày mai hoặc nhập Gemini API Key cá nhân trong Cài đặt để dùng không giới hạn.`,
+          quotaExceeded: true,
+          dailyLimit,
+          remaining: 0,
+        },
+        { status: 429, headers: { 'Cache-Control': 'no-store' } }
+      ),
+    };
+  }
+  return { ok: true, dailyLimit, remaining: quota.remaining };
+}
+
+async function callGeminiWithFallback(opts: {
+  initialModel: AiMentorModel;
+  wantStream: boolean;
+  systemInstruction: string;
+  input: string;
+  previousInteractionId?: string;
+  store: boolean;
+  responseFormat?: unknown;
+  apiKey: string;
+  source: 'server' | 'byok';
+  signal: AbortSignal;
+}): Promise<{ upstream: Response; activeModel: AiMentorModel }> {
+  const sendOnce = (targetModel: AiMentorModel, responseFormat?: unknown): Promise<Response> => {
+    const endpoint = opts.wantStream
+      ? `${GEMINI_INTERACTIONS_ENDPOINT}?alt=sse`
+      : GEMINI_INTERACTIONS_ENDPOINT;
+
+    const bodyPayload: Record<string, unknown> = {
+      model: targetModel,
+      system_instruction: opts.systemInstruction,
+      input: opts.input,
+      store: opts.store,
+    };
+    if (opts.wantStream) {
+      bodyPayload.stream = true;
+    }
+    if (opts.previousInteractionId) {
+      bodyPayload.previous_interaction_id = opts.previousInteractionId;
+    }
+    if (responseFormat !== undefined) {
+      bodyPayload.response_format = responseFormat;
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': opts.apiKey,
+      'Api-Revision': GEMINI_API_REVISION,
+    };
+    if (opts.wantStream) {
+      headers.Accept = 'text/event-stream';
+    }
+
+    return fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(bodyPayload),
+      signal: opts.signal,
+    });
+  };
+
+  let activeModel = opts.initialModel;
+  let upstream = await sendOnce(activeModel, opts.responseFormat);
+
+  if (!upstream.ok && upstream.status === 400 && opts.responseFormat !== undefined) {
+    upstream = await sendOnce(activeModel, undefined);
+  }
+
+  if (
+    !upstream.ok &&
+    upstream.status === 429 &&
+    opts.source === 'server' &&
+    activeModel === 'gemini-4-hydrogen'
+  ) {
+    activeModel = 'gemini-3.5-flash-lite';
+    upstream = await sendOnce(activeModel, opts.responseFormat);
+    if (!upstream.ok && upstream.status === 400 && opts.responseFormat !== undefined) {
+      upstream = await sendOnce(activeModel, undefined);
+    }
+  }
+
+  return { upstream, activeModel };
+}
+
 export async function POST(request: Request): Promise<Response> {
   const originCheck = validateOrigin(request);
   if (!originCheck.ok) {
@@ -571,91 +1220,151 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  let dailyLimit: number | undefined;
-  let remaining: number | undefined;
+  const isCacheableLearnSummary =
+    payload.action === 'learn' &&
+    payload.learnContext?.intent === 'summarize' &&
+    !payload.previousInteractionId &&
+    !payload.learnContext.selectedText;
+  const learnSummaryCacheKey = isCacheableLearnSummary
+    ? `learn-summary:v1:${sanitizeCacheKeyPart(payload.learnContext!.itemKey)}:${payload.learnContext!.lang}`
+    : null;
 
-  if (source === 'server') {
-    dailyLimit = resolveDailyLimit();
-    const quota = await consumeRateLimit({
-      namespace: `ai-daily:${getUtcDateKey()}`,
-      key: clientIp,
-      limit: dailyLimit,
-      windowSeconds: DAILY_WINDOW_SECONDS,
-    });
-    if (!quota.allowed) {
-      await emitMetric('ai_mentor.request', 1, { source, outcome: 'quota_exceeded' });
-      return Response.json(
-        {
-          error: `Bạn đã dùng hết ${dailyLimit} lượt AI miễn phí hôm nay. Bạn có thể quay lại vào ngày mai hoặc nhập Gemini API Key cá nhân trong Cài đặt để dùng không giới hạn.`,
-          quotaExceeded: true,
-          dailyLimit,
-          remaining: 0,
-        },
-        { status: 429, headers: { 'Cache-Control': 'no-store' } }
-      );
+  if (learnSummaryCacheKey) {
+    const cachedSummary = await getCachedValue(learnSummaryCacheKey);
+    if (cachedSummary) {
+      const peek = source === 'server' ? await peekServerQuota(clientIp) : undefined;
+      await emitMetric('ai_mentor.request', 1, {
+        source,
+        model: payload.model,
+        action: 'learn',
+        outcome: 'cache_hit',
+      });
+      return buildSseSingleShotResponse({
+        text: cachedSummary,
+        model: payload.model,
+        source,
+        remaining: peek?.remaining,
+        limit: peek?.dailyLimit,
+        cached: true,
+      });
     }
-    remaining = quota.remaining;
   }
 
-  const builtInput = buildServerContextPrompt(payload.prompt, payload.context!, {
-    compactFollowUp: Boolean(payload.previousInteractionId),
-    codeChanged: payload.codeChanged,
-  });
+  const slotQuizCacheKey =
+    payload.action === 'slot-quiz' && payload.quizContext
+      ? `slot-quiz:v1:slot-${payload.quizContext.slot}`
+      : null;
 
-  const callGeminiUpstream = (targetModel: AiMentorModel, wantStream: boolean) => {
-    const endpoint = wantStream
-      ? `${GEMINI_INTERACTIONS_ENDPOINT}?alt=sse`
-      : GEMINI_INTERACTIONS_ENDPOINT;
+  if (slotQuizCacheKey && !payload.quizContext?.regenerate) {
+    const cachedQuizRaw = await getCachedValue(slotQuizCacheKey);
+    if (cachedQuizRaw) {
+      try {
+        const parsedCached = JSON.parse(cachedQuizRaw) as unknown;
+        const validQuiz = validateSlotQuizPayload(
+          parsedCached,
+          payload.quizContext!.slot,
+          payload.quizContext!.title
+        );
+        if (validQuiz) {
+          const peek = source === 'server' ? await peekServerQuota(clientIp) : undefined;
+          await emitMetric('ai_mentor.request', 1, {
+            source,
+            model: payload.model,
+            action: 'slot-quiz',
+            outcome: 'cache_hit',
+          });
+          return Response.json(
+            {
+              ok: true,
+              quiz: validQuiz,
+              cached: true,
+              source,
+              model: payload.model,
+              remaining: peek?.remaining,
+              limit: peek?.dailyLimit,
+            },
+            { status: 200, headers: { 'Cache-Control': 'no-store' } }
+          );
+        }
+      } catch {
+        // ignore malformed cache entry and regenerate cleanly
+      }
+    }
+  }
 
-    const bodyPayload: Record<string, unknown> = {
-      model: targetModel,
-      system_instruction: SYSTEM_INSTRUCTION,
-      input: builtInput,
-      store: true,
+  const quotaResult = await consumeServerQuota(clientIp, source);
+  if (!quotaResult.ok) {
+    return quotaResult.response;
+  }
+  const dailyLimit = quotaResult.dailyLimit;
+  const remaining = quotaResult.remaining;
+
+  let systemInstruction = SYSTEM_INSTRUCTION;
+  let builtInput = '';
+  let storeInteraction = true;
+  let wantStream = payload.stream;
+  let responseFormat: unknown = undefined;
+
+  if (payload.action === 'learn' && payload.learnContext) {
+    systemInstruction = LEARN_SYSTEM_INSTRUCTION;
+    builtInput = buildLearnTutorPrompt(
+      payload.prompt,
+      payload.learnContext,
+      Boolean(payload.previousInteractionId)
+    );
+  } else if (payload.action === 'grade-exercise' && payload.exerciseContext) {
+    systemInstruction = GRADE_EXERCISE_SYSTEM_INSTRUCTION;
+    builtInput = buildGradeExercisePrompt(payload.exerciseContext);
+    storeInteraction = false;
+  } else if (payload.action === 'slot-quiz' && payload.quizContext) {
+    systemInstruction = SLOT_QUIZ_SYSTEM_INSTRUCTION;
+    builtInput = buildSlotQuizPrompt(payload.quizContext);
+    storeInteraction = false;
+    wantStream = false;
+    responseFormat = {
+      type: 'text',
+      mime_type: 'application/json',
+      schema: SLOT_QUIZ_JSON_SCHEMA,
     };
-    if (wantStream) {
-      bodyPayload.stream = true;
-    }
-    if (payload.previousInteractionId) {
-      bodyPayload.previous_interaction_id = payload.previousInteractionId;
-    }
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-      'Api-Revision': GEMINI_API_REVISION,
-    };
-    if (wantStream) {
-      headers.Accept = 'text/event-stream';
-    }
-
-    return fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(bodyPayload),
-      signal: request.signal,
+  } else {
+    systemInstruction =
+      payload.mentorStyle === 'socratic'
+        ? `${SYSTEM_INSTRUCTION} ${SOCRATIC_ADDENDUM}`
+        : SYSTEM_INSTRUCTION;
+    builtInput = buildServerContextPrompt(payload.prompt, payload.context!, {
+      compactFollowUp: Boolean(payload.previousInteractionId),
+      codeChanged: payload.codeChanged,
     });
-  };
+  }
 
   let activeModel: AiMentorModel = payload.model;
   let upstream: Response;
 
   try {
-    upstream = await callGeminiUpstream(activeModel, payload.stream);
-    if (
-      !upstream.ok &&
-      upstream.status === 429 &&
-      source === 'server' &&
-      activeModel === 'gemini-4-hydrogen'
-    ) {
-      activeModel = 'gemini-3.5-flash-lite';
-      upstream = await callGeminiUpstream(activeModel, payload.stream);
-    }
+    const called = await callGeminiWithFallback({
+      initialModel: payload.model,
+      wantStream,
+      systemInstruction,
+      input: builtInput,
+      previousInteractionId: storeInteraction ? payload.previousInteractionId : undefined,
+      store: storeInteraction,
+      responseFormat,
+      apiKey,
+      source,
+      signal: request.signal,
+    });
+    upstream = called.upstream;
+    activeModel = called.activeModel;
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       return new Response(null, { status: 499 });
     }
-    await emitMetric('ai_mentor.request', 1, { source, model: activeModel, outcome: 'network_error' });
+    await emitMetric('ai_mentor.request', 1, {
+      source,
+      model: activeModel,
+      action: payload.action,
+      outcome: 'network_error',
+    });
     return Response.json(
       { error: 'Không kết nối được tới Gemini API. Hãy kiểm tra kết nối mạng và thử lại.' },
       { status: 502, headers: { 'Cache-Control': 'no-store' } }
@@ -675,6 +1384,7 @@ export async function POST(request: Request): Promise<Response> {
     await emitMetric('ai_mentor.request', 1, {
       source,
       model: activeModel,
+      action: payload.action,
       outcome: `http_${upstream.status}`,
     });
     return Response.json(
@@ -688,10 +1398,63 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  if (payload.action === 'slot-quiz' && payload.quizContext) {
+    let data: InteractionApiResponse;
+    try {
+      data = (await upstream.json()) as InteractionApiResponse;
+    } catch {
+      return Response.json(
+        { error: 'Gemini API trả về định dạng không hợp lệ khi tạo Mini-Quiz.' },
+        { status: 502, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+    const rawReply = extractInteractionReply(data);
+    const parsedJson = rawReply ? extractJsonObject(rawReply) : null;
+    const quiz = validateSlotQuizPayload(
+      parsedJson,
+      payload.quizContext.slot,
+      payload.quizContext.title
+    );
+    if (!quiz) {
+      await emitMetric('ai_mentor.request', 1, {
+        source,
+        model: activeModel,
+        action: 'slot-quiz',
+        outcome: 'invalid_json',
+      });
+      return Response.json(
+        { error: 'AI trả về bộ câu hỏi chưa đúng định dạng JSON. Hãy bấm thử lại.' },
+        { status: 502, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+
+    if (slotQuizCacheKey) {
+      await setCachedValue(slotQuizCacheKey, JSON.stringify(quiz), SLOT_QUIZ_TTL_SECONDS);
+    }
+    await emitMetric('ai_mentor.request', 1, {
+      source,
+      model: activeModel,
+      action: 'slot-quiz',
+      outcome: 'ok',
+    });
+    return Response.json(
+      {
+        ok: true,
+        quiz,
+        cached: false,
+        source,
+        model: activeModel,
+        remaining,
+        limit: dailyLimit,
+      },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } }
+    );
+  }
+
   const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
 
   // Non-streaming path or upstream returned plain JSON instead of SSE
-  if (!payload.stream || !contentType.includes('text/event-stream') || !upstream.body) {
+  if (!wantStream || !contentType.includes('text/event-stream') || !upstream.body) {
     let data: InteractionApiResponse;
     try {
       data = (await upstream.json()) as InteractionApiResponse;
@@ -704,46 +1467,36 @@ export async function POST(request: Request): Promise<Response> {
 
     const reply = extractInteractionReply(data);
     if (!reply) {
-      await emitMetric('ai_mentor.request', 1, { source, model: activeModel, outcome: 'empty' });
+      await emitMetric('ai_mentor.request', 1, {
+        source,
+        model: activeModel,
+        action: payload.action,
+        outcome: 'empty',
+      });
       return Response.json(
         { error: 'Gemini API phản hồi trống (không tìm thấy nội dung trả lời). Hãy thử hỏi lại.' },
         { status: 502, headers: { 'Cache-Control': 'no-store' } }
       );
     }
 
-    await emitMetric('ai_mentor.request', 1, { source, model: activeModel, outcome: 'ok' });
+    if (learnSummaryCacheKey && reply.trim().length > 20) {
+      await setCachedValue(learnSummaryCacheKey, reply.trim(), LEARN_SUMMARY_TTL_SECONDS);
+    }
+    await emitMetric('ai_mentor.request', 1, {
+      source,
+      model: activeModel,
+      action: payload.action,
+      outcome: 'ok',
+    });
 
-    if (payload.stream) {
-      const singleStream = new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(
-            encodeSseEvent('meta', {
-              source,
-              model: activeModel,
-              remaining,
-              limit: dailyLimit,
-            })
-          );
-          controller.enqueue(encodeSseEvent('delta', { text: reply }));
-          controller.enqueue(
-            encodeSseEvent('done', {
-              interactionId: typeof data.id === 'string' ? data.id : undefined,
-              model: activeModel,
-              source,
-              remaining,
-              limit: dailyLimit,
-            })
-          );
-          controller.close();
-        },
-      });
-      return new Response(singleStream, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/event-stream; charset=utf-8',
-          'Cache-Control': 'no-store, no-transform',
-          'X-Accel-Buffering': 'no',
-        },
+    if (wantStream) {
+      return buildSseSingleShotResponse({
+        text: reply,
+        interactionId: typeof data.id === 'string' ? data.id : undefined,
+        model: activeModel,
+        source,
+        remaining,
+        limit: dailyLimit,
       });
     }
 
@@ -769,6 +1522,7 @@ export async function POST(request: Request): Promise<Response> {
       let sseBuffer = '';
       let interactionId: string | undefined;
       let hasEmittedText = false;
+      let collectedText = '';
       let errored = false;
 
       const safeEnqueue = (bytes: Uint8Array) => {
@@ -799,8 +1553,13 @@ export async function POST(request: Request): Promise<Response> {
 
         if (eventType === 'step.delta' || eventType === 'content.delta') {
           const deltaType = evt.delta?.type;
-          if ((!deltaType || deltaType === 'text') && typeof evt.delta?.text === 'string' && evt.delta.text.length > 0) {
+          if (
+            (!deltaType || deltaType === 'text') &&
+            typeof evt.delta?.text === 'string' &&
+            evt.delta.text.length > 0
+          ) {
             hasEmittedText = true;
+            collectedText += evt.delta.text;
             safeEnqueue(encodeSseEvent('delta', { text: evt.delta.text }));
           }
           return;
@@ -811,6 +1570,7 @@ export async function POST(request: Request): Promise<Response> {
             const fallbackReply = extractInteractionReply(evt.interaction);
             if (fallbackReply) {
               hasEmittedText = true;
+              collectedText += fallbackReply;
               safeEnqueue(encodeSseEvent('delta', { text: fallbackReply }));
             }
           }
@@ -863,8 +1623,20 @@ export async function POST(request: Request): Promise<Response> {
               message: 'Gemini API phản hồi trống (không tìm thấy nội dung trả lời). Hãy thử hỏi lại.',
             })
           );
-          await emitMetric('ai_mentor.request', 1, { source, model: activeModel, outcome: 'empty' });
+          await emitMetric('ai_mentor.request', 1, {
+            source,
+            model: activeModel,
+            action: payload.action,
+            outcome: 'empty',
+          });
         } else if (!errored) {
+          if (learnSummaryCacheKey && collectedText.trim().length > 20) {
+            await setCachedValue(
+              learnSummaryCacheKey,
+              collectedText.trim(),
+              LEARN_SUMMARY_TTL_SECONDS
+            );
+          }
           safeEnqueue(
             encodeSseEvent('done', {
               interactionId,
@@ -874,7 +1646,12 @@ export async function POST(request: Request): Promise<Response> {
               limit: dailyLimit,
             })
           );
-          await emitMetric('ai_mentor.request', 1, { source, model: activeModel, outcome: 'ok' });
+          await emitMetric('ai_mentor.request', 1, {
+            source,
+            model: activeModel,
+            action: payload.action,
+            outcome: 'ok',
+          });
         }
       } catch (err) {
         if (!(err instanceof DOMException && err.name === 'AbortError')) {
@@ -900,10 +1677,6 @@ export async function POST(request: Request): Promise<Response> {
 
   return new Response(stream, {
     status: 200,
-    headers: {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-store, no-transform',
-      'X-Accel-Buffering': 'no',
-    },
+    headers: SSE_RESPONSE_HEADERS,
   });
 }

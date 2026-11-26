@@ -311,4 +311,269 @@ describe('server/ai-mentor HTTP handler', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, model: 'gemini-3.5-flash-lite' });
   });
+
+  it('appends Socratic guidance when mentorStyle is socratic', async () => {
+    process.env.GEMINI_API_KEY = 'AIzaServerDemo';
+    let systemInstruction = '';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const parsed = JSON.parse(String(init?.body || '{}')) as { system_instruction?: string };
+        systemInstruction = parsed.system_instruction || '';
+        return makeSseResponse([
+          { data: { event_type: 'step.delta', delta: { type: 'text', text: 'Gợi ý từng bước...' } } },
+        ]);
+      })
+    );
+
+    const res = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-vercel-forwarded-for': '203.0.113.31',
+        },
+        body: JSON.stringify({
+          ...SAMPLE_CHAT_BODY,
+          mentorStyle: 'socratic',
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await res.text();
+    expect(systemInstruction).toContain('SOCRATIC');
+    expect(systemInstruction).toContain('TUYỆT ĐỐI KHÔNG');
+  });
+
+  it('streams action=learn and serves cached summary without burning daily quota', async () => {
+    process.env.GEMINI_API_KEY = 'AIzaServerDemo';
+    process.env.AI_DAILY_LIMIT = '10';
+    let upstreamCalls = 0;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        upstreamCalls += 1;
+        return makeSseResponse([
+          {
+            data: {
+              event_type: 'step.delta',
+              delta: { type: 'text', text: '- Ý 1: OOP là gì\n- Ý 2: Tính đóng gói\n- Ý 3: Constructor' },
+            },
+          },
+        ]);
+      })
+    );
+
+    const learnBody = {
+      action: 'learn',
+      model: 'gemini-3.5-flash-lite',
+      stream: true,
+      prompt: 'Tóm tắt 5 ý cốt lõi',
+      learnContext: {
+        kind: 'pro192',
+        itemKey: 'pro192:slots/slot-01',
+        title: 'Slot 01: OOP & JVM',
+        lang: 'vi',
+        slotNumber: 1,
+        intent: 'summarize',
+        excerpt: 'Java chạy trên JVM nhờ bytecode.',
+      },
+    };
+
+    const res1 = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.41' },
+        body: JSON.stringify(learnBody),
+      })
+    );
+    expect(res1.status).toBe(200);
+    const body1 = await res1.text();
+    expect(body1).toContain('Ý 1: OOP là gì');
+    expect(body1).toContain('"remaining":9');
+    expect(upstreamCalls).toBe(1);
+
+    // 2nd identical summary call hits cache -> upstreamCalls stays 1 & remaining stays 9
+    const res2 = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.41' },
+        body: JSON.stringify(learnBody),
+      })
+    );
+    expect(res2.status).toBe(200);
+    const body2 = await res2.text();
+    expect(upstreamCalls).toBe(1);
+    expect(body2).toContain('"cached":true');
+    expect(body2).toContain('"remaining":9');
+  });
+
+  it('validates and streams action=grade-exercise', async () => {
+    process.env.GEMINI_API_KEY = 'AIzaServerDemo';
+    const badRes = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'grade-exercise',
+          exerciseContext: {
+            exerciseId: '1.1',
+            slot: 1,
+            title: 'Demo',
+            promptMd: 'Viết lớp Student',
+            solutionMd: 'class Student {}',
+            userAnswer: '   ',
+          },
+        }),
+      })
+    );
+    expect(badRes.status).toBe(400);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        makeSseResponse([
+          { data: { event_type: 'step.delta', delta: { type: 'text', text: '**Đánh giá: 8/10**\nTốt.' } } },
+        ])
+      )
+    );
+
+    const okRes = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.42' },
+        body: JSON.stringify({
+          action: 'grade-exercise',
+          model: 'gemini-3.5-flash-lite',
+          exerciseContext: {
+            exerciseId: '1.1',
+            slot: 1,
+            title: 'Demo',
+            promptMd: 'Viết lớp Student',
+            solutionMd: 'class Student {}',
+            userAnswer: 'public class Student { private String name; }',
+          },
+        }),
+      })
+    );
+    expect(okRes.status).toBe(200);
+    expect(await okRes.text()).toContain('Đánh giá: 8/10');
+  });
+
+  it('handles action=slot-quiz with structured output, 400 retry fallback, cache hit, and regenerate', async () => {
+    process.env.GEMINI_API_KEY = 'AIzaServerDemo';
+    process.env.AI_DAILY_LIMIT = '15';
+    let upstreamAttempts = 0;
+
+    const sampleQuizJson = JSON.stringify({
+      questions: [
+        {
+          id: 'q1',
+          question: 'Từ khóa nào khai báo lớp trong Java?',
+          codeSnippet: '',
+          options: ['struct', 'class', 'interface', 'object'],
+          correctIndex: 1,
+          explanation: 'class dùng để khai báo lớp đối tượng.',
+          topicTag: 'OOP',
+        },
+        {
+          id: 'q2',
+          question: 'Kiểu mặc định của số thực dấu phẩy động 3.14 là gì?',
+          codeSnippet: '',
+          options: ['float', 'double', 'BigDecimal', 'long'],
+          correctIndex: 1,
+          explanation: 'Literal số thực mặc định là double.',
+          topicTag: 'Kiểu dữ liệu',
+        },
+        {
+          id: 'q3',
+          question: 'JDK 8 có hỗ trợ từ khóa var không?',
+          codeSnippet: 'var x = 10;',
+          options: ['Có', 'Không', 'Chỉ trong static', 'Chỉ JDK 7'],
+          correctIndex: 1,
+          explanation: 'var chỉ có từ Java 10 trở lên.',
+          topicTag: 'JDK 8',
+        },
+      ],
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+        upstreamAttempts += 1;
+        const body = JSON.parse(String(init?.body || '{}')) as { response_format?: unknown };
+        // Simulate upstream rejecting response_format with 400 on 1st call -> retries without it
+        if (upstreamAttempts === 1 && body.response_format) {
+          return new Response(JSON.stringify({ error: { message: 'unsupported schema' } }), { status: 400 });
+        }
+        return new Response(
+          JSON.stringify({ id: 'quiz_1', output_text: sampleQuizJson }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      })
+    );
+
+    const quizReqBody = {
+      action: 'slot-quiz',
+      model: 'gemini-3.5-flash-lite',
+      quizContext: {
+        slot: 3,
+        title: 'Lớp & Đối tượng',
+        objectives: ['Hiểu constructor'],
+        examTraps: ['Không dùng var ở JDK 8'],
+        examFocus: ['OOP', 'JDK 8'],
+      },
+    };
+
+    const res1 = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.55' },
+        body: JSON.stringify(quizReqBody),
+      })
+    );
+    expect(res1.status).toBe(200);
+    const data1 = (await res1.json()) as {
+      ok: boolean;
+      cached: boolean;
+      remaining: number;
+      quiz: { questions: unknown[] };
+    };
+    expect(data1.ok).toBe(true);
+    expect(data1.cached).toBe(false);
+    expect(data1.remaining).toBe(14);
+    expect(data1.quiz.questions).toHaveLength(3);
+    expect(upstreamAttempts).toBe(2); // 1st with response_format failed 400, 2nd succeeded
+
+    // 2nd call hits cache -> does not call fetch or consume quota
+    const res2 = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.55' },
+        body: JSON.stringify(quizReqBody),
+      })
+    );
+    const data2 = (await res2.json()) as { cached: boolean; remaining: number };
+    expect(data2.cached).toBe(true);
+    expect(data2.remaining).toBe(14);
+    expect(upstreamAttempts).toBe(2);
+
+    // regenerate=true bypasses cache
+    const res3 = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.55' },
+        body: JSON.stringify({
+          ...quizReqBody,
+          quizContext: { ...quizReqBody.quizContext, regenerate: true },
+        }),
+      })
+    );
+    const data3 = (await res3.json()) as { cached: boolean; remaining: number };
+    expect(data3.cached).toBe(false);
+    expect(data3.remaining).toBe(13);
+    expect(upstreamAttempts).toBe(3);
+  });
 });
