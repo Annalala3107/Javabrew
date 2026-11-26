@@ -19,18 +19,26 @@ import {
   Languages,
   RefreshCw,
   Search,
+  Sparkles,
 } from 'lucide-react';
 import { CodingDrillBlock } from '../components/CodingDrillBlock';
 import { ExerciseBlock } from '../components/ExerciseBlock';
 import { DocsDirectoryView } from '../components/learn/DocsDirectoryView';
+import {
+  LessonAiTutorDrawer,
+  type LessonTutorInitialRequest,
+} from '../components/learn/LessonAiTutorDrawer';
+import { LessonSelectionPopover } from '../components/learn/LessonSelectionPopover';
 import { Pro192OverviewView } from '../components/learn/Pro192OverviewView';
 import { ResourcesVaultView } from '../components/learn/ResourcesVaultView';
+import { SlotFeQuizBlock } from '../components/learn/SlotFeQuizBlock';
 import { BookmarkRibbonButton } from '../components/lucian/BookmarkRibbonButton';
 import { ReadingProgressFab } from '../components/lucian/ReadingProgressFab';
 import { SkeletonCard } from '../components/lucian/SkeletonCard';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { TableOfContents } from '../components/TableOfContents';
 import { useApp } from '../context/AppContext';
+import type { LearnTutorContext } from '../services/aiMentorService';
 import type { NavArticle, TocHeading } from '../types/content';
 import { parseMarkdownDocument, splitPro192StageContent } from '../utils/markdown';
 import {
@@ -96,6 +104,9 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   const [forceRevealAll, setForceRevealAll] = useState<boolean | null>(null);
   const [domHeadings, setDomHeadings] = useState<TocHeading[]>([]);
   const articleRef = useRef<HTMLDivElement>(null);
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const [aiDrawerRequest, setAiDrawerRequest] = useState<LessonTutorInitialRequest | null>(null);
+  const aiReqNonceRef = useRef(0);
 
   const activeSlot = useMemo(() => {
     if (!pro192 || !slug) return null;
@@ -476,6 +487,35 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
   const slotLabExampleId = activeSlot
     ? `slot-${String(activeSlot.slot).padStart(2, '0')}-lab`
     : null;
+
+  const lessonExcerpt = useMemo(
+    () => (parsed?.body || rawMd || '').replace(/\r?\n{3,}/g, '\n\n').slice(0, 5500),
+    [parsed?.body, rawMd]
+  );
+
+  const lessonTutorContext = useMemo<LearnTutorContext>(
+    () => ({
+      kind: mode === 'docs' ? 'docs' : 'pro192',
+      itemKey: itemKey || (mode === 'pro192' ? `pro192:${slug || 'overview'}` : 'docs:overview'),
+      title: displayTitle,
+      lang: loadedLang,
+      domainLabel: currentDocInfo?.domainLabel,
+      slotNumber: activeSlot?.slot,
+      objectives: activeSlot?.objectives,
+      examTraps: activeSlot?.examTraps,
+      excerpt: lessonExcerpt,
+    }),
+    [
+      mode,
+      itemKey,
+      slug,
+      displayTitle,
+      loadedLang,
+      currentDocInfo?.domainLabel,
+      activeSlot,
+      lessonExcerpt,
+    ]
+  );
 
   const breadcrumbText = useMemo(() => {
     if (mode === 'pro192') {
@@ -1040,6 +1080,15 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                                 : '▶ Thử code bài này'}
                           </button>
                         )}
+
+                        <button
+                          type="button"
+                          onClick={() => setAiDrawerOpen(true)}
+                          className="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-[var(--info)]/45 bg-[var(--info-soft)] px-3 py-1 font-semibold text-[var(--info-text)] transition-opacity hover:opacity-90"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>✨ AI Bài học</span>
+                        </button>
                       </div>
                     </div>
 
@@ -1377,6 +1426,11 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                     )
                   )}
 
+                  {/* Mini-Quiz FE ôn nhanh cuối Slot */}
+                  {mode === 'pro192' && activeSlot && !loading && !error && (
+                    <SlotFeQuizBlock slot={activeSlot} excerpt={lessonExcerpt} />
+                  )}
+
                   {/* Bottom Slot Completion Action */}
                   {mode === 'pro192' && activeSlot && (
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-canvas)] px-4 py-3 text-xs">
@@ -1430,12 +1484,20 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
                   {/* Personal Local Notes (matches view-m34) */}
                   {itemKey && (
                     <div className="space-y-2 text-xs">
-                      <label
-                        htmlFor="lesson-personal-note"
-                        className="block font-semibold text-[var(--text-primary)]"
-                      >
-                        🗒 Ghi chú cá nhân cho bài này (Lưu trên máy):
-                      </label>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <label
+                          htmlFor="lesson-personal-note"
+                          className="block font-semibold text-[var(--text-primary)]"
+                        >
+                          🗒 Ghi chú cá nhân cho bài này (Lưu trên máy):
+                        </label>
+                        <Link
+                          to="/notes"
+                          className="font-medium text-[var(--info-text)] hover:underline"
+                        >
+                          Xem sổ tay →
+                        </Link>
+                      </div>
                       <textarea
                         id="lesson-personal-note"
                         rows={2}
@@ -1566,7 +1628,33 @@ export function LearnPage({ mode }: { mode: LearnMode }) {
           </div>
         </div>
       </div>
-      {isReaderView && <ReadingProgressFab focusMode={focusMode} />}
+      {isReaderView && (
+        <>
+          <LessonSelectionPopover
+            containerRef={articleRef}
+            enabled={!loading && !error && !aiDrawerOpen}
+            isJavaOrPro192={mode === 'pro192' || currentDocInfo?.domainId === 'java'}
+            isEnglishContext={mode === 'docs' && (loadedLang === 'en' || bilingualMode)}
+            onSelectAction={(selectedText, intent, displayPrompt) => {
+              aiReqNonceRef.current += 1;
+              setAiDrawerRequest({
+                nonce: aiReqNonceRef.current,
+                selectedText,
+                intent,
+                prompt: displayPrompt,
+              });
+              setAiDrawerOpen(true);
+            }}
+          />
+          <LessonAiTutorDrawer
+            open={aiDrawerOpen}
+            onClose={() => setAiDrawerOpen(false)}
+            lessonContext={lessonTutorContext}
+            initialRequest={aiDrawerRequest}
+          />
+          <ReadingProgressFab focusMode={focusMode} />
+        </>
+      )}
     </div>
   );
 }
