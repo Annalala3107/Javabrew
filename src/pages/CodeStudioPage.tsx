@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { CodeDiffView } from '../components/CodeDiffView';
 import { JavaCodeEditor, MAX_CODE_CHARS, type JumpTarget } from '../components/JavaCodeEditor';
+import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { TryitSplitPane } from '../components/TryitSplitPane';
 import { CodeCharLimitMeter } from '../components/lucian/CodeCharLimitMeter';
 import { CopyCodeButton } from '../components/lucian/CopyCodeButton';
@@ -30,8 +31,8 @@ import { StudioExamplesDrawer } from '../components/studio/StudioExamplesDrawer'
 import { StudioOutputConsole } from '../components/studio/StudioOutputConsole';
 import { useApp } from '../context/AppContext';
 import {
-  askGeminiMentor,
   buildOfflineMentorReply,
+  streamAiMentor,
   type AiMentorContext,
 } from '../services/aiMentorService';
 import {
@@ -134,6 +135,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     theme,
     byokKey,
     aiModel,
+    aiServerStatus,
+    refreshAiServerStatus,
+    updateAiServerQuota,
     progress,
     setIsSettingsOpen,
     markPeStatus,
@@ -148,13 +152,21 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const urlSharedCode = searchParams.get('code');
 
   const challenges = useMemo(() => pro192?.peChallenges ?? [], [pro192]);
-  const numericId = Number(peId) || 1;
+  const rawPeParam = peId;
+  const parsedPeId = rawPeParam ? Number(rawPeParam) : 1;
+  const isInvalidPeParam =
+    !playgroundMode &&
+    rawPeParam !== undefined &&
+    (!Number.isInteger(parsedPeId) ||
+      parsedPeId < 1 ||
+      (challenges.length > 0 && !challenges.some((c) => c.id === parsedPeId)));
+  const numericId = Number.isInteger(parsedPeId) && parsedPeId > 0 ? parsedPeId : 1;
   const activePe = useMemo(
     () =>
-      playgroundMode
+      playgroundMode || isInvalidPeParam
         ? null
         : challenges.find((c) => c.id === numericId) || challenges[0] || null,
-    [playgroundMode, challenges, numericId]
+    [playgroundMode, isInvalidPeParam, challenges, numericId]
   );
 
   const [leftTab, setLeftTab] = useState<'spec' | 'theory'>('spec');
@@ -299,7 +311,9 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const pgDraftTimerRef = useRef<number>(0);
   const charLimitToastAtRef = useRef<number>(0);
   const runAbortRef = useRef<AbortController | null>(null);
+  const aiAbortRef = useRef<AbortController | null>(null);
   const lastInteractionIdRef = useRef<string | null>(null);
+  const lastAiFilesSigRef = useRef<string>('');
   const appliedImportKeyRef = useRef<string | null>(null);
   const appliedQueryKeyRef = useRef<string>(
     playgroundMode
@@ -336,12 +350,38 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   const [secondsLeft, setSecondsLeft] = useState(suggestedMinutes * 60);
   const [timerRunning, setTimerRunning] = useState(false);
 
+  const abortActiveAi = useCallback(() => {
+    if (aiAbortRef.current) {
+      aiAbortRef.current.abort();
+      aiAbortRef.current = null;
+    }
+    setAiBusy(false);
+    setPendingPrompt('');
+    setChatHistory((prev) =>
+      prev.map((m) =>
+        m.streaming
+          ? {
+              ...m,
+              streaming: false,
+              reply: m.reply || 'Đã dừng phản hồi AI.',
+            }
+          : m
+      )
+    );
+  }, []);
+
+  useEffect(() => {
+    void refreshAiServerStatus();
+  }, [refreshAiServerStatus]);
+
   // Sync AI Mentor, drawer, and run state cleanly when switching between PE <-> Playground
   useEffect(() => {
     if (prevPlaygroundModeRef.current === playgroundMode) return;
     prevPlaygroundModeRef.current = playgroundMode;
     runAbortRef.current?.abort();
+    abortActiveAi();
     lastInteractionIdRef.current = null;
+    lastAiFilesSigRef.current = '';
     setShowDiff(false);
     setDiagnostics([]);
     setCloudTestResults([]);
@@ -350,7 +390,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     if (!playgroundMode) {
       setShowExamplesDrawer(false);
     }
-  }, [playgroundMode]);
+  }, [playgroundMode, abortActiveAi]);
 
   // Persist Tryit preferences cleanly
   useEffect(() => {
@@ -522,6 +562,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     if (playgroundMode || !activePe || loadedPeId === activePe.id) return;
 
     runAbortRef.current?.abort();
+    abortActiveAi();
     if (latestDraftRef.current && latestDraftRef.current.peId !== activePe.id) {
       flushLatestDraft();
     }
@@ -560,12 +601,13 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     setChatHistory([]);
     setPendingPrompt('');
     lastInteractionIdRef.current = null;
+    lastAiFilesSigRef.current = '';
     setTimerRunning(false);
     setSecondsLeft(suggestedMinutes * 60);
 
     const initialEval = evaluatePeCode(activePe.id, initMain, initEntity);
     setDiagnosisCards(initialEval.diagnosisCards);
-  }, [playgroundMode, activePe, loadedPeId, suggestedMinutes]);
+  }, [playgroundMode, activePe, loadedPeId, suggestedMinutes, abortActiveAi]);
 
   // Record last visited route for Dashboard resume banner
   useEffect(() => {
@@ -591,6 +633,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   useEffect(() => {
     return () => {
       runAbortRef.current?.abort();
+      aiAbortRef.current?.abort();
       flushLatestDraft();
       flushPlaygroundDraft();
     };
@@ -687,13 +730,50 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   }, [timerRunning, playgroundMode]);
 
   useEffect(() => {
-    if (secondsLeft === 0 && timerRunning) setTimerRunning(false);
-  }, [secondsLeft, timerRunning]);
+    if (secondsLeft === 0 && timerRunning) {
+      setTimerRunning(false);
+      pushToast({
+        title: 'Hết giờ làm bài PE!',
+        description: 'Bạn vẫn có thể tiếp tục hoàn thiện code và bấm Chấm Test Case.',
+        tone: 'warn',
+      });
+    }
+  }, [secondsLeft, timerRunning, pushToast]);
 
-  const relatedSlot = useMemo(() => {
-    if (!activePe || !pro192 || activePe.relatedSlots.length === 0) return null;
-    return pro192.slots.find((s) => s.slot === activePe.relatedSlots[0]) || null;
+  const relatedSlotsList = useMemo(() => {
+    if (!activePe || !pro192 || activePe.relatedSlots.length === 0) return [];
+    return pro192.slots.filter((s) => activePe.relatedSlots.includes(s.slot));
   }, [activePe, pro192]);
+
+  const relatedSlot = relatedSlotsList[0] ?? null;
+
+  const theoryTraps = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const sl of relatedSlotsList) {
+      for (const trap of sl.examTraps ?? []) {
+        if (trap && !seen.has(trap)) {
+          seen.add(trap);
+          out.push(trap);
+        }
+      }
+    }
+    return out.slice(0, 4);
+  }, [relatedSlotsList]);
+
+  const theoryObjectives = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const sl of relatedSlotsList) {
+      for (const obj of sl.objectives ?? []) {
+        if (obj && !seen.has(obj)) {
+          seen.add(obj);
+          out.push(obj);
+        }
+      }
+    }
+    return out.slice(0, 3);
+  }, [relatedSlotsList]);
 
   // PE File Names
   const hasEntityFile = Boolean(activePe?.entityCode?.trim());
@@ -1567,7 +1647,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
   const sendAiPrompt = async (promptText: string) => {
     const cleanPrompt = promptText.trim();
-    if (!cleanPrompt) return;
+    if (!cleanPrompt || aiBusy) return;
     if (!playgroundMode && !activePe) return;
     setChatInput('');
 
@@ -1597,59 +1677,143 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
         .map((c) => `${c.title}: ${c.description}`),
     };
 
-    if (byokKey) {
-      setPendingPrompt(cleanPrompt);
+    const canUseLiveAi = Boolean(byokKey || aiServerStatus?.available);
+    if (canUseLiveAi) {
+      const filesSig = filesForContext.map((f) => `${f.name}:${f.content}`).join('\n---\n');
+      const codeChanged = !lastInteractionIdRef.current || filesSig !== lastAiFilesSigRef.current;
+      const targetModel = byokKey ? aiModel : aiServerStatus?.defaultModel || aiModel;
+      const initialBadge = byokKey ? targetModel : `AI Tự động · ${targetModel}`;
+
+      aiAbortRef.current?.abort();
+      const controller = new AbortController();
+      aiAbortRef.current = controller;
+
+      const msgId = `msg-${Date.now()}`;
       setAiBusy(true);
+      setPendingPrompt('');
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          id: msgId,
+          prompt: cleanPrompt,
+          reply: '',
+          tone: 'ai',
+          badgeLabel: initialBadge,
+          streaming: true,
+          liveStreamed: true,
+        },
+      ]);
+
       try {
-        const res = await askGeminiMentor({
-          apiKey: byokKey,
-          model: aiModel,
+        const res = await streamAiMentor({
+          apiKey: byokKey || undefined,
+          model: targetModel,
           prompt: cleanPrompt,
           context,
           previousInteractionId: lastInteractionIdRef.current,
+          codeChanged,
+          signal: controller.signal,
+          onMeta: (meta) => {
+            if (aiAbortRef.current !== controller) return;
+            const badge = meta.source === 'byok' ? meta.model : `AI Tự động · ${meta.model}`;
+            setChatHistory((prev) =>
+              prev.map((m) => (m.id === msgId ? { ...m, badgeLabel: badge } : m))
+            );
+            if (typeof meta.remaining === 'number') {
+              updateAiServerQuota(meta.remaining, meta.limit);
+            }
+          },
+          onDelta: (chunk) => {
+            if (aiAbortRef.current !== controller) return;
+            setChatHistory((prev) =>
+              prev.map((m) => (m.id === msgId ? { ...m, reply: m.reply + chunk } : m))
+            );
+          },
         });
+
+        if (aiAbortRef.current !== controller) return;
+
         if (res.ok) {
           if (res.interactionId) {
             lastInteractionIdRef.current = res.interactionId;
           }
-          setChatHistory((prev) => [
-            ...prev,
-            {
-              id: `msg-${Date.now()}`,
-              prompt: cleanPrompt,
-              reply: res.reply,
-              tone: 'ai',
-              badgeLabel: res.model,
-            },
-          ]);
+          lastAiFilesSigRef.current = filesSig;
+          if (typeof res.remaining === 'number') {
+            updateAiServerQuota(res.remaining, res.limit);
+          }
+          const finalBadge =
+            res.source === 'server' ? `AI Tự động · ${res.model}` : res.model;
+          setChatHistory((prev) =>
+            prev.map((m) =>
+              m.id === msgId
+                ? {
+                    ...m,
+                    reply: res.reply || m.reply,
+                    streaming: false,
+                    badgeLabel: finalBadge,
+                  }
+                : m
+            )
+          );
         } else {
-          setChatHistory((prev) => [
-            ...prev,
-            {
-              id: `msg-${Date.now()}`,
-              prompt: cleanPrompt,
-              reply: res.errorMessage,
-              tone: 'error',
-              badgeLabel: res.status ? `Lỗi HTTP ${res.status}` : 'Lỗi kết nối',
-            },
-          ]);
+          if (res.quotaExceeded) {
+            updateAiServerQuota(0, res.limit);
+          } else if (typeof res.remaining === 'number') {
+            updateAiServerQuota(res.remaining, res.limit);
+          }
+          setChatHistory((prev) =>
+            prev.map((m) =>
+              m.id === msgId
+                ? {
+                    ...m,
+                    reply: res.errorMessage,
+                    tone: 'error',
+                    streaming: false,
+                    quotaExceeded: res.quotaExceeded,
+                    badgeLabel: res.quotaExceeded
+                      ? 'Hết lượt hôm nay'
+                      : res.status
+                        ? `Lỗi HTTP ${res.status}`
+                        : 'Lỗi kết nối',
+                  }
+                : m
+            )
+          );
         }
       } catch (err) {
-        if (!(err instanceof DOMException && err.name === 'AbortError')) {
-          setChatHistory((prev) => [
-            ...prev,
-            {
-              id: `msg-${Date.now()}`,
-              prompt: cleanPrompt,
-              reply: 'Không thể hoàn tất yêu cầu tới Gemini API. Hãy kiểm tra lại kết nối.',
-              tone: 'error',
-              badgeLabel: 'Lỗi mạng',
-            },
-          ]);
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          setChatHistory((prev) =>
+            prev.map((m) =>
+              m.id === msgId
+                ? {
+                    ...m,
+                    streaming: false,
+                    reply: m.reply || 'Đã dừng phản hồi AI.',
+                  }
+                : m
+            )
+          );
+        } else {
+          setChatHistory((prev) =>
+            prev.map((m) =>
+              m.id === msgId
+                ? {
+                    ...m,
+                    reply: 'Không thể hoàn tất yêu cầu tới Gemini API. Hãy kiểm tra lại kết nối.',
+                    tone: 'error',
+                    streaming: false,
+                    badgeLabel: 'Lỗi mạng',
+                  }
+                : m
+            )
+          );
         }
       } finally {
-        setAiBusy(false);
-        setPendingPrompt('');
+        if (aiAbortRef.current === controller) {
+          aiAbortRef.current = null;
+          setAiBusy(false);
+          setPendingPrompt('');
+        }
       }
       return;
     }
@@ -1682,6 +1846,36 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     }
     return Array.from(groups.entries());
   }, [challenges]);
+
+  if (isInvalidPeParam) {
+    return (
+      <div
+        role="alert"
+        className="mx-auto my-8 max-w-lg space-y-3 rounded-xl border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-6 text-center text-xs"
+      >
+        <h1 className="text-base font-bold text-[var(--text-primary)]">
+          Không tìm thấy đề PE “{rawPeParam}”
+        </h1>
+        <p className="text-[var(--text-muted)]">
+          Mã đề PE không hợp lệ hoặc nằm ngoài bộ 19 câu đề PE hiện có (PE1–PE5).
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+          <Link
+            to="/pe"
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3.5 py-1.5 font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
+          >
+            ← Về Kho Đề PE
+          </Link>
+          <Link
+            to="/studio/1"
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3.5 py-1.5 font-semibold text-[var(--text-primary)] hover:border-[var(--accent)]"
+          >
+            Mở PE1-Q1
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!playgroundMode && (!activePe || loadedPeId !== activePe.id)) {
     if (!activePe && metaError) {
@@ -2394,24 +2588,75 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-2.5 leading-relaxed text-[var(--text-muted)]">
-                    <div className="font-semibold text-[var(--accent-text)]">
-                      Mẹo làm nhanh {activePe!.code}:
-                    </div>
-                    <p>
-                      1. Luôn kiểm tra dữ liệu biên (
-                      <code className="text-[var(--accent-text)]">null</code>, chuỗi rỗng, giới hạn
-                      mảng) ngay dòng đầu tiên của hàm.
-                    </p>
-                    <p>
-                      2. Chú ý annotation{' '}
-                      <code className="text-[var(--accent-text)]">@Override</code>, đóng luồng bằng{' '}
-                      <code className="text-[var(--accent-text)]">try-with-resources</code> và định
-                      dạng <code className="text-[var(--accent-text)]">toString()</code> chính xác
-                      từng ký tự.
-                    </p>
+                  <div className="space-y-3 leading-relaxed text-[var(--text-muted)]">
+                    {theoryTraps.length > 0 ? (
+                      <div className="space-y-2">
+                        <div className="font-semibold text-[var(--accent-text)]">
+                          ⚠ Bẫy thi PE &amp; JDK 8 ({activePe!.code}):
+                        </div>
+                        <ul className="space-y-1.5">
+                          {theoryTraps.map((trap) => (
+                            <li
+                              key={trap}
+                              className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning-soft)] p-2.5 text-[var(--text-primary)]"
+                            >
+                              <MarkdownRenderer content={trap} currentRel="pro192/README.md" compact />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="font-semibold text-[var(--accent-text)]">
+                          Mẹo làm nhanh {activePe!.code}:
+                        </div>
+                        <p>
+                          1. Luôn kiểm tra dữ liệu biên (
+                          <code className="text-[var(--accent-text)]">null</code>, chuỗi rỗng, giới hạn
+                          mảng) ngay dòng đầu tiên của hàm.
+                        </p>
+                        <p>
+                          2. Chú ý annotation{' '}
+                          <code className="text-[var(--accent-text)]">@Override</code>, chữ ký hàm chuẩn JDK 8 và định
+                          dạng <code className="text-[var(--accent-text)]">toString()</code> chính xác
+                          từng ký tự.
+                        </p>
+                      </div>
+                    )}
+
+                    {theoryObjectives.length > 0 && (
+                      <div className="space-y-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3">
+                        <div className="font-semibold text-[var(--text-primary)]">
+                          🎯 Mục tiêu kiến thức liên quan:
+                        </div>
+                        <ul className="space-y-1">
+                          {theoryObjectives.map((obj) => (
+                            <li key={obj} className="text-[var(--text-secondary)]">
+                              <MarkdownRenderer
+                                content={`- ${obj}`}
+                                currentRel="pro192/README.md"
+                                compact
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     <div className="flex flex-col gap-1.5 pt-1">
-                      {relatedSlot ? (
+                      {relatedSlotsList.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {relatedSlotsList.map((sl) => (
+                            <Link
+                              key={sl.slot}
+                              to={`/pro192/${stageFileToSlug(sl.file)}`}
+                              className="inline-flex items-center rounded-md border border-[var(--info)]/35 bg-[var(--info-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--info-text)] hover:opacity-90"
+                            >
+                              Mở Slot {String(sl.slot).padStart(2, '0')} →
+                            </Link>
+                          ))}
+                        </div>
+                      ) : relatedSlot ? (
                         <Link
                           to={`/pro192/${stageFileToSlug(relatedSlot.file)}?slot=${relatedSlot.slot}`}
                           className="inline-block text-[var(--info)] underline"
@@ -2453,11 +2698,16 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
             activeFileName={activeFileName}
             byokKey={byokKey}
             aiModel={aiModel}
+            aiServerStatus={aiServerStatus}
+            hasDiagnostics={diagnostics.length > 0}
+            hasFailedTests={cloudTestResults.some((t) => !t.passed)}
             onOpenSettings={() => setIsSettingsOpen(true)}
             chatHistory={chatHistory}
             onClearChat={() => {
+              abortActiveAi();
               setChatHistory([]);
               lastInteractionIdRef.current = null;
+              lastAiFilesSigRef.current = '';
             }}
             onClose={() => setShowAiPane(false)}
             diagnosisCards={diagnosisCards}
@@ -2474,6 +2724,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
             chatInput={chatInput}
             onChatInputChange={setChatInput}
             onSendPrompt={(prompt) => void sendAiPrompt(prompt)}
+            onAbortAi={abortActiveAi}
           />
         )}
       </div>

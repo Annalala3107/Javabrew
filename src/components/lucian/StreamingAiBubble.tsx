@@ -9,21 +9,31 @@ interface StreamingAiBubbleProps {
   prompt: string;
   reply?: string;
   thinking?: boolean;
+  streaming?: boolean;
+  liveStreamed?: boolean;
   tone?: 'ai' | 'offline' | 'error';
   badgeLabel?: string;
   onOpenSettings?: () => void;
+  onAbortStream?: () => void;
 }
 
 export function StreamingAiBubble({
   prompt,
   reply = '',
   thinking = false,
+  streaming = false,
+  liveStreamed = false,
   tone = 'ai',
   badgeLabel,
   onOpenSettings,
+  onAbortStream,
 }: StreamingAiBubbleProps) {
   const words = useMemo(() => reply.split(/(\s+)/).filter(Boolean), [reply]);
-  const skipAnimation = tone === 'error' || getPrefersReducedMotion();
+  const skipAnimation =
+    tone === 'error' ||
+    Boolean(streaming) ||
+    Boolean(liveStreamed) ||
+    getPrefersReducedMotion();
   const [visibleCount, setVisibleCount] = useState<number>(() =>
     skipAnimation ? words.length : 0
   );
@@ -42,7 +52,13 @@ export function StreamingAiBubble({
       return;
     }
 
-    if (tone === 'error' || getPrefersReducedMotion() || words.length === 0) {
+    if (
+      tone === 'error' ||
+      streaming ||
+      (liveStreamed && replaySeed === 0) ||
+      getPrefersReducedMotion() ||
+      words.length === 0
+    ) {
       stoppedRef.current = false;
       setVisibleCount(words.length);
       setStopped(false);
@@ -69,9 +85,13 @@ export function StreamingAiBubble({
       cancelled = true;
       window.clearTimeout(timerRef.current);
     };
-  }, [reply, thinking, tone, words.length, replaySeed]);
+  }, [reply, thinking, streaming, liveStreamed, tone, words.length, replaySeed]);
 
   const handleStop = () => {
+    if (streaming && onAbortStream) {
+      onAbortStream();
+      return;
+    }
     stoppedRef.current = true;
     window.clearTimeout(timerRef.current);
     setStopped(true);
@@ -84,14 +104,20 @@ export function StreamingAiBubble({
     setVisibleCount(words.length);
   };
 
-  const isStreaming = !thinking && !stopped && visibleCount < words.length;
-  const shownText = thinking ? '' : words.slice(0, visibleCount).join('');
+  const isLocalAnimating = !thinking && !streaming && !stopped && visibleCount < words.length;
+  const isActivelyStreaming = Boolean(streaming) || isLocalAnimating;
+  const shownText = thinking
+    ? ''
+    : streaming
+      ? reply
+      : words.slice(0, visibleCount).join('');
+  const showThinkingDots = thinking || (streaming && reply.length === 0);
 
   return (
     <div
       className={[
         'ux u086-card',
-        thinking || isStreaming ? 'is-gen' : '',
+        showThinkingDots || isActivelyStreaming ? 'is-gen' : '',
         tone === 'error' ? 'is-err' : '',
       ]
         .filter(Boolean)
@@ -118,20 +144,35 @@ export function StreamingAiBubble({
       <div className="u086-a">
         <span className="u086-av" aria-hidden="true" />
         <div className="u086-body">
-          {thinking ? (
-            <span className="u086-dots" aria-label="AI đang suy nghĩ">
-              <i />
-              <i />
-              <i />
-            </span>
+          {showThinkingDots ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="u086-dots" aria-label="AI đang suy nghĩ">
+                <i />
+                <i />
+                <i />
+              </span>
+              {streaming && onAbortStream && (
+                <button type="button" onClick={onAbortStream} className="u086-ctl">
+                  <Square className="h-3 w-3" />
+                  <span>Dừng</span>
+                </button>
+              )}
+            </div>
           ) : (
             <>
               <div className="u086-w">
                 <MarkdownRenderer content={shownText} currentRel="studio/ai-mentor.md" compact />
-                {isStreaming && <span className="u086-caret" aria-hidden="true" />}
+                {isActivelyStreaming && <span className="u086-caret" aria-hidden="true" />}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                {isStreaming ? (
+                {streaming ? (
+                  onAbortStream && (
+                    <button type="button" onClick={handleStop} className="u086-ctl">
+                      <Square className="h-3 w-3" />
+                      <span>Dừng</span>
+                    </button>
+                  )
+                ) : isLocalAnimating ? (
                   <>
                     <button type="button" onClick={handleStop} className="u086-ctl">
                       <Square className="h-3 w-3" />

@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   askGeminiMentor,
+  buildContextPrompt,
   buildOfflineMentorReply,
+  checkAiMentorStatus,
   extractInteractionReply,
   GEMINI_API_REVISION,
   GEMINI_INTERACTIONS_ENDPOINT,
+  streamAiMentor,
   testGeminiApiKey,
   type AiMentorContext,
 } from './aiMentorService';
@@ -201,5 +204,146 @@ describe('aiMentorService (Gemini Interactions API + Offline Mentor)', () => {
     expect(failTestReply).toContain('Test Case chưa đạt (TC1)');
     expect(failTestReply).toContain('crocus');
     expect(failTestReply).toContain('Chế độ Gợi ý cục bộ');
+  });
+
+  it('checks /api/ai-mentor status cleanly and falls back safely on 404', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            available: true,
+            mode: 'server',
+            defaultModel: 'gemini-3.5-flash-lite',
+            dailyLimit: 30,
+            remaining: 27,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
+    const okStatus = await checkAiMentorStatus();
+    expect(okStatus).toEqual({
+      available: true,
+      mode: 'server',
+      defaultModel: 'gemini-3.5-flash-lite',
+      dailyLimit: 30,
+      remaining: 27,
+    });
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not found', { status: 404 })));
+    const fallbackStatus = await checkAiMentorStatus();
+    expect(fallbackStatus.available).toBe(false);
+    expect(fallbackStatus.mode).toBe('byok-only');
+  });
+
+  it('streams incremental SSE chunks from /api/ai-mentor without BYOK key and compacts follow-up context', async () => {
+    const compactText = buildContextPrompt('Ngắn hơn được không?', SAMPLE_CONTEXT, {
+      compactFollowUp: true,
+      codeChanged: false,
+    });
+    expect(compactText).toContain('Ngữ cảnh tiếp nối');
+    expect(compactText).not.toContain('Xóa chữ số cuối trong getName()');
+    expect(compactText).not.toContain('public class Crocus');
+
+    const encoder = new TextEncoder();
+    const sseBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            'event: meta\ndata: {"source":"server","model":"gemini-3.5-flash-lite","remaining":29,"limit":30}\n\n'
+          )
+        );
+        controller.enqueue(encoder.encode('event: delta\ndata: {"text":"Hãy dùng "}\n\n'));
+        controller.enqueue(encoder.encode('event: delta\ndata: {"text":"Character.isDigit."}\n\n'));
+        controller.enqueue(
+          encoder.encode(
+            'event: done\ndata: {"interactionId":"int_sse_9","model":"gemini-3.5-flash-lite","source":"server","remaining":29,"limit":30}\n\n'
+          )
+        );
+        controller.close();
+      },
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(sseBody, {
+          status: 200,
+          headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+        })
+      )
+    );
+
+    const deltas: string[] = [];
+    let metaSeen: unknown = null;
+    const res = await streamAiMentor({
+      model: 'gemini-3.5-flash-lite',
+      prompt: 'Giải thích lỗi giúp em',
+      context: SAMPLE_CONTEXT,
+      onMeta: (m) => {
+        metaSeen = m;
+      },
+      onDelta: (chunk) => {
+        deltas.push(chunk);
+      },
+    });
+
+    expect(metaSeen).toEqual({
+      source: 'server',
+      model: 'gemini-3.5-flash-lite',
+      remaining: 29,
+      limit: 30,
+    });
+    expect(deltas).toEqual(['Hãy dùng ', 'Character.isDigit.']);
+    expect(res).toEqual({
+      ok: true,
+      reply: 'Hãy dùng Character.isDigit.',
+      interactionId: 'int_sse_9',
+      model: 'gemini-3.5-flash-lite',
+      source: 'server',
+      remaining: 29,
+      limit: 30,
+    });
+  });
+
+  it('falls back to direct Gemini Interactions API when /api/ai-mentor returns 404 and BYOK is set', async () => {
+    const calledUrls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        calledUrls.push(url);
+        if (url === '/api/ai-mentor') {
+          return new Response('Not found', { status: 404 });
+        }
+        return new Response(
+          JSON.stringify({
+            id: 'int_direct_1',
+            output_text: 'Trả lời trực tiếp qua BYOK.',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      })
+    );
+
+    const chunks: string[] = [];
+    const res = await streamAiMentor({
+      apiKey: 'AIzaUserKey',
+      model: 'gemini-4-hydrogen',
+      prompt: 'Tối ưu code',
+      context: SAMPLE_CONTEXT,
+      onDelta: (c) => chunks.push(c),
+    });
+
+    expect(calledUrls).toEqual(['/api/ai-mentor', GEMINI_INTERACTIONS_ENDPOINT]);
+    expect(chunks).toEqual(['Trả lời trực tiếp qua BYOK.']);
+    expect(res).toEqual({
+      ok: true,
+      reply: 'Trả lời trực tiếp qua BYOK.',
+      interactionId: 'int_direct_1',
+      model: 'gemini-4-hydrogen',
+      source: 'byok',
+    });
   });
 });

@@ -18,9 +18,11 @@ import type {
   Theme,
 } from '../types/content';
 import {
+  checkAiMentorStatus,
   DEFAULT_AI_MODEL,
   isValidAiMentorModel,
   type AiMentorModel,
+  type AiServerStatus,
 } from '../services/aiMentorService';
 import {
   clearPlaygroundWorkspace,
@@ -103,7 +105,7 @@ function readInitialByokState(): { key: string; persist: ByokPersistMode } {
   } catch {
     // ignore storage errors
   }
-  return { key: '', persist: 'session' };
+  return { key: '', persist: 'local' };
 }
 
 function readInitialAiModel(): AiMentorModel {
@@ -194,6 +196,9 @@ interface AppContextValue {
   setByokConfig: (key: string, persist: ByokPersistMode) => void;
   aiModel: AiMentorModel;
   setAiModel: (model: AiMentorModel) => void;
+  aiServerStatus: AiServerStatus | null;
+  refreshAiServerStatus: () => Promise<AiServerStatus | null>;
+  updateAiServerQuota: (remaining: number, limit?: number) => void;
   progress: LearningProgress;
   toggleArticleCompleted: (rel: string) => void;
   toggleSlotCompleted: (slot: number) => void;
@@ -213,8 +218,6 @@ interface AppContextValue {
   setIsSearchOpen: (open: boolean) => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (open: boolean) => void;
-  isMobileSidebarOpen: boolean;
-  setIsMobileSidebarOpen: (open: boolean) => void;
   pdfPreview: PdfPreviewState | null;
   openPdfPreview: (preview: PdfPreviewState) => void;
   closePdfPreview: () => void;
@@ -246,10 +249,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [aiServerStatus, setAiServerStatus] = useState<AiServerStatus | null>(null);
+  const aiStatusPromiseRef = useRef<Promise<AiServerStatus | null> | null>(null);
   const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastSeqRef = useRef(0);
+
+  const refreshAiServerStatus = useCallback(async (): Promise<AiServerStatus | null> => {
+    if (aiStatusPromiseRef.current) return aiStatusPromiseRef.current;
+    const promise = checkAiMentorStatus()
+      .then((status) => {
+        setAiServerStatus(status);
+        return status;
+      })
+      .catch(() => null)
+      .finally(() => {
+        aiStatusPromiseRef.current = null;
+      });
+    aiStatusPromiseRef.current = promise;
+    return promise;
+  }, []);
+
+  const updateAiServerQuota = useCallback((remaining: number, limit?: number) => {
+    setAiServerStatus((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        remaining: Math.max(0, remaining),
+        dailyLimit: typeof limit === 'number' && limit > 0 ? limit : prev.dailyLimit,
+      };
+    });
+  }, []);
 
   const fetchMetadata = useCallback(async () => {
     setMetaLoading(true);
@@ -659,6 +689,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setByokConfig,
       aiModel,
       setAiModel,
+      aiServerStatus,
+      refreshAiServerStatus,
+      updateAiServerQuota,
       progress,
       toggleArticleCompleted,
       toggleSlotCompleted,
@@ -678,8 +711,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsSearchOpen,
       isSettingsOpen,
       setIsSettingsOpen,
-      isMobileSidebarOpen,
-      setIsMobileSidebarOpen,
       pdfPreview,
       openPdfPreview,
       closePdfPreview,
@@ -707,6 +738,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setByokConfig,
       aiModel,
       setAiModel,
+      aiServerStatus,
+      refreshAiServerStatus,
+      updateAiServerQuota,
       progress,
       toggleArticleCompleted,
       toggleSlotCompleted,
@@ -724,7 +758,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       importProgressJson,
       isSearchOpen,
       isSettingsOpen,
-      isMobileSidebarOpen,
       pdfPreview,
       openPdfPreview,
       closePdfPreview,

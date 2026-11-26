@@ -27,6 +27,8 @@ export function SettingsModal() {
     setByokConfig,
     aiModel,
     setAiModel,
+    aiServerStatus,
+    refreshAiServerStatus,
     theme,
     setTheme,
     lang,
@@ -63,8 +65,9 @@ export function SettingsModal() {
       setStatusMsg(null);
       setConfirmReset(false);
       setResetIncludeDrafts(false);
+      void refreshAiServerStatus();
     }
-  }, [isSettingsOpen, byokKey, byokPersist, aiModel]);
+  }, [isSettingsOpen, byokKey, byokPersist, aiModel, refreshAiServerStatus]);
 
   if (!isSettingsOpen) return null;
 
@@ -147,27 +150,36 @@ export function SettingsModal() {
           </button>
         </div>
 
-        <p className="leading-relaxed text-[var(--text-muted)]">
-          Kiến trúc bảo mật (BYOK): Tài liệu lưu nội bộ, không quảng cáo. Để gọi trực tiếp AI Mentor bằng khóa cá nhân, API Key mặc định chỉ lưu trong{' '}
-          <code className="rounded bg-[var(--bg-code)] px-1 py-0.5 text-[var(--accent-text)]">
-            sessionStorage
-          </code>{' '}
-          (tự xóa khi đóng tab, an toàn trên máy phòng Lab).
-        </p>
+        {aiServerStatus?.available ? (
+          <div className="rounded-lg border border-[var(--success)]/35 bg-[var(--success-soft)] p-3 text-xs text-[var(--success-text)]">
+            <div className="font-bold">✨ AI Tự động đang bật (Miễn phí qua Server)</div>
+            <p className="mt-1 leading-relaxed text-[var(--text-secondary)]">
+              Còn{' '}
+              <strong className="tabular-nums text-[var(--text-primary)]">
+                {aiServerStatus.remaining}/{aiServerStatus.dailyLimit}
+              </strong>{' '}
+              lượt hôm nay (Model mặc định: <code className="font-mono">{aiServerStatus.defaultModel}</code>). Học viên không cần nhập API Key để hỏi bài.
+            </p>
+          </div>
+        ) : (
+          <p className="leading-relaxed text-[var(--text-muted)]">
+            AI Tự động chưa được bật trên môi trường này. Bạn có thể nhập Gemini API Key cá nhân bên dưới để kích hoạt AI Mentor.
+          </p>
+        )}
 
         {/* BYOK API Key & Model */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between gap-2">
             <label htmlFor="byok-key-input" className="font-semibold text-[var(--text-primary)]">
-              Gemini API Key (Tùy chọn):
+              Tùy chọn nâng cao — Gemini API Key cá nhân (Không giới hạn lượt ngày):
             </label>
             <a
               href="https://aistudio.google.com/apikey"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--info-text)] hover:underline"
+              className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-[var(--info-text)] hover:underline"
             >
-              <span>Lấy key miễn phí tại AI Studio</span>
+              <span>Lấy key miễn phí</span>
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </a>
           </div>

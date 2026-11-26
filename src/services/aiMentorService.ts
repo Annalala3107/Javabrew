@@ -2,15 +2,23 @@ import type { JavaDiagnostic, JavaTestCaseResult } from './javaCompilerService';
 
 export type AiMentorModel = 'gemini-4-hydrogen' | 'gemini-3.5-flash-lite';
 
-export const DEFAULT_AI_MODEL: AiMentorModel = 'gemini-4-hydrogen';
+export const DEFAULT_AI_MODEL: AiMentorModel = 'gemini-3.5-flash-lite';
 
 export const AI_MENTOR_MODELS: ReadonlyArray<{ id: AiMentorModel; label: string }> = [
-  { id: 'gemini-4-hydrogen', label: 'Gemini 4 Hydrogen (Khuyên dùng)' },
   { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite (Nhanh / Tiết kiệm)' },
+  { id: 'gemini-4-hydrogen', label: 'Gemini 4 Hydrogen (Chuyên sâu)' },
 ];
 
 export const GEMINI_INTERACTIONS_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/interactions';
 export const GEMINI_API_REVISION = '2026-05-20';
+
+export interface AiServerStatus {
+  available: boolean;
+  mode: 'server' | 'byok-only';
+  defaultModel: AiMentorModel;
+  dailyLimit: number;
+  remaining: number;
+}
 
 export interface AiMentorContext {
   mode: 'pe' | 'playground';
@@ -37,6 +45,13 @@ export type AskGeminiResult =
       errorMessage: string;
     };
 
+export type StreamAiMentorResult = AskGeminiResult & {
+  source?: 'server' | 'byok';
+  remaining?: number;
+  limit?: number;
+  quotaExceeded?: boolean;
+};
+
 const SYSTEM_INSTRUCTION = [
   'Bạn là AI Code Mentor chuyên môn Java OOP (môn PRO192 chuẩn JDK 1.8 và default package).',
   'Hãy trả lời ngắn gọn, chính xác, sư phạm bằng tiếng Việt và định dạng Markdown (dùng khối ```java ... ``` khi minh họa code).',
@@ -48,27 +63,37 @@ export function isValidAiMentorModel(value: string | null | undefined): value is
   return value === 'gemini-4-hydrogen' || value === 'gemini-3.5-flash-lite';
 }
 
-export function buildContextPrompt(prompt: string, context: AiMentorContext): string {
+export function buildContextPrompt(
+  prompt: string,
+  context: AiMentorContext,
+  options?: { compactFollowUp?: boolean; codeChanged?: boolean }
+): string {
   const sections: string[] = [];
+  const compact = Boolean(options?.compactFollowUp);
+  const includeCode = !compact || options?.codeChanged !== false;
 
-  sections.push(
-    `Ngữ cảnh: ${context.mode === 'pe' ? 'Luyện đề PE PRO192 (chuẩn JDK 1.8)' : 'JavaBrew Live Lab (OpenJDK 21)'} — ${context.title}`,
-    `Tệp đang mở: ${context.activeFileName}`
-  );
+  if (compact) {
+    sections.push(`Ngữ cảnh tiếp nối: ${context.title} · Tệp đang mở: ${context.activeFileName}`);
+  } else {
+    sections.push(
+      `Ngữ cảnh: ${context.mode === 'pe' ? 'Luyện đề PE PRO192 (chuẩn JDK 1.8)' : 'JavaBrew Live Lab (OpenJDK 21)'} — ${context.title}`,
+      `Tệp đang mở: ${context.activeFileName}`
+    );
 
-  if (context.description) {
-    sections.push(`Đề bài:\n${context.description}`);
+    if (context.description) {
+      sections.push(`Đề bài:\n${context.description}`);
+    }
+
+    if (context.checklist && context.checklist.length > 0) {
+      sections.push(`Checklist chấm bài:\n${context.checklist.map((c) => `- ${c}`).join('\n')}`);
+    }
   }
 
-  if (context.checklist && context.checklist.length > 0) {
-    sections.push(`Checklist chấm bài:\n${context.checklist.map((c) => `- ${c}`).join('\n')}`);
-  }
-
-  if (context.files.length > 0) {
+  if (includeCode && context.files.length > 0) {
     const fileBlocks = context.files
       .map((f) => `--- ${f.name} ---\n\`\`\`java\n${f.content.slice(0, 6000)}\n\`\`\``)
       .join('\n\n');
-    sections.push(`Mã nguồn hiện tại:\n${fileBlocks}`);
+    sections.push(`${compact ? 'Mã nguồn vừa cập nhật' : 'Mã nguồn hiện tại'}:\n${fileBlocks}`);
   }
 
   if (context.diagnostics.length > 0) {
@@ -93,11 +118,11 @@ export function buildContextPrompt(prompt: string, context: AiMentorContext): st
     sections.push(`Test Case chưa đạt:\n${testLines}`);
   }
 
-  if (context.diagnosisHints.length > 0) {
+  if (!compact && context.diagnosisHints.length > 0) {
     sections.push(`Nhận xét phân tích tĩnh:\n${context.diagnosisHints.map((h) => `- ${h}`).join('\n')}`);
   }
 
-  sections.push(`Câu hỏi của học viên:\n${prompt}`);
+  sections.push(`${compact ? 'Câu hỏi tiếp theo của học viên' : 'Câu hỏi của học viên'}:\n${prompt}`);
   return sections.join('\n\n');
 }
 
@@ -173,12 +198,48 @@ function formatHttpErrorMessage(status: number, model: AiMentorModel, rawDetail:
   return `Gemini API trả về lỗi HTTP ${status}${detailSuffix}.`;
 }
 
+export async function checkAiMentorStatus(signal?: AbortSignal): Promise<AiServerStatus> {
+  const fallback: AiServerStatus = {
+    available: false,
+    mode: 'byok-only',
+    defaultModel: DEFAULT_AI_MODEL,
+    dailyLimit: 30,
+    remaining: 0,
+  };
+  try {
+    const res = await fetch('/api/ai-mentor', {
+      method: 'GET',
+      cache: 'no-store',
+      signal,
+    });
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok || !contentType.includes('application/json')) {
+      return fallback;
+    }
+    const data = (await res.json()) as Partial<AiServerStatus>;
+    return {
+      available: Boolean(data.available),
+      mode: data.available ? 'server' : 'byok-only',
+      defaultModel: isValidAiMentorModel(data.defaultModel) ? data.defaultModel : DEFAULT_AI_MODEL,
+      dailyLimit: typeof data.dailyLimit === 'number' && data.dailyLimit > 0 ? data.dailyLimit : 30,
+      remaining: typeof data.remaining === 'number' && data.remaining >= 0 ? data.remaining : 0,
+    };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err;
+    }
+    return fallback;
+  }
+}
+
 export async function askGeminiMentor(params: {
   apiKey: string;
   model: AiMentorModel;
   prompt: string;
   context: AiMentorContext;
   previousInteractionId?: string | null;
+  compactFollowUp?: boolean;
+  codeChanged?: boolean;
   signal?: AbortSignal;
 }): Promise<AskGeminiResult> {
   const cleanKey = params.apiKey.trim();
@@ -194,7 +255,10 @@ export async function askGeminiMentor(params: {
     const payload: Record<string, unknown> = {
       model: params.model,
       system_instruction: SYSTEM_INSTRUCTION,
-      input: buildContextPrompt(params.prompt, params.context),
+      input: buildContextPrompt(params.prompt, params.context, {
+        compactFollowUp: params.compactFollowUp ?? Boolean(params.previousInteractionId),
+        codeChanged: params.codeChanged,
+      }),
       store: true,
     };
     if (params.previousInteractionId) {
@@ -258,6 +322,304 @@ export async function askGeminiMentor(params: {
   }
 }
 
+function parseClientSseBlock(rawBlock: string): { eventName: string; dataStr: string } | null {
+  const lines = rawBlock.split(/\r?\n/);
+  let eventName = 'message';
+  const dataLines: string[] = [];
+  for (const line of lines) {
+    if (!line || line.startsWith(':')) continue;
+    if (line.startsWith('event:')) {
+      eventName = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+  const dataStr = dataLines.join('\n').trim();
+  if (!dataStr) return null;
+  return { eventName, dataStr };
+}
+
+export async function streamAiMentor(params: {
+  apiKey?: string;
+  model: AiMentorModel;
+  prompt: string;
+  context: AiMentorContext;
+  previousInteractionId?: string | null;
+  codeChanged?: boolean;
+  signal?: AbortSignal;
+  onMeta?: (meta: {
+    source: 'server' | 'byok';
+    model: AiMentorModel;
+    remaining?: number;
+    limit?: number;
+  }) => void;
+  onDelta?: (chunk: string) => void;
+}): Promise<StreamAiMentorResult> {
+  const cleanKey = params.apiKey?.trim() || '';
+
+  const fallbackDirectByok = async (): Promise<StreamAiMentorResult> => {
+    if (!cleanKey) {
+      return {
+        ok: false,
+        status: 503,
+        errorMessage:
+          'Dịch vụ AI tự động chưa khả dụng trên môi trường này. Hãy nhập Gemini API Key trong Cài đặt.',
+      };
+    }
+    const direct = await askGeminiMentor({
+      apiKey: cleanKey,
+      model: params.model,
+      prompt: params.prompt,
+      context: params.context,
+      previousInteractionId: params.previousInteractionId,
+      codeChanged: params.codeChanged,
+      signal: params.signal,
+    });
+    if (direct.ok) {
+      params.onMeta?.({ source: 'byok', model: direct.model });
+      params.onDelta?.(direct.reply);
+      return { ...direct, source: 'byok' };
+    }
+    return { ...direct, source: 'byok' };
+  };
+
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (cleanKey) {
+      headers['x-javabrew-byok-key'] = cleanKey;
+    }
+
+    const res = await fetch('/api/ai-mentor', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'chat',
+        model: params.model,
+        prompt: params.prompt,
+        context: params.context,
+        stream: true,
+        previousInteractionId: params.previousInteractionId || undefined,
+        codeChanged: params.codeChanged,
+      }),
+      signal: params.signal,
+    });
+
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+
+    // Pure static host (no serverless function mounted)
+    if (
+      res.status === 404 ||
+      (!contentType.includes('text/event-stream') && !contentType.includes('application/json'))
+    ) {
+      return fallbackDirectByok();
+    }
+
+    if (!res.ok) {
+      let errPayload: {
+        error?: string;
+        quotaExceeded?: boolean;
+        remaining?: number;
+        dailyLimit?: number;
+        limit?: number;
+      } = {};
+      try {
+        errPayload = (await res.json()) as typeof errPayload;
+      } catch {
+        // ignore JSON parse errors
+      }
+      return {
+        ok: false,
+        status: res.status,
+        errorMessage:
+          errPayload.error || formatHttpErrorMessage(res.status, params.model, ''),
+        quotaExceeded: Boolean(errPayload.quotaExceeded),
+        remaining: typeof errPayload.remaining === 'number' ? errPayload.remaining : undefined,
+        limit:
+          typeof errPayload.dailyLimit === 'number'
+            ? errPayload.dailyLimit
+            : typeof errPayload.limit === 'number'
+              ? errPayload.limit
+              : undefined,
+      };
+    }
+
+    if (contentType.includes('text/event-stream') && res.body) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let fullReply = '';
+      let interactionId: string | undefined;
+      let finalModel: AiMentorModel = params.model;
+      let source: 'server' | 'byok' = cleanKey ? 'byok' : 'server';
+      let remaining: number | undefined;
+      let limit: number | undefined;
+      let streamError: { status: number; message: string } | null = null;
+
+      const handleBlock = (rawBlock: string) => {
+        const parsed = parseClientSseBlock(rawBlock);
+        if (!parsed) return;
+        let data: Record<string, unknown>;
+        try {
+          data = JSON.parse(parsed.dataStr) as Record<string, unknown>;
+        } catch {
+          return;
+        }
+
+        if (parsed.eventName === 'meta') {
+          if (data.source === 'byok' || data.source === 'server') {
+            source = data.source;
+          }
+          if (typeof data.model === 'string' && isValidAiMentorModel(data.model)) {
+            finalModel = data.model;
+          }
+          if (typeof data.remaining === 'number') remaining = data.remaining;
+          if (typeof data.limit === 'number') limit = data.limit;
+          params.onMeta?.({ source, model: finalModel, remaining, limit });
+          return;
+        }
+
+        if (parsed.eventName === 'delta') {
+          if (typeof data.text === 'string' && data.text.length > 0) {
+            fullReply += data.text;
+            params.onDelta?.(data.text);
+          }
+          return;
+        }
+
+        if (parsed.eventName === 'done') {
+          if (typeof data.interactionId === 'string') {
+            interactionId = data.interactionId;
+          }
+          if (typeof data.model === 'string' && isValidAiMentorModel(data.model)) {
+            finalModel = data.model;
+          }
+          if (data.source === 'byok' || data.source === 'server') {
+            source = data.source;
+          }
+          if (typeof data.remaining === 'number') remaining = data.remaining;
+          if (typeof data.limit === 'number') limit = data.limit;
+          return;
+        }
+
+        if (parsed.eventName === 'error') {
+          streamError = {
+            status: typeof data.status === 'number' ? data.status : 502,
+            message:
+              typeof data.message === 'string'
+                ? data.message
+                : 'Gemini API gặp sự cố trong lúc stream phản hồi.',
+          };
+        }
+      };
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const blocks = buffer.split(/\r?\n\r?\n/);
+          buffer = blocks.pop() ?? '';
+          for (const block of blocks) {
+            if (block.trim()) handleBlock(block);
+          }
+        }
+        const tail = buffer + decoder.decode();
+        if (tail.trim()) {
+          handleBlock(tail);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          await reader.cancel().catch(() => {});
+          throw err;
+        }
+        throw err;
+      }
+
+      if (streamError) {
+        const errObj = streamError as { status: number; message: string };
+        return {
+          ok: false,
+          status: errObj.status,
+          errorMessage: errObj.message,
+          source,
+          remaining,
+          limit,
+        };
+      }
+
+      const trimmed = fullReply.trim();
+      if (!trimmed) {
+        return {
+          ok: false,
+          status: 502,
+          errorMessage: 'Gemini API phản hồi trống (không tìm thấy nội dung trả lời). Hãy thử hỏi lại.',
+          source,
+          remaining,
+          limit,
+        };
+      }
+
+      return {
+        ok: true,
+        reply: trimmed,
+        interactionId,
+        model: finalModel,
+        source,
+        remaining,
+        limit,
+      };
+    }
+
+    // Fallback JSON response from /api/ai-mentor
+    const jsonPayload = (await res.json()) as {
+      ok?: boolean;
+      reply?: string;
+      interactionId?: string;
+      model?: AiMentorModel;
+      source?: 'server' | 'byok';
+      remaining?: number;
+      limit?: number;
+      error?: string;
+    };
+
+    if (jsonPayload.ok && typeof jsonPayload.reply === 'string' && jsonPayload.reply.trim()) {
+      const modelUsed = isValidAiMentorModel(jsonPayload.model) ? jsonPayload.model : params.model;
+      const src = jsonPayload.source ?? (cleanKey ? 'byok' : 'server');
+      params.onMeta?.({
+        source: src,
+        model: modelUsed,
+        remaining: jsonPayload.remaining,
+        limit: jsonPayload.limit,
+      });
+      params.onDelta?.(jsonPayload.reply);
+      return {
+        ok: true,
+        reply: jsonPayload.reply.trim(),
+        interactionId: jsonPayload.interactionId,
+        model: modelUsed,
+        source: src,
+        remaining: jsonPayload.remaining,
+        limit: jsonPayload.limit,
+      };
+    }
+
+    return {
+      ok: false,
+      status: 502,
+      errorMessage:
+        jsonPayload.error ||
+        'Gemini API phản hồi trống (không tìm thấy nội dung trả lời). Hãy thử hỏi lại.',
+    };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err;
+    }
+    return fallbackDirectByok();
+  }
+}
+
 export async function testGeminiApiKey(
   apiKey: string,
   model: AiMentorModel,
@@ -269,6 +631,67 @@ export async function testGeminiApiKey(
   }
 
   try {
+    const proxyRes = await fetch('/api/ai-mentor', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-javabrew-byok-key': cleanKey,
+      },
+      body: JSON.stringify({
+        action: 'test',
+        model,
+      }),
+      signal,
+    });
+
+    const contentType = (proxyRes.headers.get('content-type') || '').toLowerCase();
+    if (proxyRes.status !== 404 && contentType.includes('application/json')) {
+      if (!proxyRes.ok) {
+        let apiDetail = '';
+        try {
+          const errJson = (await proxyRes.json()) as {
+            error?: string | { message?: string };
+            errorMessage?: string;
+          };
+          if (typeof errJson.errorMessage === 'string') {
+            return { ok: false, errorMessage: errJson.errorMessage };
+          }
+          if (typeof errJson.error === 'string') {
+            return { ok: false, errorMessage: errJson.error };
+          }
+          if (typeof errJson?.error?.message === 'string') {
+            apiDetail = errJson.error.message.slice(0, 160);
+          }
+        } catch {
+          // ignore
+        }
+        return {
+          ok: false,
+          errorMessage: formatHttpErrorMessage(proxyRes.status, model, apiDetail),
+        };
+      }
+
+      const data = (await proxyRes.json()) as {
+        ok?: boolean;
+        model?: AiMentorModel;
+        errorMessage?: string;
+        id?: string;
+      };
+      if (data.ok === true) {
+        return { ok: true, model: data.model || model };
+      }
+      if (data.ok === false) {
+        return {
+          ok: false,
+          errorMessage: data.errorMessage || 'API Key không hợp lệ.',
+        };
+      }
+      if (typeof data.id === 'string') {
+        return { ok: true, model };
+      }
+    }
+
+    // Fallback directly to Gemini Interactions API when no serverless proxy is mounted
     const res = await fetch(GEMINI_INTERACTIONS_ENDPOINT, {
       method: 'POST',
       headers: {
