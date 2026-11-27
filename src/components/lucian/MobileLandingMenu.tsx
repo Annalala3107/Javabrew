@@ -136,6 +136,9 @@ export function MobileLandingMenu() {
       </ul>
 
       <div className="u045-foot">
+        <Link to="/login" tabIndex={open ? 0 : -1} onClick={() => setOpen(false)}>
+          Đăng nhập / Đăng ký
+        </Link>
         <Link to="/studio" tabIndex={open ? 0 : -1} onClick={() => setOpen(false)}>
           Thử Code Studio
         </Link>

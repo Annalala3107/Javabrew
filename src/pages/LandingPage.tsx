@@ -19,6 +19,7 @@ import { ScrollTimeline, type TimelineStep } from '../components/lucian/ScrollTi
 import { ThemeToggleButton } from '../components/lucian/ThemeToggleButton';
 import { TypewriterKeyword } from '../components/lucian/TypewriterKeyword';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { useRevealSection } from '../hooks/useMotion';
 
 const HERO_KEYWORDS = [
@@ -51,6 +52,7 @@ const HOW_STEPS: TimelineStep[] = [
 
 export function LandingPage() {
   const { navigation, pro192, progress } = useApp();
+  const { user } = useAuth();
   const heroScopeRef = useRef<HTMLDivElement>(null);
   const roadmapScopeRef = useRef<HTMLElement>(null);
   const featuresScopeRef = useRef<HTMLElement>(null);
@@ -122,12 +124,29 @@ export function LandingPage() {
 
           <div className="flex shrink-0 items-center gap-2">
             <ThemeToggleButton />
-            <Link
-              to="/dashboard"
-              className="inline-flex min-h-[40px] items-center rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"
-            >
-              Học ngay →
-            </Link>
+            {user ? (
+              <Link
+                to="/dashboard"
+                className="inline-flex min-h-[40px] items-center rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"
+              >
+                Vào Dashboard →
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="hidden min-h-[40px] items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--accent)] sm:inline-flex"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="inline-flex min-h-[40px] items-center rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"
+                >
+                  Học ngay →
+                </Link>
+              </>
+            )}
             <MobileLandingMenu />
           </div>
         </div>

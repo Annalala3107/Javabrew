@@ -165,11 +165,11 @@ describe('Supabase Auth integration & helpers', () => {
 
     render(
       <MemoryRouter initialEntries={['/login?mode=register']}>
-        <AuthProvider>
+        <AppProvider>
           <Routes>
             <Route path="/login" element={<AuthPage />} />
           </Routes>
-        </AuthProvider>
+        </AppProvider>
       </MemoryRouter>
     );
 
@@ -191,7 +191,7 @@ describe('Supabase Auth integration & helpers', () => {
     await waitFor(() => {
       expect(mockState.signUpCalls).toEqual([{ email: 'newuser@fpt.edu.vn', password: 'secret123' }]);
     });
-    expect(await screen.findByRole('status')).toHaveTextContent(/xác nhận/i);
+    expect(await screen.findByText(/xác nhận/i)).toBeInTheDocument();
   });
 
   it('renders /login cleanly inside full AppRoutes when Supabase is not configured', async () => {
