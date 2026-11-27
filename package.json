@@ -9,7 +9,9 @@
   "description": "JavaBrew — PRO192 × JavaGuide Bilingual Learning Platform (EN / VI)",
   "scripts": {
     "dev": "node scripts/build-search-index.mjs && vite",
-    "build": "node scripts/build-search-index.mjs && tsc -b && node scripts/build-api.mjs && vite build",
+    "build": "node scripts/build-search-index.mjs && node scripts/build-sitemap.mjs && tsc -b && node scripts/build-api.mjs && vite build",
+    "build:sitemap": "node scripts/build-sitemap.mjs",
+    "optimize:media": "node scripts/optimize-media-webp.mjs --dry-run",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

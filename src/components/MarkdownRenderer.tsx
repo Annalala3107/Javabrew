@@ -372,6 +372,7 @@ export function MarkdownRenderer({
                       src={src}
                       alt={safeAlt}
                       loading="lazy"
+                      decoding="async"
                       className="max-h-[480px] w-auto max-w-full object-contain"
                     />
                     <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)]/90 px-2 py-1 text-xs font-medium text-[var(--text-secondary)] opacity-0 transition-opacity group-hover:opacity-100">

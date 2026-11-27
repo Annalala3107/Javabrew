@@ -1,54 +1,58 @@
-# JavAncode — JavaBrew Bilingual Knowledge Base (EN / VI)
+# JavaBrew — PRO192 × JavaGuide (The Night Coffee Lab)
 
-Kho tri thức kỹ thuật offline được xây dựng từ nguồn **Snailclimb/JavaGuide** (chọn lọc 354 bài kỹ thuật cốt lõi + AI, lọc bỏ quảng cáo/paywall, tải toàn bộ ảnh về nội bộ) và tổ chức song ngữ **English (`content/en/`)** + **Tiếng Việt (`content/vi/`)** để tích hợp vào nền tảng học tập **JavaBrew (`PRO192 × JavaGuide`)**.
+Không gian học Java OOP **PRO192 (30 Slots, 150 bài tập, 19 câu đề PE thật PE1–PE5)** kết hợp **354 bài JavaGuide song ngữ EN/VI**, trình biên dịch **OpenJDK Sandbox**, **Phòng thi thử PE tính giờ** và hệ thống **AI Mentor** chạy qua Vercel Serverless Functions + Upstash Redis.
 
-## Cấu trúc thư mục
+---
 
-```text
-e:\JavAncode\
-├── content/
-│   ├── zh-ref/          # 354 bài nguồn tiếng Trung đã làm sạch & trỏ ảnh local
-│   ├── en/              # Bản dịch chuẩn tiếng Anh kỹ thuật
-│   └── vi/              # Bản dịch tiếng Việt chuẩn thuật ngữ + giáo trình PRO192 (content/vi/pro192/)
-├── public/
-│   └── media/
-│       ├── jg/
-│       │   ├── ext/     # Ảnh kỹ thuật tải về từ CDN/host ngoài (dùng chung EN & VI)
-│       │   └── local/   # Ảnh cục bộ trích từ repo gốc (đã chuẩn hóa tên ASCII)
-│       └── pro192/      # Tài nguyên PRO192 offline (187 ảnh/GIF, 14 slide .pptx, 14 .pdf + banking.rar)
-├── metadata/
-│   ├── manifest.json             # Cây danh mục & metadata cho 354 bài JavaGuide
-│   ├── navigation.json           # Cây điều hướng đa tầng cho giao diện học tập
-│   ├── pro192.json               # Dữ liệu 30 Slots PRO192, 150 bài tập, Study Bridge & 19 câu PE thật (PE1–PE5)
-│   └── translation-glossary.md   # Quy chuẩn thuật ngữ & cú pháp dịch EN/VI
-├── scripts/
-│   ├── verify-translations.mjs   # Kiểm định chất lượng dịch, code fence, ảnh & CJK
-│   ├── verify-pro192.mjs         # Kiểm định bộ giáo trình PRO192, ảnh, slide & Study Bridge
-│   ├── check-links.mjs           # Kiểm tra liên kết nội bộ và đường dẫn ảnh (/media/jg & /media/pro192)
-│   ├── sync-manifest-titles.mjs  # Đồng bộ tiêu đề EN/VI vào manifest.json
-│   └── build-navigation.mjs      # Sinh cây điều hướng metadata/navigation.json
-└── LICENSE                       # Apache License 2.0 (từ Snailclimb/JavaGuide)
+## Tính năng nổi bật
+
+- **Lộ trình PRO192 chuẩn JDK 8 (30 Slots / 8 Stages):** Ghi chú cá nhân, bookmark, đếm tiến độ, bài tập lý thuyết, Live Lab Coding Drills và **FE Mini-Quiz AI** từng Slot (5 câu trắc nghiệm, cache 24h).
+- **JavaGuide Song ngữ (354 bài EN/VI):** Chuyển đổi ngôn ngữ tức thì, Table of Contents, code block có nút chạy thử trong Live Lab và **Lesson AI Tutor Drawer** giải thích đoạn văn bản được bôi đen.
+- **Code Studio & Live Lab (`/studio/:id`, `/studio/playground`):**
+  - Trình soạn thảo CodeMirror 6 đa tệp (`Main`, Entity, Interface `🔒 readonly`), kiểm tra quy chế PRO192 (default package, quy định từng câu PE), Diff View, và Sandbox OpenJDK (`api/java-run.mjs`).
+  - **AI Code Mentor** 2 phong cách (*Socratic* & *Deep Review*), giải thích lỗi `javac`, test case fail và chấm Clean Code.
+- **Phòng thi thử PE (`/pe/mock`, `/pe/mock/:paper`):**
+  - Mô phỏng đề thi hoàn chỉnh (`PE1`, `PE3`, `PE4`, `PE5`: 85 phút / 10 điểm; `PE2`: 60 phút / 7 điểm).
+  - Khóa Diff & AI Mentor trong lúc làm bài, tách biệt nháp thi (`javabrew:mock_exam_drafts_v1`), tự chấm toàn bộ câu hỏi khi nộp bài, ghi lỗi vào Sổ tay và gọi **AI Giám khảo PE** nhận xét tổng quan.
+- **AI Study Coach (`/dashboard`) & Search RAG (`/search` / `Ctrl+K`):**
+  - 3 gợi ý học tập tức thì trên Dashboard + nút lập thời khóa biểu 30 phút bằng AI.
+  - Hỏi đáp trực tiếp trên kho học liệu nội bộ trong `SearchModal` (`Shift + Enter`), đính kèm trích dẫn nội bộ bấm-mở trực tiếp và cache 12 giờ (`Cache · 0 lượt`).
+- **PWA & SEO:** Hỗ trợ cài đặt Web App (`manifest.webmanifest`, `sw.js` bỏ qua `/api/*`), `robots.txt` và `sitemap.xml` sinh tự động khi build.
+
+---
+
+## Biến môi trường (Vercel / Local `.env.local`)
+
+| Biến | Giá trị mẫu / Mặc định | Bắt buộc | Ghi chú |
+| --- | --- | --- | --- |
+| `GEMINI_API_KEY` | `AIza...` | Có (cho AI server-side) | API key phía server, không lộ ra client; người dùng vẫn có thể nhập BYOK riêng |
+| `UPSTASH_REDIS_REST_URL` | `https://...upstash.io` | Khuyến nghị | Lưu quota `/IP/ngày` và cache `slot-quiz` / `rag-search` bền vững |
+| `UPSTASH_REDIS_REST_TOKEN` | `...` | Khuyến nghị | Token Upstash Redis REST (tự fallback bộ nhớ tạm nếu bỏ trống) |
+| `AI_DAILY_LIMIT` | `30` | Tùy chọn | Giới hạn lượt AI server-side / IP / ngày (tối đa 500) |
+| `GEMINI_DEFAULT_MODEL` | `gemini-3.5-flash-lite` | Tùy chọn | Model mặc định (`gemini-3.5-flash-lite` hoặc `gemini-4-hydrogen`) |
+| `ALLOWED_ORIGINS` | `https://domain-phu.com` | Tùy chọn | Danh sách origin hợp lệ bổ sung (phân tách bằng dấu phẩy) |
+| `SITE_URL` | `https://javabrew.vercel.app` | Tùy chọn | Origin dùng khi sinh `public/sitemap.xml` |
+
+---
+
+## Lệnh phát triển & kiểm thử
+
+```bash
+# Chạy dev (tự dựng public/data/search-index.json)
+npm run dev
+
+# Kiểm tra TypeScript & toàn bộ unit/UI tests (Vitest)
+npx tsc -b --noEmit
+npm test
+
+# Kiểm tra tính toàn vẹn nội dung, bản dịch & Java snippets
+npm run verify:content
+npm run verify:translations
+npm run verify:java
+
+# Quét báo cáo ảnh > 50 KB trong public/media/ (dry-run an toàn)
+npm run optimize:media
+
+# Build production (search index + sitemap + tsc + api/*.mjs + Vite dist)
+npm run build
 ```
-
-## Phạm vi 10 cụm nội dung (`354` bài sạch)
-
-1. `java/` (`79` bài — **Ưu tiên dịch đợt 1**)
-2. `cs-basics/` (`68` bài)
-3. `database/` (`44` bài)
-4. `system-design/` (`33` bài)
-5. `distributed-system/` (`28` bài)
-6. `high-performance/` (`15` bài)
-7. `high-availability/` (`9` bài)
-8. `tools/` (`11` bài)
-9. `ai/` (`39` bài)
-10. `ai-coding/` (`28` bài)
-
-## Giáo trình Trường PRO192 (`content/vi/pro192/`)
-
-- **33 tệp Markdown chuẩn hóa:** [README.md](./content/vi/pro192/README.md), **30 bài học độc lập theo chuẩn 5 khối + Active Recall `<details>`** (`slots/slot-01.md` → `slots/slot-30.md`, đủ 30 Slots & 150 bài tập tự luyện), [pe-patterns.md](./content/vi/pro192/pe-patterns.md) và [pe-challenges.md](./content/vi/pro192/pe-challenges.md) (19 câu PE thật `PE1–PE5`).
-- **Tài nguyên offline:** `187` ảnh/GIF (`186` sơ đồ bài giảng + logo), `14` slide `.pptx`, `14` tài liệu `.pdf` và `banking.rar` tại `public/media/pro192/`, kèm bảng ánh xạ Study Bridge & mục tiêu từng Slot trong [pro192.json](./metadata/pro192.json).
-
-## Bản quyền & Nguồn gốc
-
-- Nội dung kiến thức gốc từ repository [Snailclimb/JavaGuide](https://github.com/Snailclimb/JavaGuide) theo giấy phép **Apache License 2.0** (xem [LICENSE](./LICENSE)).
-- Đã loại bỏ các thành phần thương mại (`GlobalUnlock`, snippet quảng cáo WeChat/ZhiShiXingQiu, 7 bài stub trả phí ngắn trong các thư mục giữ lại) và xử lý trùng lặp tên file `Async.md` / `async.md` trên Windows.
