@@ -21,6 +21,9 @@ const CodeStudioPage = lazy(() =>
 const NotesHubPage = lazy(() =>
   import('./pages/NotesHubPage').then((m) => ({ default: m.NotesHubPage }))
 );
+const MockExamPage = lazy(() =>
+  import('./pages/MockExamPage').then((m) => ({ default: m.MockExamPage }))
+);
 
 function RouteLoader() {
   return <SkeletonCard variant="route" />;
@@ -59,6 +62,8 @@ export function AppRoutes() {
             <Route path="/docs/*" element={<LearnPage mode="docs" />} />
             <Route path="/resources" element={<LearnPage mode="resources" />} />
             <Route path="/pe" element={<PeHubPage />} />
+            <Route path="/pe/mock" element={<MockExamPage />} />
+            <Route path="/pe/mock/:paper" element={<MockExamPage />} />
             <Route path="/studio" element={<CodeStudioPage />} />
             <Route path="/studio/playground" element={<CodeStudioPage isPlayground />} />
             <Route path="/studio/:peId" element={<CodeStudioPage />} />

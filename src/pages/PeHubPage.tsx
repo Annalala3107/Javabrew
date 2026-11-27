@@ -147,6 +147,12 @@ export function PeHubPage() {
 
         <div className="flex flex-wrap items-center gap-2.5">
           <Link
+            to="/pe/mock"
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-bold text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"
+          >
+            <span>⏱ Phòng thi thử PE (85 phút)</span>
+          </Link>
+          <Link
             to="/pro192/pe-patterns"
             className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--info)]/40 bg-[var(--info-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--info-text)] transition-opacity hover:opacity-90"
           >
