@@ -102,6 +102,52 @@ export interface CachedSlotQuizRecord {
   updatedAt: string;
 }
 
+export interface MockExamQuestionSummary {
+  peId: number;
+  code: string;
+  title: string;
+  marks: number;
+  earnedMarks: number;
+  passedTests: number;
+  totalTests: number;
+  diagnostics?: string[];
+  failedTests?: string[];
+}
+
+export interface MockExamReviewContext {
+  paper: string;
+  totalScore: number;
+  maxScore: number;
+  elapsedSeconds: number;
+  questions: MockExamQuestionSummary[];
+}
+
+export interface StudyCoachContext {
+  completedSlotsCount: number;
+  totalSlots: number;
+  nextSlot?: { slot: number; title: string; route: string };
+  solvedExercisesCount: number;
+  totalExercises: number;
+  passedPeCount: number;
+  totalPe: number;
+  unresolvedMistakes: Array<{ peId: number; code?: string; title: string; detail: string }>;
+  recentMock?: { paper: string; score: number; maxScore: number };
+  suggestedDocs: Array<{ title: string; route: string }>;
+}
+
+export interface RagSearchSource {
+  title: string;
+  route: string;
+  badge: string;
+  snippet: string;
+}
+
+export interface RagSearchContext {
+  query: string;
+  lang: 'vi' | 'en';
+  sources: RagSearchSource[];
+}
+
 export type AskGeminiResult =
   | {
       ok: true;
@@ -177,6 +223,15 @@ const SLOT_QUIZ_SYSTEM_INSTRUCTION = [
   'Bạn là giảng viên ra đề trắc nghiệm Final Exam (FE) môn PRO192 (Java Core & OOP, chuẩn JDK 8).',
   'Tạo đúng 5 câu hỏi trắc nghiệm khách quan bám sát mục tiêu và bẫy thi của Slot, trả về DUY NHẤT JSON { "questions": [{ "id", "question", "codeSnippet", "options", "correctIndex", "explanation", "topicTag" }] }.',
 ].join(' ');
+
+const MOCK_EXAM_REVIEW_SYSTEM_INSTRUCTION =
+  'Bạn là Giám khảo PE PRO192 (JDK 1.8). Nhận xét kết quả bài thi thử, lỗi mất điểm, bẫy hidden test và gợi ý ôn lại theo link nội bộ bằng Markdown tiếng Việt.';
+
+const STUDY_COACH_SYSTEM_INSTRUCTION =
+  'Bạn là Cố vấn Học tập JavaBrew. Lập kế hoạch 30 phút gồm 3 chặng (0-10p, 10-20p, 20-30p) bằng Markdown tiếng Việt, dùng đúng đường dẫn nội bộ được cung cấp.';
+
+const RAG_SEARCH_SYSTEM_INSTRUCTION =
+  'Bạn là trợ lý tra cứu tri thức nội bộ JavaBrew. Trả lời ngắn gọn bằng Markdown tiếng Việt, bắt buộc trích dẫn bằng link Markdown `[Tiêu đề](route)` từ nguồn được cung cấp.';
 
 export function readMentorStyle(): AiMentorStyle {
   try {
@@ -927,6 +982,129 @@ export async function streamExerciseGrade(params: {
         ]
           .filter(Boolean)
           .join('\n\n'),
+        store: false,
+        signal: params.signal,
+      }),
+  });
+}
+
+export async function streamMockExamReview(params: {
+  apiKey?: string;
+  model: AiMentorModel;
+  mockReviewContext: MockExamReviewContext;
+  signal?: AbortSignal;
+  onMeta?: (meta: StreamAiMeta) => void;
+  onDelta?: (chunk: string) => void;
+}): Promise<StreamAiMentorResult> {
+  const ctx = params.mockReviewContext;
+  return postAiProxyStream({
+    apiKey: params.apiKey,
+    model: params.model,
+    requestBody: {
+      action: 'mock-exam-review',
+      model: params.model,
+      mockReviewContext: ctx,
+      stream: true,
+    },
+    signal: params.signal,
+    onMeta: params.onMeta,
+    onDelta: params.onDelta,
+    fallbackDirect: (cleanKey) =>
+      callGeminiDirectText({
+        apiKey: cleanKey,
+        model: params.model,
+        systemInstruction: MOCK_EXAM_REVIEW_SYSTEM_INSTRUCTION,
+        input: [
+          `Đề thi thử ${ctx.paper}: ${ctx.totalScore}/${ctx.maxScore} điểm`,
+          ctx.questions
+            .map(
+              (q) =>
+                `- ${q.code} (${q.title}): ${q.earnedMarks}/${q.marks}đ (${q.passedTests}/${q.totalTests} TC) -> /studio/${q.peId}`
+            )
+            .join('\n'),
+        ].join('\n\n'),
+        store: false,
+        signal: params.signal,
+      }),
+  });
+}
+
+export async function streamStudyCoach(params: {
+  apiKey?: string;
+  model: AiMentorModel;
+  studyCoachContext: StudyCoachContext;
+  signal?: AbortSignal;
+  onMeta?: (meta: StreamAiMeta) => void;
+  onDelta?: (chunk: string) => void;
+}): Promise<StreamAiMentorResult> {
+  const ctx = params.studyCoachContext;
+  return postAiProxyStream({
+    apiKey: params.apiKey,
+    model: params.model,
+    requestBody: {
+      action: 'study-coach',
+      model: params.model,
+      studyCoachContext: ctx,
+      stream: true,
+    },
+    signal: params.signal,
+    onMeta: params.onMeta,
+    onDelta: params.onDelta,
+    fallbackDirect: (cleanKey) =>
+      callGeminiDirectText({
+        apiKey: cleanKey,
+        model: params.model,
+        systemInstruction: STUDY_COACH_SYSTEM_INSTRUCTION,
+        input: [
+          `Tiến độ: ${ctx.completedSlotsCount}/${ctx.totalSlots} Slots · ${ctx.solvedExercisesCount}/${ctx.totalExercises} bài tập · ${ctx.passedPeCount}/${ctx.totalPe} PE.`,
+          ctx.nextSlot ? `Slot kế tiếp: ${ctx.nextSlot.title} (${ctx.nextSlot.route})` : '',
+          ctx.unresolvedMistakes.length
+            ? `Lỗi PE: ${ctx.unresolvedMistakes.map((m) => `${m.title} (/studio/${m.peId})`).join('; ')}`
+            : '',
+          ctx.suggestedDocs.length
+            ? `JavaGuide: ${ctx.suggestedDocs.map((d) => `${d.title} (${d.route})`).join('; ')}`
+            : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+        store: false,
+        signal: params.signal,
+      }),
+  });
+}
+
+export async function streamRagSearch(params: {
+  apiKey?: string;
+  model: AiMentorModel;
+  ragContext: RagSearchContext;
+  signal?: AbortSignal;
+  onMeta?: (meta: StreamAiMeta) => void;
+  onDelta?: (chunk: string) => void;
+}): Promise<StreamAiMentorResult> {
+  const ctx = params.ragContext;
+  return postAiProxyStream({
+    apiKey: params.apiKey,
+    model: params.model,
+    requestBody: {
+      action: 'rag-search',
+      model: params.model,
+      ragContext: ctx,
+      stream: true,
+    },
+    signal: params.signal,
+    onMeta: params.onMeta,
+    onDelta: params.onDelta,
+    fallbackDirect: (cleanKey) =>
+      callGeminiDirectText({
+        apiKey: cleanKey,
+        model: params.model,
+        systemInstruction: RAG_SEARCH_SYSTEM_INSTRUCTION,
+        input: [
+          `Câu hỏi: ${ctx.query}`,
+          ctx.sources
+            .map((s) => `- [${s.badge}] ${s.title} (${s.route}): ${s.snippet}`)
+            .join('\n'),
+        ].join('\n\n'),
         store: false,
         signal: params.signal,
       }),

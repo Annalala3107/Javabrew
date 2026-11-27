@@ -34,6 +34,7 @@ const BURST_WINDOW_SECONDS = 60;
 const DAILY_WINDOW_SECONDS = 86_400;
 const LEARN_SUMMARY_TTL_SECONDS = 86_400;
 const SLOT_QUIZ_TTL_SECONDS = 604_800;
+const RAG_SEARCH_TTL_SECONDS = 43_200;
 
 const MAX_PROMPT_CHARS = 4_000;
 const MAX_FILES = 5;
@@ -43,6 +44,7 @@ const MAX_TEST_RESULTS = 10;
 const MAX_LEARN_EXCERPT_CHARS = 6_000;
 const MAX_SELECTED_TEXT_CHARS = 1_000;
 const MAX_EXERCISE_FIELD_CHARS = 3_000;
+const MAX_RAG_SOURCES = 5;
 
 const SYSTEM_INSTRUCTION = [
   'Bạn là AI Code Mentor chuyên môn Java OOP (môn PRO192 chuẩn JDK 1.8 và default package).',
@@ -75,6 +77,27 @@ const SLOT_QUIZ_SYSTEM_INSTRUCTION = [
   'Bạn là giảng viên ra đề trắc nghiệm Final Exam (FE) môn PRO192 (Java Core & OOP, chuẩn JDK 8).',
   'Hãy tạo đúng 5 câu hỏi trắc nghiệm khách quan bám sát mục tiêu học tập và bẫy thi của Slot hiện tại (ưu tiên câu dự đoán output, phát hiện lỗi biên dịch JDK 8, bẫy đa hình/override/static/collections).',
   'Trả về DUY NHẤT JSON hợp lệ theo schema { "questions": [{ "id", "question", "codeSnippet", "options", "correctIndex", "explanation", "topicTag" }] }, không thêm chữ ngoài JSON.',
+].join(' ');
+
+const MOCK_EXAM_REVIEW_SYSTEM_INSTRUCTION = [
+  'Bạn là Giám khảo chấm thi thực hành PE môn PRO192 (FPTU, chuẩn JDK 1.8).',
+  'Hãy nhận xét kết quả thi thử của sinh viên ngắn gọn, sắc bén bằng Markdown tiếng Việt theo 4 mục:',
+  '(1) **Tổng quan điểm & phân bố Q1–Q4**;',
+  '(2) **Điểm mất đáng tiếc** (lỗi biên dịch javac, sai format toString/printf, thiếu kiểm tra null/chuỗi rỗng);',
+  '(3) **Rủi ro hidden test khi thi thật trên PEA/EOS**;',
+  '(4) **Lộ trình ôn lại trong 2 ngày** (chèn link Markdown nội bộ dạng `[Tên](/pe)` hoặc `[Code Studio](/studio/...)` theo danh sách câu yếu).',
+].join(' ');
+
+const STUDY_COACH_SYSTEM_INSTRUCTION = [
+  'Bạn là Cố vấn Học tập PRO192 × JavaGuide cá nhân hóa trên JavaBrew.',
+  'Từ tiến độ học và danh sách lỗi thực tế của sinh viên, hãy lập **Kế hoạch học 30 phút hôm nay** gồm đúng 3 chặng (0–10p, 10–20p, 20–30p) bằng Markdown tiếng Việt súc tích.',
+  'Khi dẫn link học liệu, CHỈ dùng chính xác các đường dẫn nội bộ được cung cấp trong prompt (dạng `[Tiêu đề](/route)`), tuyệt đối không tự bịa URL mới.',
+].join(' ');
+
+const RAG_SEARCH_SYSTEM_INSTRUCTION = [
+  'Bạn là trợ lý tra cứu tri thức nội bộ của JavaBrew (PRO192 × JavaGuide).',
+  'Trả lời trực tiếp câu hỏi bằng tiếng Việt Markdown súc tích (dưới 250 từ), dựa sát trên các nguồn nội bộ được cung cấp bên dưới (kèm kiến thức JDK 8 cốt lõi nếu cần nối ý).',
+  'BẮT BUỘC chèn link trích dẫn nội bộ bằng đúng đường dẫn có trong danh sách nguồn, ví dụ `[Tiêu đề](/docs/...)` hoặc `[Slot 09](/pro192/slots/slot-09)`. Không bịa đường dẫn không có trong danh sách.',
 ].join(' ');
 
 const SLOT_QUIZ_JSON_SCHEMA = {
@@ -199,8 +222,62 @@ export interface SlotQuizSet {
   questions: SlotQuizQuestion[];
 }
 
+export interface MockExamQuestionSummary {
+  peId: number;
+  code: string;
+  title: string;
+  marks: number;
+  earnedMarks: number;
+  passedTests: number;
+  totalTests: number;
+  diagnostics?: string[];
+  failedTests?: string[];
+}
+
+export interface MockExamReviewContextPayload {
+  paper: string;
+  totalScore: number;
+  maxScore: number;
+  elapsedSeconds: number;
+  questions: MockExamQuestionSummary[];
+}
+
+export interface StudyCoachContextPayload {
+  completedSlotsCount: number;
+  totalSlots: number;
+  nextSlot?: { slot: number; title: string; route: string };
+  solvedExercisesCount: number;
+  totalExercises: number;
+  passedPeCount: number;
+  totalPe: number;
+  unresolvedMistakes: Array<{ peId: number; code?: string; title: string; detail: string }>;
+  recentMock?: { paper: string; score: number; maxScore: number };
+  suggestedDocs: Array<{ title: string; route: string }>;
+}
+
+export interface RagSearchSourcePayload {
+  title: string;
+  route: string;
+  badge: string;
+  snippet: string;
+}
+
+export interface RagSearchContextPayload {
+  query: string;
+  lang: 'vi' | 'en';
+  sources: RagSearchSourcePayload[];
+}
+
 interface ValidatedAiRequest {
-  action: 'chat' | 'test' | 'learn' | 'grade-exercise' | 'slot-quiz';
+  action:
+    | 'chat'
+    | 'test'
+    | 'learn'
+    | 'grade-exercise'
+    | 'slot-quiz'
+    | 'mock-exam-review'
+    | 'study-coach'
+    | 'rag-search';
   model: AiMentorModel;
   mentorStyle: AiMentorStyle;
   stream: boolean;
@@ -211,6 +288,9 @@ interface ValidatedAiRequest {
   learnContext?: LearnTutorContextPayload;
   exerciseContext?: ExerciseGradeContextPayload;
   quizContext?: SlotQuizContextPayload;
+  mockReviewContext?: MockExamReviewContextPayload;
+  studyCoachContext?: StudyCoachContextPayload;
+  ragContext?: RagSearchContextPayload;
 }
 
 export function isValidAiMentorModel(value: unknown): value is AiMentorModel {
@@ -300,7 +380,10 @@ function validateAiPayload(
     rawAction === 'test' ||
     rawAction === 'learn' ||
     rawAction === 'grade-exercise' ||
-    rawAction === 'slot-quiz'
+    rawAction === 'slot-quiz' ||
+    rawAction === 'mock-exam-review' ||
+    rawAction === 'study-coach' ||
+    rawAction === 'rag-search'
       ? rawAction
       : 'chat';
   const model = isValidAiMentorModel(rec.model) ? rec.model : resolveDefaultServerModel();
@@ -450,6 +533,187 @@ function validateAiPayload(
         codeChanged: false,
         prompt: 'Sinh Mini-Quiz FE',
         quizContext,
+      },
+    };
+  }
+
+  if (action === 'mock-exam-review') {
+    if (
+      !rec.mockReviewContext ||
+      typeof rec.mockReviewContext !== 'object' ||
+      Array.isArray(rec.mockReviewContext)
+    ) {
+      return { ok: false, error: 'Thiếu dữ liệu kết quả thi thử (mockReviewContext).' };
+    }
+    const mc = rec.mockReviewContext as Record<string, unknown>;
+    const paper = typeof mc.paper === 'string' && mc.paper.trim() ? mc.paper.trim().slice(0, 20) : '';
+    const maxScore = Number(mc.maxScore);
+    const totalScore = Number(mc.totalScore);
+    const elapsedSeconds = Number(mc.elapsedSeconds);
+    if (!paper || !Number.isFinite(maxScore) || maxScore <= 0 || !Array.isArray(mc.questions) || mc.questions.length === 0) {
+      return { ok: false, error: 'Dữ liệu bài thi thử PE chưa hợp lệ.' };
+    }
+    const questions: MockExamQuestionSummary[] = [];
+    for (const rawQ of mc.questions.slice(0, 6)) {
+      if (!rawQ || typeof rawQ !== 'object' || Array.isArray(rawQ)) continue;
+      const q = rawQ as Record<string, unknown>;
+      const code = typeof q.code === 'string' ? q.code.trim().slice(0, 24) : '';
+      const title = typeof q.title === 'string' ? q.title.trim().slice(0, 160) : '';
+      if (!code || !title) continue;
+      questions.push({
+        peId: Number(q.peId) || 1,
+        code,
+        title,
+        marks: Math.max(0, Number(q.marks) || 0),
+        earnedMarks: Math.max(0, Number(q.earnedMarks) || 0),
+        passedTests: Math.max(0, Number(q.passedTests) || 0),
+        totalTests: Math.max(0, Number(q.totalTests) || 0),
+        diagnostics: sanitizeStringArray(q.diagnostics, 6, 200),
+        failedTests: sanitizeStringArray(q.failedTests, 6, 220),
+      });
+    }
+    if (questions.length === 0) {
+      return { ok: false, error: 'Danh sách câu hỏi thi thử đang trống.' };
+    }
+    return {
+      ok: true,
+      data: {
+        action: 'mock-exam-review',
+        model,
+        mentorStyle,
+        stream: rec.stream !== false,
+        codeChanged: false,
+        prompt: `Nhận xét bài thi thử ${paper}`,
+        mockReviewContext: {
+          paper,
+          totalScore: Math.max(0, Number.isFinite(totalScore) ? totalScore : 0),
+          maxScore,
+          elapsedSeconds: Math.max(0, Number.isFinite(elapsedSeconds) ? elapsedSeconds : 0),
+          questions,
+        },
+      },
+    };
+  }
+
+  if (action === 'study-coach') {
+    if (
+      !rec.studyCoachContext ||
+      typeof rec.studyCoachContext !== 'object' ||
+      Array.isArray(rec.studyCoachContext)
+    ) {
+      return { ok: false, error: 'Thiếu dữ liệu tiến độ học tập (studyCoachContext).' };
+    }
+    const sc = rec.studyCoachContext as Record<string, unknown>;
+    const rawNext =
+      sc.nextSlot && typeof sc.nextSlot === 'object' && !Array.isArray(sc.nextSlot)
+        ? (sc.nextSlot as Record<string, unknown>)
+        : null;
+    const rawMock =
+      sc.recentMock && typeof sc.recentMock === 'object' && !Array.isArray(sc.recentMock)
+        ? (sc.recentMock as Record<string, unknown>)
+        : null;
+    const unresolvedMistakes: StudyCoachContextPayload['unresolvedMistakes'] = [];
+    if (Array.isArray(sc.unresolvedMistakes)) {
+      for (const item of sc.unresolvedMistakes.slice(0, 8)) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+        const m = item as Record<string, unknown>;
+        if (typeof m.title !== 'string') continue;
+        unresolvedMistakes.push({
+          peId: Number(m.peId) || 1,
+          code: typeof m.code === 'string' ? m.code.slice(0, 24) : undefined,
+          title: m.title.slice(0, 140),
+          detail: typeof m.detail === 'string' ? m.detail.slice(0, 220) : '',
+        });
+      }
+    }
+    const suggestedDocs: StudyCoachContextPayload['suggestedDocs'] = [];
+    if (Array.isArray(sc.suggestedDocs)) {
+      for (const item of sc.suggestedDocs.slice(0, 5)) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+        const d = item as Record<string, unknown>;
+        if (typeof d.title !== 'string' || typeof d.route !== 'string') continue;
+        suggestedDocs.push({
+          title: d.title.slice(0, 140),
+          route: d.route.slice(0, 180),
+        });
+      }
+    }
+    return {
+      ok: true,
+      data: {
+        action: 'study-coach',
+        model,
+        mentorStyle,
+        stream: rec.stream !== false,
+        codeChanged: false,
+        prompt: 'Lập kế hoạch 30 phút học tập hôm nay',
+        studyCoachContext: {
+          completedSlotsCount: Math.max(0, Number(sc.completedSlotsCount) || 0),
+          totalSlots: Math.max(1, Number(sc.totalSlots) || 30),
+          nextSlot:
+            rawNext && typeof rawNext.title === 'string' && typeof rawNext.route === 'string'
+              ? {
+                  slot: Math.max(1, Number(rawNext.slot) || 1),
+                  title: rawNext.title.slice(0, 140),
+                  route: rawNext.route.slice(0, 140),
+                }
+              : undefined,
+          solvedExercisesCount: Math.max(0, Number(sc.solvedExercisesCount) || 0),
+          totalExercises: Math.max(1, Number(sc.totalExercises) || 150),
+          passedPeCount: Math.max(0, Number(sc.passedPeCount) || 0),
+          totalPe: Math.max(1, Number(sc.totalPe) || 19),
+          unresolvedMistakes,
+          recentMock:
+            rawMock && typeof rawMock.paper === 'string'
+              ? {
+                  paper: rawMock.paper.slice(0, 20),
+                  score: Math.max(0, Number(rawMock.score) || 0),
+                  maxScore: Math.max(1, Number(rawMock.maxScore) || 10),
+                }
+              : undefined,
+          suggestedDocs,
+        },
+      },
+    };
+  }
+
+  if (action === 'rag-search') {
+    if (!rec.ragContext || typeof rec.ragContext !== 'object' || Array.isArray(rec.ragContext)) {
+      return { ok: false, error: 'Thiếu dữ liệu tìm kiếm (ragContext).' };
+    }
+    const rc = rec.ragContext as Record<string, unknown>;
+    const query = typeof rc.query === 'string' ? rc.query.trim().slice(0, 500) : '';
+    if (!query || query.length < 3) {
+      return { ok: false, error: 'Câu hỏi tìm kiếm quá ngắn (tối thiểu 3 ký tự).' };
+    }
+    const sources: RagSearchSourcePayload[] = [];
+    if (Array.isArray(rc.sources)) {
+      for (const s of rc.sources.slice(0, MAX_RAG_SOURCES)) {
+        if (!s || typeof s !== 'object' || Array.isArray(s)) continue;
+        const sr = s as Record<string, unknown>;
+        if (typeof sr.title !== 'string' || typeof sr.route !== 'string') continue;
+        sources.push({
+          title: sr.title.trim().slice(0, 180),
+          route: sr.route.trim().slice(0, 200),
+          badge: typeof sr.badge === 'string' ? sr.badge.trim().slice(0, 40) : 'JavaBrew',
+          snippet: typeof sr.snippet === 'string' ? sr.snippet.trim().slice(0, 800) : '',
+        });
+      }
+    }
+    return {
+      ok: true,
+      data: {
+        action: 'rag-search',
+        model,
+        mentorStyle,
+        stream: rec.stream !== false,
+        codeChanged: false,
+        prompt: query,
+        ragContext: {
+          query,
+          lang: rc.lang === 'en' ? 'en' : 'vi',
+          sources,
+        },
       },
     };
   }
@@ -679,6 +943,83 @@ export function buildSlotQuizPrompt(ctx: SlotQuizContextPayload): string {
     'Trả về DUY NHẤT JSON hợp lệ dạng { "questions": [{ "id": "q1", "question": "...", "codeSnippet": "", "options": ["...", "...", "...", "..."], "correctIndex": 0, "explanation": "...", "topicTag": "..." }] }.'
   );
   return sections.join('\n\n');
+}
+
+export function buildMockExamReviewPrompt(ctx: MockExamReviewContextPayload): string {
+  const mins = Math.floor(ctx.elapsedSeconds / 60);
+  const secs = ctx.elapsedSeconds % 60;
+  const qBlocks = ctx.questions.map((q) => {
+    const parts = [
+      `- **${q.code}: ${q.title}** (${q.earnedMarks}/${q.marks}đ · Pass ${q.passedTests}/${q.totalTests} TC · Link ôn: \`/studio/${q.peId}\`)`,
+    ];
+    if (q.diagnostics?.length) {
+      parts.push(`  Lỗi biên dịch: ${q.diagnostics.join(' | ')}`);
+    }
+    if (q.failedTests?.length) {
+      parts.push(`  Test fail: ${q.failedTests.join(' | ')}`);
+    }
+    return parts.join('\n');
+  });
+  return [
+    `Kết quả Phòng thi PE ảo **${ctx.paper}**: ${ctx.totalScore}/${ctx.maxScore} điểm (thời gian làm: ${mins} phút ${secs} giây).`,
+    `Chi tiết từng câu:\n${qBlocks.join('\n')}`,
+    'Hãy chấm & nhận xét như Giám khảo PE PRO192 thực thụ, cảnh báo lỗi ẩn dễ mất điểm và gợi ý 2–3 đường dẫn ôn lại chính xác.',
+  ].join('\n\n');
+}
+
+export function buildStudyCoachPrompt(ctx: StudyCoachContextPayload): string {
+  const parts = [
+    `Tiến độ hiện tại: ${ctx.completedSlotsCount}/${ctx.totalSlots} Slots PRO192 · ${ctx.solvedExercisesCount}/${ctx.totalExercises} bài tập · ${ctx.passedPeCount}/${ctx.totalPe} câu PE Pass.`,
+  ];
+  if (ctx.nextSlot) {
+    parts.push(
+      `Slot kế tiếp chưa xong: Slot ${String(ctx.nextSlot.slot).padStart(2, '0')} (${ctx.nextSlot.title}) -> Link: \`${ctx.nextSlot.route}\``
+    );
+  }
+  if (ctx.recentMock) {
+    parts.push(
+      `Điểm thi thử PE gần nhất: ${ctx.recentMock.paper} đạt ${ctx.recentMock.score}/${ctx.recentMock.maxScore} -> Link: \`/pe/mock\``
+    );
+  }
+  if (ctx.unresolvedMistakes.length > 0) {
+    parts.push(
+      `Lỗi PE chưa khắc phục (${ctx.unresolvedMistakes.length}):\n${ctx.unresolvedMistakes
+        .map(
+          (m) =>
+            `- [${m.code || `PE #${m.peId}`}] ${m.title}: ${m.detail} -> Link: \`/studio/${m.peId}\``
+        )
+        .join('\n')}`
+    );
+  }
+  if (ctx.suggestedDocs.length > 0) {
+    parts.push(
+      `Bài JavaGuide gợi ý phù hợp:\n${ctx.suggestedDocs
+        .map((d) => `- ${d.title} -> Link: \`${d.route}\``)
+        .join('\n')}`
+    );
+  }
+  parts.push(
+    'Hãy lập kế hoạch học đúng 30 phút hôm nay (3 chặng: 0–10p, 10–20p, 20–30p), chèn link Markdown từ danh sách trên.'
+  );
+  return parts.join('\n\n');
+}
+
+export function buildRagSearchPrompt(ctx: RagSearchContextPayload): string {
+  const sourceLines =
+    ctx.sources.length > 0
+      ? ctx.sources
+          .map(
+            (s, i) =>
+              `[${i + 1}] (${s.badge}) **${s.title}** — Route: \`${s.route}\`\nNội dung: ${s.snippet}`
+          )
+          .join('\n\n')
+      : 'Không có tài liệu nội bộ khớp trực tiếp; hãy hướng dẫn theo chuẩn JDK 8 PRO192 và gợi ý tìm thêm trong `/pro192` hoặc `/docs`.';
+
+  return [
+    `Câu hỏi của người học (${ctx.lang.toUpperCase()}): ${ctx.query}`,
+    `Kho nguồn nội bộ JavaBrew:\n${sourceLines}`,
+    'Hãy trả lời chính xác, dễ hiểu và trích dẫn link nội bộ bằng Markdown `[Tiêu đề](Route)`.',
+  ].join('\n\n');
 }
 
 export function extractJsonObject(raw: string): unknown {
@@ -1255,6 +1596,32 @@ export async function POST(request: Request): Promise<Response> {
       ? `slot-quiz:v1:slot-${payload.quizContext.slot}`
       : null;
 
+  const ragSearchCacheKey =
+    payload.action === 'rag-search' && payload.ragContext
+      ? `rag-search:v1:${payload.ragContext.lang}:${sanitizeCacheKeyPart(payload.ragContext.query)}`
+      : null;
+
+  if (ragSearchCacheKey) {
+    const cachedRag = await getCachedValue(ragSearchCacheKey);
+    if (cachedRag) {
+      const peek = source === 'server' ? await peekServerQuota(clientIp) : undefined;
+      await emitMetric('ai_mentor.request', 1, {
+        source,
+        model: payload.model,
+        action: 'rag-search',
+        outcome: 'cache_hit',
+      });
+      return buildSseSingleShotResponse({
+        text: cachedRag,
+        model: payload.model,
+        source,
+        remaining: peek?.remaining,
+        limit: peek?.dailyLimit,
+        cached: true,
+      });
+    }
+  }
+
   if (slotQuizCacheKey && !payload.quizContext?.regenerate) {
     const cachedQuizRaw = await getCachedValue(slotQuizCacheKey);
     if (cachedQuizRaw) {
@@ -1326,6 +1693,18 @@ export async function POST(request: Request): Promise<Response> {
       mime_type: 'application/json',
       schema: SLOT_QUIZ_JSON_SCHEMA,
     };
+  } else if (payload.action === 'mock-exam-review' && payload.mockReviewContext) {
+    systemInstruction = MOCK_EXAM_REVIEW_SYSTEM_INSTRUCTION;
+    builtInput = buildMockExamReviewPrompt(payload.mockReviewContext);
+    storeInteraction = false;
+  } else if (payload.action === 'study-coach' && payload.studyCoachContext) {
+    systemInstruction = STUDY_COACH_SYSTEM_INSTRUCTION;
+    builtInput = buildStudyCoachPrompt(payload.studyCoachContext);
+    storeInteraction = false;
+  } else if (payload.action === 'rag-search' && payload.ragContext) {
+    systemInstruction = RAG_SEARCH_SYSTEM_INSTRUCTION;
+    builtInput = buildRagSearchPrompt(payload.ragContext);
+    storeInteraction = false;
   } else {
     systemInstruction =
       payload.mentorStyle === 'socratic'
@@ -1482,6 +1861,9 @@ export async function POST(request: Request): Promise<Response> {
     if (learnSummaryCacheKey && reply.trim().length > 20) {
       await setCachedValue(learnSummaryCacheKey, reply.trim(), LEARN_SUMMARY_TTL_SECONDS);
     }
+    if (ragSearchCacheKey && reply.trim().length > 20) {
+      await setCachedValue(ragSearchCacheKey, reply.trim(), RAG_SEARCH_TTL_SECONDS);
+    }
     await emitMetric('ai_mentor.request', 1, {
       source,
       model: activeModel,
@@ -1635,6 +2017,13 @@ export async function POST(request: Request): Promise<Response> {
               learnSummaryCacheKey,
               collectedText.trim(),
               LEARN_SUMMARY_TTL_SECONDS
+            );
+          }
+          if (ragSearchCacheKey && collectedText.trim().length > 20) {
+            await setCachedValue(
+              ragSearchCacheKey,
+              collectedText.trim(),
+              RAG_SEARCH_TTL_SECONDS
             );
           }
           safeEnqueue(

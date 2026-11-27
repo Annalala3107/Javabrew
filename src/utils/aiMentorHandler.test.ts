@@ -576,4 +576,179 @@ describe('server/ai-mentor HTTP handler', () => {
     expect(data3.remaining).toBe(13);
     expect(upstreamAttempts).toBe(3);
   });
+
+  it('streams mock-exam-review and study-coach prompts', async () => {
+    process.env.GEMINI_API_KEY = 'AIzaServerDemo';
+    const capturedBodies: Array<{ system_instruction?: string; input?: string; store?: boolean }> = [];
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        capturedBodies.push(
+          JSON.parse(String(init?.body || '{}')) as {
+            system_instruction?: string;
+            input?: string;
+            store?: boolean;
+          }
+        );
+        return makeSseResponse([
+          {
+            data: {
+              event_type: 'step.delta',
+              delta: { type: 'text', text: 'Nhận xét AI thành công.' },
+            },
+          },
+        ]);
+      })
+    );
+
+    const mockRes = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.88' },
+        body: JSON.stringify({
+          action: 'mock-exam-review',
+          model: 'gemini-3.5-flash-lite',
+          mockReviewContext: {
+            paper: 'PE1',
+            totalScore: 5.5,
+            maxScore: 10,
+            elapsedSeconds: 2400,
+            questions: [
+              {
+                peId: 1,
+                code: 'PE1-Q1',
+                title: 'Crocus',
+                marks: 2,
+                earnedMarks: 2,
+                passedTests: 3,
+                totalTests: 3,
+                diagnostics: [],
+                failedTests: [],
+              },
+              {
+                peId: 2,
+                code: 'PE1-Q2',
+                title: 'SpecDaisy',
+                marks: 3,
+                earnedMarks: 1.5,
+                passedTests: 1,
+                totalTests: 2,
+                diagnostics: [],
+                failedTests: ['TC2 failed'],
+              },
+            ],
+          },
+        }),
+      })
+    );
+
+    expect(mockRes.status).toBe(200);
+    const mockSse = await mockRes.text();
+    expect(mockSse).toContain('Nhận xét AI thành công.');
+
+    const coachRes = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.88' },
+        body: JSON.stringify({
+          action: 'study-coach',
+          model: 'gemini-3.5-flash-lite',
+          studyCoachContext: {
+            completedSlotsCount: 5,
+            totalSlots: 30,
+            nextSlot: { slot: 6, title: 'Encapsulation', route: '/pro192/slots/slot-06' },
+            solvedExercisesCount: 12,
+            totalExercises: 150,
+            passedPeCount: 2,
+            totalPe: 19,
+            unresolvedMistakes: [{ peId: 2, code: 'PE1-Q2', title: 'NPE', detail: 'Check null' }],
+            recentMock: { paper: 'PE1', score: 5.5, maxScore: 10 },
+            suggestedDocs: [{ title: 'BigDecimal', route: '/docs/java/basis/bigdecimal.md' }],
+          },
+        }),
+      })
+    );
+
+    expect(coachRes.status).toBe(200);
+    const coachSse = await coachRes.text();
+    expect(coachSse).toContain('Nhận xét AI thành công.');
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0].store).toBe(false);
+    expect(capturedBodies[0].input).toContain('PE1-Q2');
+    expect(capturedBodies[1].store).toBe(false);
+    expect(capturedBodies[1].input).toContain('/pro192/slots/slot-06');
+  });
+
+  it('caches rag-search answers for 12h without consuming extra quota on cache hit', async () => {
+    process.env.GEMINI_API_KEY = 'AIzaServerDemo';
+    let upstreamCalls = 0;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        upstreamCalls++;
+        return makeSseResponse([
+          {
+            data: {
+              event_type: 'step.delta',
+              delta: { type: 'text', text: 'Xem [HashMap](/docs/java/collection/hashmap-source-code.md).' },
+            },
+          },
+        ]);
+      })
+    );
+
+    const ragBody = {
+      action: 'rag-search',
+      model: 'gemini-3.5-flash-lite',
+      ragContext: {
+        query: 'HashMap hoạt động thế nào?',
+        lang: 'vi',
+        sources: [
+          {
+            title: 'HashMap JDK 8',
+            route: '/docs/java/collection/hashmap-source-code.md',
+            badge: 'Java Core',
+            snippet: 'Bucket + Red-Black Tree',
+          },
+        ],
+      },
+    };
+
+    const res1 = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.99' },
+        body: JSON.stringify(ragBody),
+      })
+    );
+    expect(res1.status).toBe(200);
+    const text1 = await res1.text();
+    expect(text1).toContain('"remaining":29');
+    expect(text1).toContain('hashmap-source-code.md');
+    expect(upstreamCalls).toBe(1);
+
+    const res2 = await POST(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.99' },
+        body: JSON.stringify(ragBody),
+      })
+    );
+    expect(res2.status).toBe(200);
+    const text2 = await res2.text();
+    expect(text2).toContain('"cached":true');
+    expect(text2).toContain('hashmap-source-code.md');
+    expect(upstreamCalls).toBe(1);
+
+    // Remaining server quota must remain unchanged at 29 after cache hit
+    const statusRes = await GET(
+      new Request('https://javabrew.test/api/ai-mentor', {
+        headers: { 'x-vercel-forwarded-for': '203.0.113.99' },
+      })
+    );
+    const statusJson = (await statusRes.json()) as { remaining: number };
+    expect(statusJson.remaining).toBe(29);
+  });
 });

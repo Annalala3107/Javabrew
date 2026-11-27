@@ -15,6 +15,9 @@ import {
   streamAiMentor,
   streamExerciseGrade,
   streamLearnTutor,
+  streamMockExamReview,
+  streamRagSearch,
+  streamStudyCoach,
   testGeminiApiKey,
   type AiMentorContext,
 } from './aiMentorService';
@@ -510,5 +513,99 @@ describe('aiMentorService (Gemini Interactions API + Offline Mentor)', () => {
       const cached = readCachedSlotQuiz(2);
       expect(cached?.score).toBe(1);
     }
+  });
+
+  it('streams mock-exam-review, study-coach, and cached rag-search via proxy', async () => {
+    const encoder = new TextEncoder();
+    const seenMetas: Array<{ cached?: boolean; remaining?: number }> = [];
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body || '{}')) as { action?: string };
+        const isRag = body.action === 'rag-search';
+        const replyText =
+          body.action === 'mock-exam-review'
+            ? 'Giám khảo: Cần rà null Q2.'
+            : body.action === 'study-coach'
+              ? '10p đầu: sửa lỗi PE.'
+              : 'Xem [Slot 14](/pro192/slots/slot-14).';
+        const stream = new ReadableStream<Uint8Array>({
+          start(ctrl) {
+            ctrl.enqueue(
+              encoder.encode(
+                `event: meta\ndata: ${JSON.stringify({
+                  source: 'server',
+                  model: 'gemini-3.5-flash-lite',
+                  remaining: 12,
+                  limit: 15,
+                  cached: isRag,
+                })}\n\n`
+              )
+            );
+            ctrl.enqueue(encoder.encode(`event: delta\ndata: ${JSON.stringify({ text: replyText })}\n\n`));
+            ctrl.enqueue(
+              encoder.encode(
+                `event: done\ndata: ${JSON.stringify({
+                  source: 'server',
+                  model: 'gemini-3.5-flash-lite',
+                  remaining: 12,
+                  limit: 15,
+                  cached: isRag,
+                })}\n\n`
+              )
+            );
+            ctrl.close();
+          },
+        });
+        return new Response(stream, {
+          status: 200,
+          headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+        });
+      })
+    );
+
+    const mockRes = await streamMockExamReview({
+      model: 'gemini-3.5-flash-lite',
+      mockReviewContext: {
+        paper: 'PE1',
+        totalScore: 6,
+        maxScore: 10,
+        elapsedSeconds: 1200,
+        questions: [],
+      },
+    });
+    expect(mockRes.ok && mockRes.reply).toContain('Giám khảo');
+
+    const coachRes = await streamStudyCoach({
+      model: 'gemini-3.5-flash-lite',
+      studyCoachContext: {
+        completedSlotsCount: 1,
+        totalSlots: 30,
+        solvedExercisesCount: 2,
+        totalExercises: 150,
+        passedPeCount: 0,
+        totalPe: 19,
+        unresolvedMistakes: [],
+        suggestedDocs: [],
+      },
+    });
+    expect(coachRes.ok && coachRes.reply).toContain('10p đầu');
+
+    const ragRes = await streamRagSearch({
+      model: 'gemini-3.5-flash-lite',
+      ragContext: {
+        query: 'Collections là gì',
+        lang: 'vi',
+        sources: [],
+      },
+      onMeta: (m) => seenMetas.push({ cached: m.cached, remaining: m.remaining }),
+    });
+    expect(ragRes.ok).toBe(true);
+    if (ragRes.ok) {
+      expect(ragRes.cached).toBe(true);
+      expect(ragRes.reply).toContain('/pro192/slots/slot-14');
+    }
+    expect(seenMetas).toEqual([{ cached: true, remaining: 12 }]);
   });
 });
