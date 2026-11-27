@@ -287,7 +287,7 @@ export function resolveMarkdownHref(
   if (trimmed.startsWith('/media/')) {
     return { kind: 'media', target: trimmed };
   }
-  if (/^\/(?:studio|pe|pro192|dashboard|resources)(?:[/?#]|$)/.test(trimmed)) {
+  if (/^\/(?:studio|pe|pro192|dashboard|resources|docs)(?:[/?#]|$)/.test(trimmed)) {
     return { kind: 'internal', target: trimmed };
   }
 

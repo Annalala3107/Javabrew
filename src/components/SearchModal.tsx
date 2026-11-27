@@ -1,9 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Code2, FileText, GraduationCap, HelpCircle, Search, Terminal } from 'lucide-react';
+import {
+  BookOpen,
+  Code2,
+  FileText,
+  GraduationCap,
+  HelpCircle,
+  Search,
+  Sparkles,
+  Terminal,
+} from 'lucide-react';
 import { useApp, type PdfPreviewState } from '../context/AppContext';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { SkeletonCard } from './lucian/SkeletonCard';
+import { StreamingAiBubble } from './lucian/StreamingAiBubble';
+import { streamRagSearch, type RagSearchSource } from '../services/aiMentorService';
+import { retrieveRagSources } from '../utils/ragRetrieval';
 import { normalizeSearchText, stageFileToSlug } from '../utils/text';
 
 type FilterTab = 'all' | 'docs' | 'slots' | 'exercises' | 'pe' | 'lab' | 'slides';
@@ -26,10 +38,202 @@ function matchesTokens(haystack: string, tokens: string[]): boolean {
 
 export function SearchModal() {
   const navigate = useNavigate();
-  const { isSearchOpen, setIsSearchOpen, loadSearchIndex, searchIndex, lang, openPdfPreview } =
-    useApp();
+  const {
+    isSearchOpen,
+    setIsSearchOpen,
+    loadSearchIndex,
+    searchIndex,
+    pro192,
+    ensureMetadataLoaded,
+    lang,
+    openPdfPreview,
+    byokKey,
+    aiModel,
+    aiServerStatus,
+    refreshAiServerStatus,
+    updateAiServerQuota,
+    setIsSettingsOpen,
+  } = useApp();
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<FilterTab>('all');
+  const [ragState, setRagState] = useState<{
+    query: string;
+    loading: boolean;
+    streaming: boolean;
+    liveStreamed: boolean;
+    reply: string;
+    tone: 'ai' | 'offline' | 'error';
+    badge?: string;
+    sources: RagSearchSource[];
+  } | null>(null);
+  const ragAbortRef = useRef<AbortController | null>(null);
+
+  const handleAskAiRag = useCallback(async () => {
+    const cleanQuery = query.trim();
+    if (cleanQuery.length < 6) return;
+
+    ragAbortRef.current?.abort();
+    const controller = new AbortController();
+    ragAbortRef.current = controller;
+
+    if (!pro192) {
+      await ensureMetadataLoaded().catch(() => undefined);
+    }
+    const currentIndex = searchIndex || (await loadSearchIndex());
+    const sources = retrieveRagSources(cleanQuery, currentIndex, pro192, lang, 5);
+
+    setRagState({
+      query: cleanQuery,
+      loading: true,
+      streaming: false,
+      liveStreamed: false,
+      reply: '',
+      tone: 'ai',
+      sources,
+    });
+
+    const statusSnapshot = aiServerStatus || (await refreshAiServerStatus());
+    if (ragAbortRef.current !== controller) return;
+
+    const targetModel = byokKey ? aiModel : statusSnapshot?.defaultModel || aiModel;
+    let firstDeltaSeen = false;
+
+    try {
+      const res = await streamRagSearch({
+        apiKey: byokKey || undefined,
+        model: targetModel,
+        ragContext: {
+          query: cleanQuery,
+          lang,
+          sources,
+        },
+        signal: controller.signal,
+        onMeta: (meta) => {
+          if (ragAbortRef.current !== controller) return;
+          if (!meta.cached && typeof meta.remaining === 'number') {
+            updateAiServerQuota(meta.remaining, meta.limit);
+          }
+          const badge = meta.cached
+            ? 'Cache · 0 lượt'
+            : meta.source === 'server'
+              ? `${meta.model}${typeof meta.remaining === 'number' ? ` · Còn ${meta.remaining}/${meta.limit} lượt` : ''}`
+              : `BYOK · ${meta.model}`;
+          setRagState((prev) => (prev ? { ...prev, badge } : prev));
+        },
+        onDelta: (chunk) => {
+          if (ragAbortRef.current !== controller) return;
+          firstDeltaSeen = true;
+          setRagState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  loading: false,
+                  streaming: true,
+                  liveStreamed: true,
+                  reply: prev.reply + chunk,
+                }
+              : prev
+          );
+        },
+      });
+
+      if (ragAbortRef.current !== controller) return;
+
+      if (res.ok) {
+        if (!res.cached && typeof res.remaining === 'number') {
+          updateAiServerQuota(res.remaining, res.limit);
+        }
+        const finalBadge = res.cached
+          ? 'Cache · 0 lượt'
+          : res.source === 'server'
+            ? `${res.model}${typeof res.remaining === 'number' ? ` · Còn ${res.remaining}/${res.limit} lượt` : ''}`
+            : `BYOK · ${res.model}`;
+        setRagState((prev) =>
+          prev
+            ? {
+                ...prev,
+                loading: false,
+                streaming: false,
+                liveStreamed: firstDeltaSeen,
+                reply: res.reply,
+                tone: 'ai',
+                badge: finalBadge,
+              }
+            : prev
+        );
+      } else {
+        setRagState((prev) =>
+          prev
+            ? {
+                ...prev,
+                loading: false,
+                streaming: false,
+                liveStreamed: false,
+                reply: res.errorMessage,
+                tone: res.quotaExceeded ? 'offline' : 'error',
+                badge: res.quotaExceeded ? 'Hết lượt hôm nay' : 'AI lỗi',
+              }
+            : prev
+        );
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (ragAbortRef.current !== controller) return;
+      setRagState((prev) =>
+        prev
+          ? {
+              ...prev,
+              loading: false,
+              streaming: false,
+              reply: 'Không kết nối được AI RAG lúc này. Hãy thử lại sau.',
+              tone: 'error',
+              badge: 'Lỗi kết nối',
+            }
+          : prev
+      );
+    }
+  }, [
+    aiModel,
+    aiServerStatus,
+    byokKey,
+    ensureMetadataLoaded,
+    lang,
+    loadSearchIndex,
+    pro192,
+    query,
+    refreshAiServerStatus,
+    searchIndex,
+    updateAiServerQuota,
+  ]);
+
+  useEffect(() => {
+    if (!isSearchOpen) {
+      ragAbortRef.current?.abort();
+      ragAbortRef.current = null;
+      setRagState(null);
+      return;
+    }
+
+    const onShiftEnter = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && e.shiftKey && query.trim().length >= 6) {
+        e.preventDefault();
+        e.stopPropagation();
+        void handleAskAiRag();
+      }
+    };
+    window.addEventListener('keydown', onShiftEnter, true);
+    return () => {
+      window.removeEventListener('keydown', onShiftEnter, true);
+    };
+  }, [handleAskAiRag, isSearchOpen, query]);
+
+  useEffect(() => {
+    if (ragState && ragState.query !== query.trim()) {
+      ragAbortRef.current?.abort();
+      ragAbortRef.current = null;
+      setRagState(null);
+    }
+  }, [query, ragState]);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -360,7 +564,80 @@ export function SearchModal() {
           })}
         </div>
 
-        <div className="max-h-80 overflow-y-auto overscroll-contain p-3">
+        <div className="max-h-[min(70vh,28rem)] overflow-y-auto overscroll-contain p-3">
+          {query.trim().length >= 6 && (
+            <div className="mb-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface-muted)] p-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleAskAiRag()}
+                  disabled={ragState?.loading || ragState?.streaming}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:cursor-wait disabled:opacity-70"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>✨ Hỏi AI từ kho học liệu JavaBrew</span>
+                </button>
+                <span className="text-[11px] text-[var(--text-dim)]">
+                  Shift + Enter để hỏi nhanh · Tự động đính kèm trích dẫn nội bộ
+                </span>
+              </div>
+
+              {ragState && (
+                <div
+                  className="mt-2.5 space-y-2"
+                  onClick={(e) => {
+                    const anchor = (e.target as HTMLElement | null)?.closest('a[href]');
+                    if (anchor && !anchor.getAttribute('target')) {
+                      setIsSearchOpen(false);
+                    }
+                  }}
+                >
+                  {ragState.sources.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] font-medium text-[var(--text-dim)]">
+                        Nguồn đối chiếu:
+                      </span>
+                      {ragState.sources.map((src) => (
+                        <button
+                          key={src.route}
+                          type="button"
+                          onClick={() => {
+                            setIsSearchOpen(false);
+                            navigate(src.route);
+                          }}
+                          className="rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent-text)] transition hover:border-[var(--accent)]"
+                        >
+                          {src.badge} · {src.title}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <StreamingAiBubble
+                    prompt={ragState.query}
+                    reply={ragState.reply}
+                    thinking={ragState.loading && !ragState.reply}
+                    streaming={ragState.streaming}
+                    liveStreamed={ragState.liveStreamed}
+                    tone={ragState.tone}
+                    badgeLabel={ragState.badge}
+                    onAbortStream={() => {
+                      ragAbortRef.current?.abort();
+                      ragAbortRef.current = null;
+                      setRagState((prev) =>
+                        prev ? { ...prev, loading: false, streaming: false } : prev
+                      );
+                    }}
+                    onOpenSettings={() => {
+                      setIsSearchOpen(false);
+                      setIsSettingsOpen(true);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <SkeletonCard variant="list" />
           ) : results.length === 0 ? (

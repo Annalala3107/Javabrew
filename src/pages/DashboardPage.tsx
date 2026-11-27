@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { LucianAccordion } from '../components/lucian/LucianAccordion';
 import { LucianChecklistItem } from '../components/lucian/LucianChecklistItem';
+import { AiStudyCoachCard } from '../components/dashboard/AiStudyCoachCard';
 import { useApp } from '../context/AppContext';
 import { useRevealSection } from '../hooks/useMotion';
 import { findArticleTitle, stageEntrySlug, stageFileToSlug } from '../utils/text';
@@ -141,6 +142,12 @@ export function DashboardPage() {
             >
               Vào Kho Đề PE
             </Link>
+            <Link
+              to="/pe/mock"
+              className="rounded-lg border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-4 py-2 text-xs font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+            >
+              ⏱ Thi thử PE
+            </Link>
           </div>
         </div>
 
@@ -166,6 +173,8 @@ export function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <AiStudyCoachCard />
 
       {/* 2 Balanced Columns */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

@@ -922,7 +922,7 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     const daisyTab = screen.getByRole('tab', { name: 'Daisy.java' });
     expect(specTab).toHaveAttribute('aria-selected', 'true');
 
-    const ed1 = screen.getByLabelText(/Trình soạn thảo mã nguồn Java/i);
+    const ed1 = await screen.findByLabelText(/Trình soạn thảo mã nguồn Java/i);
     const v1 = EditorView.findFromDOM(ed1)!;
     await act(async () => {
       v1.dispatch({ changes: { from: 0, insert: '// edit spec\n' } });
@@ -2221,5 +2221,245 @@ describe('JavaBrew Night Coffee Lab UI', () => {
     } finally {
       anchorClickSpy.mockRestore();
     }
+  });
+
+  it('runs timed Mock PE Exam (/pe/mock/PE1) with AI/Diff locked, submits 2-step for Scorecard, and calls AI Examiner', async () => {
+    const encoder = new TextEncoder();
+    const seenAiActions: string[] = [];
+
+    installFetchMock(undefined, async (method, bodyText) => {
+      if (method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            available: true,
+            mode: 'server',
+            defaultModel: 'gemini-3.5-flash-lite',
+            dailyLimit: 15,
+            remaining: 15,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      const parsed = JSON.parse(bodyText || '{}') as { action?: string };
+      if (parsed.action) seenAiActions.push(parsed.action);
+      const stream = new ReadableStream<Uint8Array>({
+        start(ctrl) {
+          ctrl.enqueue(
+            encoder.encode(
+              `event: meta\ndata: ${JSON.stringify({
+                source: 'server',
+                model: 'gemini-3.5-flash-lite',
+                remaining: 14,
+                limit: 15,
+              })}\n\n`
+            )
+          );
+          ctrl.enqueue(
+            encoder.encode(
+              `event: delta\ndata: ${JSON.stringify({
+                text: 'Nhận xét PE1: Kiểm tra lại super(name, age) ở SpecDaisy.',
+              })}\n\n`
+            )
+          );
+          ctrl.enqueue(
+            encoder.encode(
+              `event: done\ndata: ${JSON.stringify({
+                source: 'server',
+                model: 'gemini-3.5-flash-lite',
+                remaining: 14,
+                limit: 15,
+              })}\n\n`
+            )
+          );
+          ctrl.close();
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+      });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/pe/mock/PE1']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Chế độ Thi thật · PE1/i)).toBeInTheDocument();
+    expect(screen.getByText(/Đã khóa Diff & AI trong lúc thi/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /So sánh Bản Tối ưu/i })).not.toBeInTheDocument();
+
+    // 2-step submission
+    fireEvent.click(screen.getByRole('button', { name: /✔ Nộp bài thi/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Xác nhận nộp ngay/i }));
+
+    expect(await screen.findByText(/Phiếu điểm Phòng thi PE ảo · PE1/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tổng điểm:/i)).toBeInTheDocument();
+
+    // Trigger AI Examiner post-submit
+    fireEvent.click(screen.getByRole('button', { name: /✨ Nhận xét của AI Giám khảo PE/i }));
+    expect(
+      await screen.findByText(/Kiểm tra lại super\(name, age\) ở SpecDaisy/i)
+    ).toBeInTheDocument();
+    expect(seenAiActions).toEqual(['mock-exam-review']);
+  });
+
+  it('renders Dashboard AiStudyCoachCard with zero AI calls on mount and streams opt-in 30-min plan', async () => {
+    const encoder = new TextEncoder();
+    const seenAiRequests: Array<{ method: string; action?: string }> = [];
+
+    installFetchMock(undefined, async (method, bodyText) => {
+      const parsed = bodyText ? (JSON.parse(bodyText) as { action?: string }) : {};
+      seenAiRequests.push({ method, action: parsed.action });
+      if (method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            available: true,
+            mode: 'server',
+            defaultModel: 'gemini-3.5-flash-lite',
+            dailyLimit: 15,
+            remaining: 15,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      const stream = new ReadableStream<Uint8Array>({
+        start(ctrl) {
+          ctrl.enqueue(
+            encoder.encode(
+              `event: delta\ndata: ${JSON.stringify({
+                text: 'Phút 0-15: Ôn Slot 01 Tổng quan Java.',
+              })}\n\n`
+            )
+          );
+          ctrl.enqueue(
+            encoder.encode(
+              `event: done\ndata: ${JSON.stringify({
+                source: 'server',
+                model: 'gemini-3.5-flash-lite',
+                remaining: 14,
+                limit: 15,
+              })}\n\n`
+            )
+          );
+          ctrl.close();
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+      });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/AI Study Coach · Gợi ý lộ trình hôm nay/i)).toBeInTheDocument();
+    expect(screen.getByText(/Phòng thi thử PE \(85 phút\)/i)).toBeInTheDocument();
+    expect(seenAiRequests).toEqual([]);
+
+    fireEvent.click(screen.getByRole('button', { name: /✨ Lập kế hoạch 30 phút bằng AI/i }));
+    expect(await screen.findByText(/Phút 0-15: Ôn Slot 01 Tổng quan Java\./i)).toBeInTheDocument();
+    expect(seenAiRequests.some((r) => r.action === 'study-coach')).toBe(true);
+    expect(localStorage.getItem('javabrew:study_coach_v1')).toContain('Phút 0-15');
+  });
+
+  it('supports SearchModal AI RAG Q&A with cache badge and closes modal when clicking internal citation', async () => {
+    const encoder = new TextEncoder();
+    const seenAiActions: string[] = [];
+
+    installFetchMock(undefined, async (method, bodyText) => {
+      if (method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            available: true,
+            mode: 'server',
+            defaultModel: 'gemini-3.5-flash-lite',
+            dailyLimit: 15,
+            remaining: 15,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      const parsed = JSON.parse(bodyText || '{}') as { action?: string };
+      if (parsed.action) seenAiActions.push(parsed.action);
+      const stream = new ReadableStream<Uint8Array>({
+        start(ctrl) {
+          ctrl.enqueue(
+            encoder.encode(
+              `event: meta\ndata: ${JSON.stringify({
+                source: 'server',
+                model: 'gemini-3.5-flash-lite',
+                remaining: 15,
+                limit: 15,
+                cached: true,
+              })}\n\n`
+            )
+          );
+          ctrl.enqueue(
+            encoder.encode(
+              `event: delta\ndata: ${JSON.stringify({
+                text: 'Xem chi tiết tại [Slot 01 Java](/pro192/slots/slot-01) nhé.',
+              })}\n\n`
+            )
+          );
+          ctrl.enqueue(
+            encoder.encode(
+              `event: done\ndata: ${JSON.stringify({
+                source: 'server',
+                model: 'gemini-3.5-flash-lite',
+                remaining: 15,
+                limit: 15,
+                cached: true,
+              })}\n\n`
+            )
+          );
+          ctrl.close();
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+      });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: /Cài đặt AI Key/i });
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+
+    const combo = await screen.findByRole('combobox', { name: /Nhập từ khóa tìm kiếm/i });
+    fireEvent.change(combo, { target: { value: 'Tổng quan Java và BigDecimal' } });
+
+    const askRagBtn = await screen.findByRole('button', {
+      name: /✨ Hỏi AI từ kho học liệu JavaBrew/i,
+    });
+    fireEvent.click(askRagBtn);
+
+    expect(await screen.findByText('Cache · 0 lượt')).toBeInTheDocument();
+    const internalLink = await screen.findByRole('link', { name: 'Slot 01 Java' });
+    expect(seenAiActions).toEqual(['rag-search']);
+
+    fireEvent.click(internalLink);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('dialog', { name: /Tìm kiếm toàn cục JavaBrew/i })
+      ).not.toBeInTheDocument();
+    });
+    expect(await screen.findByText(/Lý thuyết Slot 1\./i)).toBeInTheDocument();
   });
 });
