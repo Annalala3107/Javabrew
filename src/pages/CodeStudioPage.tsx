@@ -2,17 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
-  BookOpen,
   CheckCircle2,
-  Columns2,
   FilePlus2,
-  Pause,
-  Play,
-  RotateCcw,
-  Rows2,
-  Share2,
   Target,
-  Timer,
   Trash2,
   X,
 } from 'lucide-react';
@@ -23,21 +15,14 @@ import { TryitSplitPane } from '../components/TryitSplitPane';
 import { CodeCharLimitMeter } from '../components/lucian/CodeCharLimitMeter';
 import { CopyCodeButton } from '../components/lucian/CopyCodeButton';
 import { LucianChecklistItem } from '../components/lucian/LucianChecklistItem';
-import { MorphActionButton } from '../components/lucian/MorphActionButton';
 import { SlidingPillTabs } from '../components/lucian/SlidingPillTabs';
-import { StretchySwitch } from '../components/lucian/StretchySwitch';
-import { StudioAiMentorPane, type ChatMessage } from '../components/studio/StudioAiMentorPane';
+import { StudioAiMentorPane } from '../components/studio/StudioAiMentorPane';
 import { StudioExamplesDrawer } from '../components/studio/StudioExamplesDrawer';
 import { StudioOutputConsole } from '../components/studio/StudioOutputConsole';
+import { StudioToolbar } from '../components/studio/StudioToolbar';
 import { useApp } from '../context/AppContext';
-import {
-  buildOfflineMentorReply,
-  readMentorStyle,
-  saveMentorStyle,
-  streamAiMentor,
-  type AiMentorContext,
-  type AiMentorStyle,
-} from '../services/aiMentorService';
+import { useStudioAiMentor } from '../hooks/useStudioAiMentor';
+import { useStudioTimer } from '../hooks/useStudioTimer';
 import {
   checkJavaSandboxHealth,
   runJavaInCloud,
@@ -78,12 +63,6 @@ interface PlaygroundRouteState {
 const STORAGE_ORIENTATION = 'javabrew:studio_orientation';
 const STORAGE_SPLIT = 'javabrew:studio_split';
 const STORAGE_AUTORUN = 'javabrew:studio_autorun';
-
-function formatClock(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
 
 function readStoredOrientation(): 'horizontal' | 'vertical' {
   try {
@@ -304,20 +283,12 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
 
   const [diagnosisCards, setDiagnosisCards] = useState<PeDiagnosisCard[]>([]);
   const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
-  const [chatInput, setChatInput] = useState('');
-  const [pendingPrompt, setPendingPrompt] = useState('');
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [mentorStyle, setMentorStyle] = useState<AiMentorStyle>(readMentorStyle);
   const [charLimitHitNonce, setCharLimitHitNonce] = useState(0);
 
   const draftTimerRef = useRef<number>(0);
   const pgDraftTimerRef = useRef<number>(0);
   const charLimitToastAtRef = useRef<number>(0);
   const runAbortRef = useRef<AbortController | null>(null);
-  const aiAbortRef = useRef<AbortController | null>(null);
-  const lastInteractionIdRef = useRef<string | null>(null);
-  const lastAiFilesSigRef = useRef<string>('');
   const appliedImportKeyRef = useRef<string | null>(null);
   const appliedQueryKeyRef = useRef<string>(
     playgroundMode
@@ -351,50 +322,27 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     return m ? Number(m[1]) : 35;
   }, [activePe]);
 
-  const [secondsLeft, setSecondsLeft] = useState(suggestedMinutes * 60);
-  const [timerRunning, setTimerRunning] = useState(false);
-
-  const abortActiveAi = useCallback(() => {
-    if (aiAbortRef.current) {
-      aiAbortRef.current.abort();
-      aiAbortRef.current = null;
-    }
-    setAiBusy(false);
-    setPendingPrompt('');
-    setChatHistory((prev) =>
-      prev.map((m) =>
-        m.streaming
-          ? {
-              ...m,
-              streaming: false,
-              reply: m.reply || 'Đã dừng phản hồi AI.',
-            }
-          : m
-      )
-    );
-  }, []);
+  const {
+    secondsLeft,
+    timerRunning,
+    toggleTimer,
+    resetTimer,
+    formattedClock,
+  } = useStudioTimer({
+    initialSeconds: suggestedMinutes * 60,
+    autoStart: false,
+    disabled: playgroundMode,
+    onExpire: () =>
+      pushToast({
+        title: 'Hết giờ làm bài PE!',
+        description: 'Bạn vẫn có thể tiếp tục hoàn thiện code và bấm Chấm Test Case.',
+        tone: 'warn',
+      }),
+  });
 
   useEffect(() => {
     void refreshAiServerStatus();
   }, [refreshAiServerStatus]);
-
-  // Sync AI Mentor, drawer, and run state cleanly when switching between PE <-> Playground
-  useEffect(() => {
-    if (prevPlaygroundModeRef.current === playgroundMode) return;
-    prevPlaygroundModeRef.current = playgroundMode;
-    runAbortRef.current?.abort();
-    abortActiveAi();
-    lastInteractionIdRef.current = null;
-    lastAiFilesSigRef.current = '';
-    setShowDiff(false);
-    setDiagnostics([]);
-    setCloudTestResults([]);
-    setLastTiming(null);
-    setShowAiPane(!playgroundMode);
-    if (!playgroundMode) {
-      setShowExamplesDrawer(false);
-    }
-  }, [playgroundMode, abortActiveAi]);
 
   // Persist Tryit preferences cleanly
   useEffect(() => {
@@ -561,58 +509,6 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     }
   };
 
-  // Hydrate PE starter/draft cleanly on PE selection without mutating state during render
-  useEffect(() => {
-    if (playgroundMode || !activePe || loadedPeId === activePe.id) return;
-
-    runAbortRef.current?.abort();
-    abortActiveAi();
-    if (latestDraftRef.current && latestDraftRef.current.peId !== activePe.id) {
-      flushLatestDraft();
-    }
-
-    const draft = readPeDraft(activePe.id);
-    const initMain = draft ? draft.mainCode : activePe.starterCode;
-    const initEntity = draft ? draft.entityCode : activePe.entityCode;
-    const isModified =
-      draft !== null &&
-      (draft.mainCode !== activePe.starterCode || draft.entityCode !== activePe.entityCode);
-
-    latestDraftRef.current = {
-      peId: activePe.id,
-      main: initMain,
-      entity: initEntity,
-      dirty: false,
-    };
-
-    setLoadedPeId(activePe.id);
-    setMainCode(initMain);
-    setEntityCode(initEntity);
-    setDraftState(isModified ? 'saved' : 'clean');
-    setCheckedCriteria({});
-    setActiveFile('main');
-    setShowDiff(false);
-    setDiagnostics([]);
-    setJumpTarget(null);
-    setCloudTestResults([]);
-    setLastTiming(null);
-    setConsoleStatus('Sẵn sàng biên dịch OpenJDK 21');
-    setConsoleTone('muted');
-    setConsoleOutput(
-      'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để biên dịch & chấm bài thật.'
-    );
-    setRevealedHints({});
-    setChatHistory([]);
-    setPendingPrompt('');
-    lastInteractionIdRef.current = null;
-    lastAiFilesSigRef.current = '';
-    setTimerRunning(false);
-    setSecondsLeft(suggestedMinutes * 60);
-
-    const initialEval = evaluatePeCode(activePe.id, initMain, initEntity);
-    setDiagnosisCards(initialEval.diagnosisCards);
-  }, [playgroundMode, activePe, loadedPeId, suggestedMinutes, abortActiveAi]);
-
   // Record last visited route for Dashboard resume banner
   useEffect(() => {
     if (playgroundMode) {
@@ -637,7 +533,6 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   useEffect(() => {
     return () => {
       runAbortRef.current?.abort();
-      aiAbortRef.current?.abort();
       flushLatestDraft();
       flushPlaygroundDraft();
     };
@@ -724,25 +619,6 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       );
     }, 180);
   };
-
-  useEffect(() => {
-    if (!timerRunning || playgroundMode) return;
-    const timer = window.setInterval(() => {
-      setSecondsLeft((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [timerRunning, playgroundMode]);
-
-  useEffect(() => {
-    if (secondsLeft === 0 && timerRunning) {
-      setTimerRunning(false);
-      pushToast({
-        title: 'Hết giờ làm bài PE!',
-        description: 'Bạn vẫn có thể tiếp tục hoàn thiện code và bấm Chấm Test Case.',
-        tone: 'warn',
-      });
-    }
-  }, [secondsLeft, timerRunning, pushToast]);
 
   const relatedSlotsList = useMemo(() => {
     if (!activePe || !pro192 || activePe.relatedSlots.length === 0) return [];
@@ -839,6 +715,116 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
       : activeFile === 'entity'
         ? entityFileName || mainFileName
         : activePe?.interfaceFileName ?? mainFileName;
+
+  const getFilesForAiContext = (): Array<{ name: string; content: string }> =>
+    playgroundMode
+      ? playgroundEffectiveFiles.map((f) => ({ name: f.name, content: f.content }))
+      : [
+          { name: mainFileName, content: mainCode },
+          ...(hasEntityFile && entityFileName ? [{ name: entityFileName, content: entityCode }] : []),
+          ...(hasInterfaceFile && activePe?.interfaceFileName && activePe.interfaceCode
+            ? [{ name: activePe.interfaceFileName, content: activePe.interfaceCode }]
+            : []),
+        ];
+
+  const {
+    chatInput,
+    setChatInput,
+    pendingPrompt,
+    chatHistory,
+    aiBusy,
+    mentorStyle,
+    clearChat,
+    resetTrackingOnModeSwitch,
+    resetSessionOnPeChange,
+    handleMentorStyleChange,
+    sendAiPrompt,
+    handleAskDiagnostic,
+    handleAskFailedTest,
+    handleAskCleanCodeReview,
+    abortActiveAi,
+  } = useStudioAiMentor({
+    playgroundMode,
+    canRunContext: playgroundMode || Boolean(activePe),
+    title: playgroundMode
+      ? pgSourceLabel || `JavaBrew Live Lab (${activeFileName})`
+      : `${activePe?.code ?? 'PE'}: ${activePe?.title ?? ''}`,
+    description: playgroundMode ? undefined : activePe?.desc,
+    checklist: playgroundMode ? undefined : activePe?.checklist,
+    activeFileName,
+    getFilesForAiContext,
+    diagnostics,
+    testResults: cloudTestResults,
+    diagnosisCards,
+    byokKey,
+    aiModel,
+    aiServerStatus,
+    updateAiServerQuota,
+    onOpenAiPane: () => setShowAiPane(true),
+  });
+
+  // Sync AI Mentor, drawer, and run state cleanly when switching between PE <-> Playground
+  useEffect(() => {
+    if (prevPlaygroundModeRef.current === playgroundMode) return;
+    prevPlaygroundModeRef.current = playgroundMode;
+    runAbortRef.current?.abort();
+    resetTrackingOnModeSwitch();
+    setShowDiff(false);
+    setDiagnostics([]);
+    setCloudTestResults([]);
+    setLastTiming(null);
+    setShowAiPane(!playgroundMode);
+    if (!playgroundMode) {
+      setShowExamplesDrawer(false);
+    }
+  }, [playgroundMode, resetTrackingOnModeSwitch]);
+
+  // Hydrate PE starter/draft cleanly on PE selection without mutating state during render
+  useEffect(() => {
+    if (playgroundMode || !activePe || loadedPeId === activePe.id) return;
+
+    runAbortRef.current?.abort();
+    resetSessionOnPeChange();
+    if (latestDraftRef.current && latestDraftRef.current.peId !== activePe.id) {
+      flushLatestDraft();
+    }
+
+    const draft = readPeDraft(activePe.id);
+    const initMain = draft ? draft.mainCode : activePe.starterCode;
+    const initEntity = draft ? draft.entityCode : activePe.entityCode;
+    const isModified =
+      draft !== null &&
+      (draft.mainCode !== activePe.starterCode || draft.entityCode !== activePe.entityCode);
+
+    latestDraftRef.current = {
+      peId: activePe.id,
+      main: initMain,
+      entity: initEntity,
+      dirty: false,
+    };
+
+    setLoadedPeId(activePe.id);
+    setMainCode(initMain);
+    setEntityCode(initEntity);
+    setDraftState(isModified ? 'saved' : 'clean');
+    setCheckedCriteria({});
+    setActiveFile('main');
+    setShowDiff(false);
+    setDiagnostics([]);
+    setJumpTarget(null);
+    setCloudTestResults([]);
+    setLastTiming(null);
+    setConsoleStatus('Sẵn sàng biên dịch OpenJDK 21');
+    setConsoleTone('muted');
+    setConsoleOutput(
+      'Nhấn "▶ Run Code" để chạy thử hoặc "✔ Chấm Test Case PE" để biên dịch & chấm bài thật.'
+    );
+    setRevealedHints({});
+    resetTimer(suggestedMinutes * 60, false);
+
+    const initialEval = evaluatePeCode(activePe.id, initMain, initEntity);
+    setDiagnosisCards(initialEval.diagnosisCards);
+  }, [playgroundMode, activePe, loadedPeId, suggestedMinutes, resetSessionOnPeChange, resetTimer]);
 
   const activeFileDiagnostics = useMemo(
     () => diagnostics.filter((d) => d.file === activeFileName),
@@ -1649,245 +1635,6 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
     }
   };
 
-  const getFilesForAiContext = (): Array<{ name: string; content: string }> =>
-    playgroundMode
-      ? playgroundEffectiveFiles.map((f) => ({ name: f.name, content: f.content }))
-      : [
-          { name: mainFileName, content: mainCode },
-          ...(hasEntityFile && entityFileName ? [{ name: entityFileName, content: entityCode }] : []),
-          ...(hasInterfaceFile && activePe?.interfaceFileName && activePe.interfaceCode
-            ? [{ name: activePe.interfaceFileName, content: activePe.interfaceCode }]
-            : []),
-        ];
-
-  const handleMentorStyleChange = (nextStyle: AiMentorStyle) => {
-    setMentorStyle(nextStyle);
-    saveMentorStyle(nextStyle);
-    lastInteractionIdRef.current = null;
-  };
-
-  const sendAiPrompt = async (promptText: string, opts?: { overrideStyle?: AiMentorStyle }) => {
-    const cleanPrompt = promptText.trim();
-    if (!cleanPrompt || aiBusy) return;
-    if (!playgroundMode && !activePe) return;
-    setChatInput('');
-
-    const filesForContext = getFilesForAiContext();
-    const effectiveStyle = opts?.overrideStyle ?? mentorStyle;
-
-    const context: AiMentorContext = {
-      mode: playgroundMode ? 'playground' : 'pe',
-      title: playgroundMode
-        ? pgSourceLabel || `JavaBrew Live Lab (${activeFileName})`
-        : `${activePe!.code}: ${activePe!.title}`,
-      description: playgroundMode ? undefined : activePe!.desc,
-      checklist: playgroundMode ? undefined : activePe!.checklist,
-      activeFileName,
-      files: filesForContext,
-      diagnostics,
-      testResults: cloudTestResults,
-      diagnosisHints: diagnosisCards
-        .filter((c) => c.tone !== 'green')
-        .map((c) => `${c.title}: ${c.description}`),
-    };
-
-    const canUseLiveAi = Boolean(byokKey || aiServerStatus?.available);
-    if (canUseLiveAi) {
-      const filesSig = filesForContext.map((f) => `${f.name}:${f.content}`).join('\n---\n');
-      const codeChanged = !lastInteractionIdRef.current || filesSig !== lastAiFilesSigRef.current;
-      const targetModel = byokKey ? aiModel : aiServerStatus?.defaultModel || aiModel;
-      const initialBadge = byokKey ? targetModel : `AI Tự động · ${targetModel}`;
-
-      aiAbortRef.current?.abort();
-      const controller = new AbortController();
-      aiAbortRef.current = controller;
-
-      const msgId = `msg-${Date.now()}`;
-      setAiBusy(true);
-      setPendingPrompt('');
-      setChatHistory((prev) => [
-        ...prev,
-        {
-          id: msgId,
-          prompt: cleanPrompt,
-          reply: '',
-          tone: 'ai',
-          badgeLabel: initialBadge,
-          streaming: true,
-          liveStreamed: true,
-        },
-      ]);
-
-      try {
-        const res = await streamAiMentor({
-          apiKey: byokKey || undefined,
-          model: targetModel,
-          mentorStyle: effectiveStyle,
-          prompt: cleanPrompt,
-          context,
-          previousInteractionId: lastInteractionIdRef.current,
-          codeChanged,
-          signal: controller.signal,
-          onMeta: (meta) => {
-            if (aiAbortRef.current !== controller) return;
-            const badge = meta.source === 'byok' ? meta.model : `AI Tự động · ${meta.model}`;
-            setChatHistory((prev) =>
-              prev.map((m) => (m.id === msgId ? { ...m, badgeLabel: badge } : m))
-            );
-            if (typeof meta.remaining === 'number') {
-              updateAiServerQuota(meta.remaining, meta.limit);
-            }
-          },
-          onDelta: (chunk) => {
-            if (aiAbortRef.current !== controller) return;
-            setChatHistory((prev) =>
-              prev.map((m) => (m.id === msgId ? { ...m, reply: m.reply + chunk } : m))
-            );
-          },
-        });
-
-        if (aiAbortRef.current !== controller) return;
-
-        if (res.ok) {
-          if (res.interactionId) {
-            lastInteractionIdRef.current = res.interactionId;
-          }
-          lastAiFilesSigRef.current = filesSig;
-          if (typeof res.remaining === 'number') {
-            updateAiServerQuota(res.remaining, res.limit);
-          }
-          const finalBadge =
-            res.source === 'server' ? `AI Tự động · ${res.model}` : res.model;
-          setChatHistory((prev) =>
-            prev.map((m) =>
-              m.id === msgId
-                ? {
-                    ...m,
-                    reply: res.reply || m.reply,
-                    streaming: false,
-                    badgeLabel: finalBadge,
-                  }
-                : m
-            )
-          );
-        } else {
-          if (res.quotaExceeded) {
-            updateAiServerQuota(0, res.limit);
-          } else if (typeof res.remaining === 'number') {
-            updateAiServerQuota(res.remaining, res.limit);
-          }
-          setChatHistory((prev) =>
-            prev.map((m) =>
-              m.id === msgId
-                ? {
-                    ...m,
-                    reply: res.errorMessage,
-                    tone: 'error',
-                    streaming: false,
-                    quotaExceeded: res.quotaExceeded,
-                    badgeLabel: res.quotaExceeded
-                      ? 'Hết lượt hôm nay'
-                      : res.status
-                        ? `Lỗi HTTP ${res.status}`
-                        : 'Lỗi kết nối',
-                  }
-                : m
-            )
-          );
-        }
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          setChatHistory((prev) =>
-            prev.map((m) =>
-              m.id === msgId
-                ? {
-                    ...m,
-                    streaming: false,
-                    reply: m.reply || 'Đã dừng phản hồi AI.',
-                  }
-                : m
-            )
-          );
-        } else {
-          setChatHistory((prev) =>
-            prev.map((m) =>
-              m.id === msgId
-                ? {
-                    ...m,
-                    reply: 'Không thể hoàn tất yêu cầu tới Gemini API. Hãy kiểm tra lại kết nối.',
-                    tone: 'error',
-                    streaming: false,
-                    badgeLabel: 'Lỗi mạng',
-                  }
-                : m
-            )
-          );
-        }
-      } finally {
-        if (aiAbortRef.current === controller) {
-          aiAbortRef.current = null;
-          setAiBusy(false);
-          setPendingPrompt('');
-        }
-      }
-      return;
-    }
-
-    const offlineReply = buildOfflineMentorReply(cleanPrompt, context);
-    setChatHistory((prev) => [
-      ...prev,
-      {
-        id: `msg-${Date.now()}`,
-        prompt: cleanPrompt,
-        reply: offlineReply,
-        tone: 'offline',
-        badgeLabel: 'Gợi ý cục bộ',
-      },
-    ]);
-  };
-
-  const handleAskDiagnostic = (diag: JavaDiagnostic) => {
-    setShowAiPane(true);
-    const files = getFilesForAiContext();
-    const matchedFile =
-      files.find((f) => f.name.toLowerCase() === diag.file.toLowerCase()) || files[0];
-    let snippetNote = '';
-    if (matchedFile) {
-      const lines = matchedFile.content.split(/\r?\n/);
-      const start = Math.max(0, diag.line - 6);
-      const end = Math.min(lines.length, diag.line + 5);
-      const numbered = lines
-        .slice(start, end)
-        .map((line, i) => `${start + i + 1}: ${line}`)
-        .join('\n');
-      snippetNote = `\nĐoạn code quanh dòng ${diag.line} trong ${matchedFile.name}:\n\`\`\`java\n${numbered}\n\`\`\``;
-    }
-    void sendAiPrompt(
-      `Giải thích lỗi javac tại ${diag.file}:${diag.line}:${diag.column}: "${diag.message}" và chỉ cách sửa.${snippetNote}`
-    );
-  };
-
-  const handleAskFailedTest = (tc: JavaTestCaseResult) => {
-    setShowAiPane(true);
-    const details = [
-      `Tại sao ${tc.id} (${tc.name}) bị FAIL?`,
-      tc.expected ? `- Kỳ vọng: ${tc.expected}` : '',
-      tc.actual ? `- Thực tế: ${tc.actual}` : '',
-      tc.error ? `- Ghi chú: ${tc.error}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n');
-    void sendAiPrompt(details);
-  };
-
-  const handleAskCleanCodeReview = () => {
-    setShowAiPane(true);
-    void sendAiPrompt(
-      'Hãy chấm điểm Clean Code theo tiêu chí thi PE PRO192 (tương thích JDK 8, bỏ package, xử lý null/chuỗi rỗng, chuẩn định dạng toString/số thực và đặt tên biến/hàm) và chỉ ra chỗ cần cải thiện.',
-      { overrideStyle: 'deep' }
-    );
-  };
-
   const pgEntryClass = useMemo(() => {
     const found = playgroundEffectiveFiles.find((f) => hasMainMethod(f.content));
     return (found || playgroundEffectiveFiles[0])?.name.replace(/\.java$/, '') || 'Main';
@@ -2368,225 +2115,51 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
   return (
     <div className="flex flex-1 flex-col">
       {/* Studio Sub-toolbar */}
-      <div className="border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 sm:px-4">
-        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
-            <Link
-              to="/pe"
-              className="inline-flex min-h-[40px] sm:min-h-[36px] items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              ← Kho đề PE
-            </Link>
-
-            <div className="inline-flex rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-0.5">
-              <button
-                type="button"
-                onClick={() => {
-                  flushLatestDraft();
-                  navigate('/studio/playground?example=demo-intro');
-                }}
-                className={[
-                  'min-h-[36px] sm:min-h-[32px] rounded-md px-2.5 py-1 font-semibold transition-colors',
-                  playgroundMode
-                    ? 'bg-[var(--success)] font-bold text-[#1C1917]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                ].join(' ')}
-              >
-                ☕ Brew Lab
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  flushPlaygroundDraft();
-                  navigate(`/studio/${activePe?.id ?? 1}`);
-                }}
-                className={[
-                  'min-h-[36px] sm:min-h-[32px] rounded-md px-2.5 py-1 font-semibold transition-colors',
-                  !playgroundMode
-                    ? 'bg-[var(--accent)] font-bold text-[var(--accent-contrast)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                ].join(' ')}
-              >
-                🎯 Luyện Đề PE
-              </button>
-            </div>
-
-            <select
-              aria-label="Chọn chế độ hoặc đề PE trong Code Studio"
-              value={playgroundMode ? 'playground' : String(activePe?.id ?? 1)}
-              onChange={(e) => {
-                flushLatestDraft();
-                flushPlaygroundDraft();
-                if (e.target.value === 'playground') {
-                  navigate('/studio/playground');
-                } else {
-                  navigate(`/studio/${e.target.value}`);
-                }
-              }}
-              className="min-h-[40px] sm:min-h-[36px] min-w-0 w-full sm:w-auto sm:max-w-[260px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-bold text-[var(--text-primary)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-            >
-              <option value="playground">
-                ☕ JavaBrew Live Lab (Tự do · tối đa {MAX_PLAYGROUND_FILES} file)
-              </option>
-              {challengesByPaper.map(([paperName, groupItems]) => (
-                <optgroup key={paperName} label={`Bộ đề ${paperName}`}>
-                  {groupItems.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.code}: {c.title}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-
-            {!playgroundMode && (
-              <div className="inline-flex min-h-[40px] sm:min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1 font-mono tabular-nums">
-                <Timer className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
-                <span
-                  className={
-                    secondsLeft === 0
-                      ? 'text-[var(--danger-text)]'
-                      : secondsLeft <= 300
-                        ? 'text-[var(--accent-text)]'
-                        : 'text-[var(--text-primary)]'
-                  }
-                >
-                  {formatClock(secondsLeft)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setTimerRunning((r) => !r)}
-                  aria-label={timerRunning ? 'Tạm dừng đồng hồ' : 'Bắt đầu bấm giờ'}
-                  className="ml-1 rounded p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  {timerRunning ? <Pause className="h-3 w-3" aria-hidden="true" /> : <Play className="h-3 w-3" aria-hidden="true" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTimerRunning(false);
-                    setSecondsLeft(suggestedMinutes * 60);
-                  }}
-                  aria-label="Đặt lại đồng hồ"
-                  className="rounded p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  <RotateCcw className="h-3 w-3" aria-hidden="true" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
-            <span
-              role="status"
-              className="rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs text-[var(--text-muted)]"
-            >
-              {playgroundMode
-                ? pgDraftState === 'saving'
-                  ? 'Đang lưu…'
-                  : pgDraftState === 'saved'
-                    ? '✓ Đã lưu Playground'
-                    : 'Mẫu gốc'
-                : draftState === 'saving'
-                  ? 'Đang lưu nháp…'
-                  : draftState === 'saved'
-                    ? '✓ Đã lưu nháp'
-                    : 'Code gốc'}
-            </span>
-
-            {playgroundMode && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowExamplesDrawer((s) => !s)}
-                  aria-expanded={showExamplesDrawer}
-                  className={[
-                    'inline-flex min-h-[40px] sm:min-h-[36px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-medium transition-colors',
-                    showExamplesDrawer
-                      ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-text)]'
-                      : 'border-[var(--border-default)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                  ].join(' ')}
-                >
-                  <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Mẫu ({PLAYGROUND_TEMPLATES.length})</span>
-                </button>
-
-                <StretchySwitch
-                  checked={autoRun}
-                  onChange={setAutoRun}
-                  label="Auto-Run"
-                  title="Tự động chạy khi mở mẫu mới"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => void handleSharePlayground()}
-                  className="inline-flex min-h-[40px] sm:min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                >
-                  <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Chia sẻ</span>
-                </button>
-              </>
-            )}
-
-            <button
-              type="button"
-              onClick={() =>
-                setSplitOrientation((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal'))
-              }
-              aria-label="Xoay bố cục Ngang hoặc Dọc"
-              title={
-                splitOrientation === 'horizontal'
-                  ? 'Đang chia Trái / Phải — bấm để xếp Trên / Dưới'
-                  : 'Đang xếp Trên / Dưới — bấm để chia Trái / Phải'
-              }
-              className="inline-flex min-h-[40px] sm:min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              {splitOrientation === 'horizontal' ? (
-                <Columns2 className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <Rows2 className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              <span>{splitOrientation === 'horizontal' ? 'Ngang ⇄ Dọc' : 'Dọc ⇄ Ngang'}</span>
-            </button>
-
-            <MorphActionButton
-              label="▶ Run Code"
-              variant={playgroundMode ? 'primary' : 'secondary'}
-              className={playgroundMode ? '!bg-[var(--success)] !text-[#1C1917] hover:opacity-90' : ''}
-              disabled={isExecuting}
-              onClick={handleRunCode}
-            />
-            {!playgroundMode && (
-              <MorphActionButton
-                label="✔ Chấm Test Case PE"
-                variant="primary"
-                disabled={isExecuting}
-                onClick={handleSubmitTests}
-              />
-            )}
-            <button
-              type="button"
-              onClick={() => setShowAiPane((s) => !s)}
-              className="min-h-[36px] rounded-lg border border-[var(--info)]/40 bg-[var(--info-soft)] px-3 py-1.5 font-medium text-[var(--info-text)] transition-colors hover:opacity-90"
-            >
-              {playgroundMode ? '✨ Hỏi AI Mentor' : '✨ AI Review & Tối ưu'}
-            </button>
-            <button
-              type="button"
-              onClick={handleReset}
-              title={
-                playgroundMode
-                  ? 'Khôi phục mẫu hiện tại về bản gốc'
-                  : 'Khôi phục code gốc (Starter Code)'
-              }
-              className="min-h-[36px] rounded-lg px-2.5 py-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            >
-              {playgroundMode ? '↺ Khôi phục mẫu' : '↺ Khôi phục gốc'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <StudioToolbar
+        playgroundMode={playgroundMode}
+        activePeId={activePe?.id}
+        challengesByPaper={challengesByPaper}
+        maxPlaygroundFiles={MAX_PLAYGROUND_FILES}
+        examplesCount={PLAYGROUND_TEMPLATES.length}
+        draftState={draftState}
+        pgDraftState={pgDraftState}
+        secondsLeft={secondsLeft}
+        timerRunning={timerRunning}
+        formattedClock={formattedClock}
+        onToggleTimer={toggleTimer}
+        onResetTimer={() => resetTimer(suggestedMinutes * 60, false)}
+        showExamplesDrawer={showExamplesDrawer}
+        onToggleExamplesDrawer={() => setShowExamplesDrawer((s) => !s)}
+        autoRun={autoRun}
+        onAutoRunChange={setAutoRun}
+        onSharePlayground={() => void handleSharePlayground()}
+        splitOrientation={splitOrientation}
+        onToggleOrientation={() =>
+          setSplitOrientation((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal'))
+        }
+        isExecuting={isExecuting}
+        onRunCode={handleRunCode}
+        onSubmitTests={handleSubmitTests}
+        onToggleAiPane={() => setShowAiPane((s) => !s)}
+        onReset={handleReset}
+        onSwitchToPlayground={() => {
+          flushLatestDraft();
+          navigate('/studio/playground?example=demo-intro');
+        }}
+        onSwitchToPe={(peNum) => {
+          flushPlaygroundDraft();
+          navigate(`/studio/${peNum}`);
+        }}
+        onSelectModeOrPe={(value) => {
+          flushLatestDraft();
+          flushPlaygroundDraft();
+          if (value === 'playground') {
+            navigate('/studio/playground');
+          } else {
+            navigate(`/studio/${value}`);
+          }
+        }}
+      />
 
       {/* Main Split-Pane Workspace with Optional Side Drawers */}
       <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col lg:flex-row">
@@ -2766,12 +2339,7 @@ export function CodeStudioPage({ isPlayground = false }: CodeStudioPageProps) {
             hasFailedTests={cloudTestResults.some((t) => !t.passed)}
             onOpenSettings={() => setIsSettingsOpen(true)}
             chatHistory={chatHistory}
-            onClearChat={() => {
-              abortActiveAi();
-              setChatHistory([]);
-              lastInteractionIdRef.current = null;
-              lastAiFilesSigRef.current = '';
-            }}
+            onClearChat={clearChat}
             onClose={() => setShowAiPane(false)}
             diagnosisCards={diagnosisCards}
             revealedHints={revealedHints}
