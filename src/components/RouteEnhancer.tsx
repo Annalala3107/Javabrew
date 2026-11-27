@@ -27,6 +27,10 @@ export function RouteEnhancer() {
 
     if (path === '/' || path === '') {
       nextTitle = 'JavaBrew — Nền tảng Học PRO192 & Luyện PE Java';
+    } else if (path.startsWith('/login')) {
+      nextTitle = 'Đăng nhập & Đăng ký — JavaBrew';
+    } else if (path.startsWith('/auth/callback')) {
+      nextTitle = 'Đang xác thực — JavaBrew';
     } else if (path.startsWith('/dashboard')) {
       nextTitle = 'Dashboard — JavaBrew';
     } else if (path === '/pe') {

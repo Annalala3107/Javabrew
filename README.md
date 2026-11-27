@@ -32,6 +32,8 @@ Không gian học Java OOP **PRO192 (30 Slots, 150 bài tập, 19 câu đề PE 
 | `GEMINI_DEFAULT_MODEL` | `gemini-3.5-flash-lite` | Tùy chọn | Model mặc định (`gemini-3.5-flash-lite` hoặc `gemini-4-hydrogen`) |
 | `ALLOWED_ORIGINS` | `https://domain-phu.com` | Tùy chọn | Danh sách origin hợp lệ bổ sung (phân tách bằng dấu phẩy) |
 | `SITE_URL` | `https://javabrew.vercel.app` | Tùy chọn | Origin dùng khi sinh `public/sitemap.xml` |
+| `VITE_SUPABASE_URL` | `https://xxxx.supabase.co` | Tùy chọn (Khuyến nghị bảo mật) | Project URL từ Supabase Dashboard (bỏ trống nếu chạy mở không khóa) |
+| `VITE_SUPABASE_ANON_KEY` | `eyJ...` / `sb_publishable_...` | Tùy chọn (Khuyến nghị bảo mật) | Anon / Publishable public key từ Supabase Dashboard |
 
 ---
 

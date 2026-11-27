@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
-import { ArrowUpRight, Settings } from 'lucide-react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowUpRight, LogIn, LogOut, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import {
   AppMobileHeaderDrawer,
   AppMobileHeaderTrigger,
@@ -27,7 +28,9 @@ const NAV_ITEMS = [
 
 export function TopBar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { lang, setLang, setIsSearchOpen, setIsSettingsOpen } = useApp();
+  const { configured, user, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuBtnRef = useRef<HTMLButtonElement>(null);
   const mobilePanelId = useMobileHeaderMenuId();
@@ -129,6 +132,41 @@ export function TopBar() {
           >
             <Settings className="h-4 w-4" aria-hidden="true" />
           </button>
+
+          {configured && user && (
+            <div className="flex items-center gap-1.5">
+              <span
+                title={user.email || 'Đã đăng nhập'}
+                className="hidden max-w-[130px] truncate rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] lg:inline-block"
+              >
+                {(user.user_metadata?.full_name as string | undefined) ||
+                  user.email?.split('@')[0] ||
+                  'Tài khoản'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  void signOut().then(() => navigate('/login', { replace: true }));
+                }}
+                title="Đăng xuất khỏi JavaBrew"
+                aria-label="Đăng xuất"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2.5 py-2 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--danger)]/50 hover:text-[var(--danger-text)] md:min-h-[38px]"
+              >
+                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Đăng xuất</span>
+              </button>
+            </div>
+          )}
+
+          {configured && !user && (
+            <Link
+              to="/login"
+              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-bold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
+            >
+              <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Đăng nhập</span>
+            </Link>
+          )}
 
           <AppMobileHeaderTrigger
             open={mobileMenuOpen}

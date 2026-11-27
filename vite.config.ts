@@ -35,6 +35,9 @@ export default defineConfig({
           if (/\/node_modules\/(gsap|@gsap)\//.test(norm)) {
             return 'motion-vendor';
           }
+          if (/\/node_modules\/@supabase\//.test(norm)) {
+            return 'supabase-vendor';
+          }
           return undefined;
         },
       },

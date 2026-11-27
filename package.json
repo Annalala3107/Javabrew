@@ -30,6 +30,7 @@
     "@codemirror/view": "^6.43.15",
     "@gsap/react": "^2.1.2",
     "@lezer/highlight": "^1.2.5",
+    "@supabase/supabase-js": "^2.119.2",
     "@vercel/functions": "^3.11.3",
     "@vercel/sandbox": "^4.1.0",
     "gsap": "^3.15.1",

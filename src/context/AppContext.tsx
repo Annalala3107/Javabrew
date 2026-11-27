@@ -24,6 +24,7 @@ import {
   type AiMentorModel,
   type AiServerStatus,
 } from '../services/aiMentorService';
+import { AuthProvider } from './AuthContext';
 import {
   clearPlaygroundWorkspace,
   readPlaygroundWorkspace,
@@ -797,7 +798,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AuthProvider>
+      <AppContext.Provider value={value}>{children}</AppContext.Provider>
+    </AuthProvider>
+  );
 }
 
 export function useApp(): AppContextValue {

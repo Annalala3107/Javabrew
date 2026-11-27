@@ -2,9 +2,17 @@ import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { RequireAuth } from './components/auth/RequireAuth';
 import { SkeletonCard } from './components/lucian/SkeletonCard';
 import { AppProvider } from './context/AppContext';
 import { LandingPage } from './pages/LandingPage';
+
+const AuthPage = lazy(() =>
+  import('./pages/AuthPage').then((m) => ({ default: m.AuthPage }))
+);
+const AuthCallbackPage = lazy(() =>
+  import('./pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage }))
+);
 
 const DashboardPage = lazy(() =>
   import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage }))
@@ -54,20 +62,27 @@ export function AppRoutes() {
         <Routes>
           <Route element={<AppLayout />}>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/pro192" element={<LearnPage mode="pro192" />} />
-            <Route path="/pro192/pe-challenges" element={<Navigate to="/pe" replace />} />
-            <Route path="/pro192/*" element={<LearnPage mode="pro192" />} />
-            <Route path="/docs" element={<LearnPage mode="docs" />} />
-            <Route path="/docs/*" element={<LearnPage mode="docs" />} />
-            <Route path="/resources" element={<LearnPage mode="resources" />} />
-            <Route path="/pe" element={<PeHubPage />} />
-            <Route path="/pe/mock" element={<MockExamPage />} />
-            <Route path="/pe/mock/:paper" element={<MockExamPage />} />
-            <Route path="/studio" element={<CodeStudioPage />} />
-            <Route path="/studio/playground" element={<CodeStudioPage isPlayground />} />
-            <Route path="/studio/:peId" element={<CodeStudioPage />} />
-            <Route path="/notes" element={<NotesHubPage />} />
+            <Route path="/login" element={<AuthPage />} />
+            <Route path="/register" element={<Navigate to="/login?mode=register" replace />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
+
+            <Route element={<RequireAuth />}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/pro192" element={<LearnPage mode="pro192" />} />
+              <Route path="/pro192/pe-challenges" element={<Navigate to="/pe" replace />} />
+              <Route path="/pro192/*" element={<LearnPage mode="pro192" />} />
+              <Route path="/docs" element={<LearnPage mode="docs" />} />
+              <Route path="/docs/*" element={<LearnPage mode="docs" />} />
+              <Route path="/resources" element={<LearnPage mode="resources" />} />
+              <Route path="/pe" element={<PeHubPage />} />
+              <Route path="/pe/mock" element={<MockExamPage />} />
+              <Route path="/pe/mock/:paper" element={<MockExamPage />} />
+              <Route path="/studio" element={<CodeStudioPage />} />
+              <Route path="/studio/playground" element={<CodeStudioPage isPlayground />} />
+              <Route path="/studio/:peId" element={<CodeStudioPage />} />
+              <Route path="/notes" element={<NotesHubPage />} />
+            </Route>
+
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

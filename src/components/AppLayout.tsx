@@ -12,13 +12,16 @@ import { LucianToastStack } from './lucian/LucianToastStack';
 export function AppLayout() {
   const location = useLocation();
   const { metaError, retryMeta, isSearchOpen, isSettingsOpen, ensureMetadataLoaded } = useApp();
-  const isLanding = location.pathname === '/';
+  const isMinimalChrome =
+    location.pathname === '/' ||
+    location.pathname === '/login' ||
+    location.pathname === '/auth/callback';
 
   useEffect(() => {
-    if (!isLanding || isSearchOpen || isSettingsOpen) {
+    if (!isMinimalChrome || isSearchOpen || isSettingsOpen) {
       void ensureMetadataLoaded();
     }
-  }, [isLanding, isSearchOpen, isSettingsOpen, ensureMetadataLoaded]);
+  }, [isMinimalChrome, isSearchOpen, isSettingsOpen, ensureMetadataLoaded]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
@@ -30,7 +33,7 @@ export function AppLayout() {
         Chuyển đến nội dung chính
       </a>
 
-      {!isLanding && <TopBar />}
+      {!isMinimalChrome && <TopBar />}
 
       {metaError && (
         <div
